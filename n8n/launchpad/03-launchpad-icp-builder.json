@@ -1,0 +1,438 @@
+{
+  "name": "Launchpad ICP Builder",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "v1/icp/build",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "=eq.tool_icp_builder"
+            },
+            {
+              "name": "select",
+              "value": "enabled"
+            }
+          ]
+        }
+      },
+      "id": "verify_entitlement",
+      "name": "Verify ICP Builder Entitlement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json[0] }}",
+              "value2": null
+            }
+          ]
+        }
+      },
+      "id": "check_entitlement",
+      "name": "Entitlement Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Feature not enabled\",\n  \"upgrade_url\": \"https://usebylda.com/launchpad?tier=pro\"\n}"
+      },
+      "id": "upsell_not_entitled",
+      "name": "Return Upsell - Not Entitled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BYLDA_OPS_WEBHOOK_URL }}/credit-deduction",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "icp_builder"
+            },
+            {
+              "name": "cost",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "id": "deduct_credits",
+      "name": "Deduct Credits (10)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json.insufficient_credits }}"
+            }
+          ]
+        }
+      },
+      "id": "check_credits",
+      "name": "Credits Sufficient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Insufficient credits\",\n  \"required\": 10,\n  \"current\": \"{{ $json.current_credits }}\",\n  \"upgrade_url\": \"https://usebylda.com/billing\"\n}"
+      },
+      "id": "upsell_insufficient_credits",
+      "name": "Return Upsell - Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare customer examples context if provided\nlet customerContext = '';\nif ($json.body.current_customer_examples && Array.isArray($json.body.current_customer_examples)) {\n  if ($json.body.current_customer_examples.length > 0) {\n    customerContext = `Current customers/wins: ${$json.body.current_customer_examples.join(', ')}`;\n  }\n}\n\nreturn {\n  customer_context: customerContext,\n  has_customer_data: !!customerContext\n};"
+      },
+      "id": "prepare_customer_context",
+      "name": "Prepare Customer Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ANTHROPIC_API_URL }}/v1/messages",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-opus-4-20250805"
+            },
+            {
+              "name": "max_tokens",
+              "value": "3000"
+            }
+          ]
+        },
+        "body": "{\n  \"model\": \"claude-opus-4-20250805\",\n  \"max_tokens\": 3000,\n  \"system\": \"You are an expert B2B marketing strategist specializing in Ideal Customer Profile (ICP) development. Generate detailed, data-driven ICP based on offer, niche, and any customer data provided. Include demographics, firmographics, psychographics, daily pain points, where they spend time online (watering holes), buying triggers, budget range, decision-making criteria, and common objections. Be specific and actionable—this ICP will drive all sales and marketing decisions. OUTPUT ONLY VALID JSON with no markdown formatting. Format: { \\\"icp_name\\\": \\\"\\\", \\\"demographics\\\": { \\\"title\\\": \\\"\\\", \\\"experience_level\\\": \\\"\\\", \\\"education\\\": \\\"\\\" }, \\\"firmographics\\\": { \\\"company_size\\\": \\\"\\\", \\\"revenue_range\\\": \\\"\\\", \\\"growth_stage\\\": \\\"\\\", \\\"industry_focus\\\": \\\"\\\" }, \\\"psychographics\\\": { \\\"values\\\": [], \\\"goals\\\": [], \\\"fears\\\": [] }, \\\"daily_pain_points\\\": [], \\\"watering_holes\\\": [], \\\"buying_triggers\\\": [], \\\"budget_range\\\": { \\\"min\\\": \\\"$X\\\", \\\"max\\\": \\\"$X\\\", \\\"decision_timeframe\\\": \\\"\\\" }, \\\"decision_criteria\\\": [], \\\"common_objections\\\": [{ \\\"objection\\\": \\\"\\\", \\\"counter_argument\\\": \\\"\\\" }, ...] }\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Build a detailed ICP for: Offer: {{ $json.body.offer }}, Niche: {{ $json.body.niche }}. {{ $json.customer_context }}. Generate structured ICP including: 1) Demographics (title, experience, education), 2) Firmographics (company size, revenue, growth stage, industry), 3) Psychographics (values, goals, fears), 4) Daily pain points (ranked by severity, 5-8 items), 5) Watering holes (where they spend time: LinkedIn, Reddit, podcasts, conferences, Slack communities, newsletters), 6) Buying triggers (events that create urgency or interest), 7) Budget range (realistic spend for this offer), 8) Decision criteria (what they evaluate, in priority order), 9) Common objections with counter-arguments. If customer examples provided, reverse-engineer their common characteristics. Return ONLY JSON.\"\n    }\n  ]\n}"
+      },
+      "id": "call_claude_api",
+      "name": "Call Claude ICP Builder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300],
+      "onError": "continueErrorOutput",
+      "credentials": [
+        {
+          "name": "anthropicApi",
+          "type": "anthropicApi"
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude response from nested structure\nconst responseContent = $json.content[0].text;\n\n// Parse JSON from Claude\nlet icp;\ntry {\n  icp = JSON.parse(responseContent);\n} catch(e) {\n  // If Claude wrapped in markdown backticks, extract it\n  const jsonMatch = responseContent.match(/```json\\n?(.*?)\\n?```/s);\n  if (jsonMatch) {\n    icp = JSON.parse(jsonMatch[1]);\n  } else if (responseContent.match(/^\\{/)) {\n    // Try raw object\n    icp = JSON.parse(responseContent);\n  } else {\n    throw new Error('Invalid JSON from Claude: ' + responseContent.substring(0, 200));\n  }\n}\n\n// Validate required top-level fields\nconst requiredFields = [\n  'icp_name',\n  'demographics',\n  'firmographics',\n  'psychographics',\n  'daily_pain_points',\n  'watering_holes',\n  'buying_triggers',\n  'budget_range',\n  'decision_criteria',\n  'common_objections'\n];\n\nfor (const field of requiredFields) {\n  if (icp[field] === undefined || icp[field] === null) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\n// Validate demographics object\nconst demoFields = ['title', 'experience_level', 'education'];\nfor (const field of demoFields) {\n  if (!icp.demographics[field]) {\n    throw new Error(`demographics missing field: ${field}`);\n  }\n}\n\n// Validate firmographics object\nconst firmFields = ['company_size', 'revenue_range', 'growth_stage', 'industry_focus'];\nfor (const field of firmFields) {\n  if (!icp.firmographics[field]) {\n    throw new Error(`firmographics missing field: ${field}`);\n  }\n}\n\n// Validate psychographics object\nif (!icp.psychographics.values || !Array.isArray(icp.psychographics.values) || icp.psychographics.values.length === 0) {\n  throw new Error('psychographics.values must be non-empty array');\n}\nif (!icp.psychographics.goals || !Array.isArray(icp.psychographics.goals) || icp.psychographics.goals.length === 0) {\n  throw new Error('psychographics.goals must be non-empty array');\n}\nif (!icp.psychographics.fears || !Array.isArray(icp.psychographics.fears) || icp.psychographics.fears.length === 0) {\n  throw new Error('psychographics.fears must be non-empty array');\n}\n\n// Validate daily_pain_points array\nif (!Array.isArray(icp.daily_pain_points) || icp.daily_pain_points.length < 5) {\n  throw new Error(`Expected minimum 5 pain points, got ${icp.daily_pain_points.length}`);\n}\n\nfor (let i = 0; i < icp.daily_pain_points.length; i++) {\n  if (!icp.daily_pain_points[i] || icp.daily_pain_points[i].trim().length === 0) {\n    throw new Error(`Pain point ${i + 1} is empty`);\n  }\n}\n\n// Validate watering_holes array\nif (!Array.isArray(icp.watering_holes) || icp.watering_holes.length < 3) {\n  throw new Error(`Expected minimum 3 watering holes, got ${icp.watering_holes.length}`);\n}\n\nfor (let i = 0; i < icp.watering_holes.length; i++) {\n  if (!icp.watering_holes[i] || icp.watering_holes[i].trim().length === 0) {\n    throw new Error(`Watering hole ${i + 1} is empty`);\n  }\n}\n\n// Validate buying_triggers array\nif (!Array.isArray(icp.buying_triggers) || icp.buying_triggers.length < 3) {\n  throw new Error(`Expected minimum 3 buying triggers, got ${icp.buying_triggers.length}`);\n}\n\nfor (let i = 0; i < icp.buying_triggers.length; i++) {\n  if (!icp.buying_triggers[i] || icp.buying_triggers[i].trim().length === 0) {\n    throw new Error(`Buying trigger ${i + 1} is empty`);\n  }\n}\n\n// Validate budget_range object\nif (!icp.budget_range.min || !icp.budget_range.max || !icp.budget_range.decision_timeframe) {\n  throw new Error('budget_range missing min, max, or decision_timeframe');\n}\n\n// Validate decision_criteria array\nif (!Array.isArray(icp.decision_criteria) || icp.decision_criteria.length < 4) {\n  throw new Error(`Expected minimum 4 decision criteria, got ${icp.decision_criteria.length}`);\n}\n\nfor (let i = 0; i < icp.decision_criteria.length; i++) {\n  if (!icp.decision_criteria[i] || icp.decision_criteria[i].trim().length === 0) {\n    throw new Error(`Decision criterion ${i + 1} is empty`);\n  }\n}\n\n// Validate common_objections array\nif (!Array.isArray(icp.common_objections) || icp.common_objections.length < 3) {\n  throw new Error(`Expected minimum 3 objections, got ${icp.common_objections.length}`);\n}\n\nfor (let i = 0; i < icp.common_objections.length; i++) {\n  const objection = icp.common_objections[i];\n  if (!objection.objection || !objection.counter_argument) {\n    throw new Error(`Objection ${i + 1} missing objection or counter_argument`);\n  }\n}\n\nreturn icp;"
+      },
+      "id": "parse_claude_response",
+      "name": "Parse & Validate ICP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_ai_config",
+        "method": "PATCH",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            }
+          ]
+        },
+        "body": "{\n  \"icp_profile\": {{ JSON.stringify($json) }},\n  \"updated_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "upsert_icp_to_user_config",
+      "name": "Upsert ICP to user_ai_config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_outputs",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "icp_builder"
+            },
+            {
+              "name": "type",
+              "value": "icp"
+            },
+            {
+              "name": "created_at",
+              "value": "=now()"
+            }
+          ]
+        },
+        "body": "{\n  \"user_id\": \"{{ $json.body.user_id }}\",\n  \"tool\": \"icp_builder\",\n  \"type\": \"icp\",\n  \"metadata\": {\n    \"icp_name\": \"{{ $json.icp_name }}\",\n    \"offer\": \"{{ $json.body.offer }}\",\n    \"niche\": \"{{ $json.body.niche }}\",\n    \"has_customer_examples\": {{ $json.body.current_customer_examples ? true : false }}\n  },\n  \"payload\": {\n    \"icp_name\": \"{{ $json.icp_name }}\",\n    \"demographics\": {{ JSON.stringify($json.demographics) }},\n    \"firmographics\": {{ JSON.stringify($json.firmographics) }},\n    \"psychographics\": {{ JSON.stringify($json.psychographics) }},\n    \"daily_pain_points\": {{ JSON.stringify($json.daily_pain_points) }},\n    \"watering_holes\": {{ JSON.stringify($json.watering_holes) }},\n    \"buying_triggers\": {{ JSON.stringify($json.buying_triggers) }},\n    \"budget_range\": {{ JSON.stringify($json.budget_range) }},\n    \"decision_criteria\": {{ JSON.stringify($json.decision_criteria) }},\n    \"common_objections\": {{ JSON.stringify($json.common_objections) }},\n    \"offer\": \"{{ $json.body.offer }}\",\n    \"niche\": \"{{ $json.body.niche }}\"\n  },\n  \"created_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "insert_to_tool_outputs",
+      "name": "Insert to tool_outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2050, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"icp\": {\n    \"icp_name\": \"{{ $json.icp_name }}\",\n    \"demographics\": {{ JSON.stringify($json.demographics) }},\n    \"firmographics\": {{ JSON.stringify($json.firmographics) }},\n    \"psychographics\": {{ JSON.stringify($json.psychographics) }},\n    \"daily_pain_points\": {{ JSON.stringify($json.daily_pain_points) }},\n    \"watering_holes\": {{ JSON.stringify($json.watering_holes) }},\n    \"buying_triggers\": {{ JSON.stringify($json.buying_triggers) }},\n    \"budget_range\": {{ JSON.stringify($json.budget_range) }},\n    \"decision_criteria\": {{ JSON.stringify($json.decision_criteria) }},\n    \"common_objections\": {{ JSON.stringify($json.common_objections) }}\n  }\n}"
+      },
+      "id": "return_success",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.message || 'Unknown error building ICP' }}\"\n}"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2250, 450]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "verify_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify_entitlement": {
+      "main": [
+        [
+          {
+            "node": "check_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_entitlement": {
+      "main": [
+        [
+          {
+            "node": "deduct_credits",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_not_entitled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduct_credits": {
+      "main": [
+        [
+          {
+            "node": "check_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_credits": {
+      "main": [
+        [
+          {
+            "node": "prepare_customer_context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_insufficient_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_customer_context": {
+      "main": [
+        [
+          {
+            "node": "call_claude_api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_claude_api": {
+      "main": [
+        [
+          {
+            "node": "parse_claude_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_claude_response": {
+      "main": [
+        [
+          {
+            "node": "upsert_icp_to_user_config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "upsert_icp_to_user_config": {
+      "main": [
+        [
+          {
+            "node": "insert_to_tool_outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert_to_tool_outputs": {
+      "main": [
+        [
+          {
+            "node": "return_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null
+}

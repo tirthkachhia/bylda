@@ -1,0 +1,536 @@
+{
+  "name": "First Tool Guided Activation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-tool-activation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "q1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-tool-activation"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id = body.user_id || null;\nconst tool_id = (body.tool_id || '').toLowerCase().trim();\n\nif (!user_id) throw new Error('Missing required field: user_id');\nif (!tool_id) throw new Error('Missing required field: tool_id');\n\nconst validTools = [\n  'launchpad_tool_1', 'launchpad_tool_2', 'launchpad_tool_3',\n  'launchpad_tool_4', 'launchpad_tool_5', 'launchpad_tool_6',\n  'launchpad_tool_7', 'launchpad_tool_8', 'launchpad_tool_9',\n  'launchpad_tool_10'\n];\n\nif (!validTools.includes(tool_id)) {\n  throw new Error(`Invalid tool_id '${tool_id}'. Must be one of: ${validTools.join(', ')}`);\n}\n\n// \u2500\u2500 Static tool guidance map \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// Single source of truth for all tool tips, names, and first-run guidance\nconst toolGuidance = {\n  launchpad_tool_1: {\n    name:        'AI Lead Finder',\n    emoji:       '\ud83c\udfaf',\n    tip:         'Start by entering your ideal customer title and top 2 pain points. The more specific you are, the higher the lead quality. Aim for 25\u201350 leads on your first run.',\n    quick_wins:  ['Filter by job title and company size first', 'Add pain point keywords from your niche', 'Export to CSV and import into your CRM'],\n    estimated_time: '8 minutes',\n    first_action: 'Enter your target job title in the search field'\n  },\n  launchpad_tool_2: {\n    name:        'Copy Generator',\n    emoji:       '\u270d\ufe0f',\n    tip:         'Select your tone before generating \u2014 it sets the entire output. Start with your homepage hero headline, then your email subject lines. One piece of copy at a time gives better results than batch prompting.',\n    quick_wins:  ['Always select tone before generating', 'Start with hero headline \u2014 it anchors everything else', 'Generate 3 variations and A/B test them'],\n    estimated_time: '5 minutes',\n    first_action: 'Choose your tone setting, then enter your product name and core benefit'\n  },\n  launchpad_tool_3: {\n    name:        'Offer Builder',\n    emoji:       '\ud83d\udd25',\n    tip:         'The strongest offers lead with the transformation, not the features. Enter what your customer\\'s life looks like after they buy \u2014 the tool builds the structure around that outcome.',\n    quick_wins:  ['Lead with the transformation result', 'Add at least 2 bonuses to increase perceived value', 'Set a specific guarantee to reduce purchase friction'],\n    estimated_time: '12 minutes',\n    first_action: 'Describe the #1 result your customer gets in one sentence'\n  },\n  launchpad_tool_4: {\n    name:        'Email Sequencer',\n    emoji:       '\ud83d\udce7',\n    tip:         'Your first sequence should be 5 emails: welcome, value, case study, objection handler, and close. Set send days to 0, 2, 4, 6, 9 for optimal open rates. Always write subject lines last.',\n    quick_wins:  ['5-email sequences outperform 3-email by 40%', 'Day 0 email gets 3x the opens \u2014 make it count', 'Write the CTA before the body copy'],\n    estimated_time: '15 minutes',\n    first_action: 'Set your sequence goal: book call, sell product, or nurture'\n  },\n  launchpad_tool_5: {\n    name:        'Funnel Mapper',\n    emoji:       '\ud83d\uddfa\ufe0f',\n    tip:         'Map your current funnel first, then your ideal funnel \u2014 the gap between them is your highest-leverage action. Focus on the biggest drop-off point, not the top of funnel.',\n    quick_wins:  ['Always map current state before ideal state', 'The biggest drop-off = your #1 priority', 'Add conversion rate estimates to each stage'],\n    estimated_time: '10 minutes',\n    first_action: 'Name each stage of your current sales process from lead to close'\n  },\n  launchpad_tool_6: {\n    name:        'Competitor Analyst',\n    emoji:       '\ud83d\udd0d',\n    tip:         'Enter 3 competitors minimum for pattern recognition. Focus the analysis on their offer structure and pricing page first \u2014 that\\'s where positioning decisions are made.',\n    quick_wins:  ['3 competitors minimum for useful patterns', 'Pricing page analysis reveals positioning gaps', 'Look for what they\\'re NOT saying \u2014 that\\'s your opening'],\n    estimated_time: '10 minutes',\n    first_action: 'Enter your top 3 competitors by name or URL'\n  },\n  launchpad_tool_7: {\n    name:        'Ad Creative Studio',\n    emoji:       '\ud83c\udfa8',\n    tip:         'Your hook is 80% of your ad performance. Generate 5 hook variations before touching the body copy. The best hooks call out the audience explicitly or make a bold, specific claim.',\n    quick_wins:  ['Generate hooks first, body copy second', 'Name your audience in the hook for 2x CTR', 'Bold specific claims beat clever wordplay every time'],\n    estimated_time: '8 minutes',\n    first_action: 'Select your ad platform, then describe the pain point your ad solves'\n  },\n  launchpad_tool_8: {\n    name:        'VSL Script Writer',\n    emoji:       '\ud83c\udfac',\n    tip:         'The first 30 seconds of your VSL determines if people watch the rest. Write your hook and open loop first. The promise you make in the intro must be paid off before the price reveal.',\n    quick_wins:  ['First 30 seconds = 80% of your VSL effectiveness', 'State the open loop early, resolve it before the CTA', 'Read the script aloud before finalising \u2014 awkward phrases kill delivery'],\n    estimated_time: '20 minutes',\n    first_action: 'Decide your VSL length (5, 10, or 20 minutes) before writing'\n  },\n  launchpad_tool_9: {\n    name:        'AI Sales Closer',\n    emoji:       '\ud83d\udcb0',\n    tip:         'Enter your top 3 objections before generating scripts. The best closing technique for your niche is pre-loaded \u2014 but customise the price anchoring section with your actual numbers for maximum impact.',\n    quick_wins:  ['Pre-load your top 3 objections for targeted scripts', 'Customise the price anchoring with your real numbers', 'Practice the transition from discovery to close out loud'],\n    estimated_time: '10 minutes',\n    first_action: 'Enter your product price and your #1 most common objection'\n  },\n  launchpad_tool_10: {\n    name:        'Business Automator',\n    emoji:       '\u26a1',\n    tip:         'Start with your most time-consuming manual task \u2014 not the most exciting one. The tool builds the automation blueprint; your job is to rank tasks by hours-per-week and tackle the biggest one first.',\n    quick_wins:  ['Rank tasks by hours/week \u2014 attack the biggest drain first', 'Document the manual steps before automating them', 'Start with one automation fully working before building the next'],\n    estimated_time: '15 minutes',\n    first_action: 'List your top 3 manual tasks and how many hours each takes per week'\n  }\n};\n\nconst toolData = toolGuidance[tool_id];\n\nreturn [{\n  json: {\n    user_id,\n    tool_id,\n    tool_data: toolData,\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "q1000001-0002-0002-0002-000000000002",
+      "name": "Parse, Validate + Load Tool Guidance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_first_uses?user_id=eq.{{ $json.user_id }}&tool_id=eq.{{ $json.tool_id }}&select=id,activated_at",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "q1000001-0003-0003-0003-000000000003",
+      "name": "GET tool_first_uses (dedup check)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fetchResult = $input.first().json;\nconst origin = $('Parse, Validate + Load Tool Guidance').first().json;\n\nconst records = Array.isArray(fetchResult) ? fetchResult : [];\nconst already_activated = records.length > 0;\nconst existing_record   = records[0] || null;\n\nreturn [{\n  json: {\n    ...origin,\n    already_activated,\n    existing_activated_at: existing_record?.activated_at || null\n  }\n}];"
+      },
+      "id": "q1000001-0004-0004-0004-000000000004",
+      "name": "Check Already Activated",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "already-check",
+              "leftValue": "={{ $json.already_activated }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "q1000001-0005-0005-0005-000000000005",
+      "name": "Already Activated?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"already_activated\",\n  \"message\": \"Tool {{ $json.tool_id }} was already activated by this user on {{ $json.existing_activated_at }}. No action taken.\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"tool_id\": \"{{ $json.tool_id }}\",\n  \"tool_name\": {{ JSON.stringify($json.tool_data.name) }},\n  \"first_activated_at\": \"{{ $json.existing_activated_at }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "q1000001-0006-0006-0006-000000000006",
+      "name": "Return: Already Activated (Early Exit)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_first_uses",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"tool_id\": \"{{ $json.tool_id }}\",\n  \"tool_name\": {{ JSON.stringify($json.tool_data.name) }},\n  \"activated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "q1000001-0007-0007-0007-000000000007",
+      "name": "INSERT tool_first_uses",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 460],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const insertResult = $input.first().json;\nconst origin = $('Check Already Activated').first().json;\n\nconst record = Array.isArray(insertResult) ? insertResult[0] : insertResult;\n\nif (!record?.id) {\n  throw new Error(`tool_first_uses INSERT returned no record for user_id: ${origin.user_id}, tool_id: ${origin.tool_id}. Check Supabase RLS and schema.`);\n}\n\nreturn [{\n  json: {\n    ...origin,\n    first_use_id: record.id\n  }\n}];"
+      },
+      "id": "q1000001-0008-0008-0008-000000000008",
+      "name": "Confirm First Use Recorded",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 460]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $json.user_id }}&select=first_tool_used",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "q1000001-0009-0009-0009-000000000009",
+      "name": "GET users: first_tool_used flag",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 640],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Check Already Activated').first().json;\n\nif (!items || items.length < 2) {\n  throw new Error(`Expected 2 results (first_use insert confirm + users fetch), got ${items?.length || 0}`);\n}\n\nconst firstUseResult = items[0].json;\nconst usersResult    = items[1].json;\n\nconst usersRecord = Array.isArray(usersResult) ? usersResult[0] : usersResult;\nconst already_flagged = usersRecord?.first_tool_used === true;\n\nreturn [{\n  json: {\n    ...origin,\n    first_use_id:    firstUseResult.first_use_id || null,\n    already_flagged\n  }\n}];"
+      },
+      "id": "q1000001-0010-0010-0010-000000000010",
+      "name": "Merge Insert + Flag Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 550]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "flag-check",
+              "leftValue": "={{ $json.already_flagged }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "q1000001-0011-0011-0011-000000000011",
+      "name": "Needs first_tool_used Flag?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2200, 550]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"first_tool_used\": true,\n  \"first_tool_used_at\": \"{{ $json.now }}\",\n  \"first_tool_id\": \"{{ $json.tool_id }}\",\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "q1000001-0012-0012-0012-000000000012",
+      "name": "PATCH users: first_tool_used=true",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 440],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Flag already set \u2014 pass through\nconst origin = $input.first().json;\nreturn [{ json: { ...origin, flag_patched: false } }];"
+      },
+      "id": "q1000001-0013-0013-0013-000000000013",
+      "name": "Skip: Flag Already Set",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 660]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Merge Insert + Flag Check').first().json;\n\nconst d = items[0].json;\nconst flag_patched = d.flag_patched !== false;\n\nreturn [{\n  json: {\n    ...origin,\n    flag_patched\n  }\n}];"
+      },
+      "id": "q1000001-0014-0014-0014-000000000014",
+      "name": "Merge Flag Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 550]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/notifications",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"type\": \"tool_tip\",\n  \"title\": \"{{ $json.tool_data.emoji }} First time using {{ $json.tool_data.name }}?\",\n  \"message\": {{ JSON.stringify($json.tool_data.tip) }},\n  \"metadata\": {{ JSON.stringify({ tool_id: $json.tool_id, quick_wins: $json.tool_data.quick_wins, estimated_time: $json.tool_data.estimated_time, first_action: $json.tool_data.first_action }) }},\n  \"action_label\": \"Got it\",\n  \"action_url\": null,\n  \"read\": false,\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "q1000001-0015-0015-0015-000000000015",
+      "name": "INSERT notifications (tool_tip)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2940, 550],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const notifResult = $input.first().json;\nconst origin = $('Merge Flag Result').first().json;\n\nconst notif = Array.isArray(notifResult) ? notifResult[0] : notifResult;\nconst notif_id      = notif?.id   || null;\nconst notif_created = !!notif_id;\n\nif (!notif_created) {\n  console.warn(`tool_tip notification INSERT may have failed for user ${origin.user_id}, tool ${origin.tool_id}. Response: ${JSON.stringify(notifResult)}`);\n}\n\nreturn [{\n  json: {\n    ...origin,\n    notif_id,\n    notif_created\n  }\n}];"
+      },
+      "id": "q1000001-0016-0016-0016-000000000016",
+      "name": "Confirm Notification Created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3180, 550]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"first_activation_recorded\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"tool_id\": \"{{ $json.tool_id }}\",\n  \"tool_name\": {{ JSON.stringify($json.tool_data.name) }},\n  \"tool_tip\": {{ JSON.stringify($json.tool_data.tip) }},\n  \"quick_wins\": {{ JSON.stringify($json.tool_data.quick_wins) }},\n  \"estimated_time\": {{ JSON.stringify($json.tool_data.estimated_time) }},\n  \"first_action\": {{ JSON.stringify($json.tool_data.first_action) }},\n  \"first_tool_used_flag_set\": {{ $json.flag_patched }},\n  \"notification_created\": {{ $json.notif_created }},\n  \"activated_at\": \"{{ $json.now }}\"\n}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "id": "q1000001-0017-0017-0017-000000000017",
+      "name": "Return: Activation Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3420, 550]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse, Validate + Load Tool Guidance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse, Validate + Load Tool Guidance": {
+      "main": [
+        [
+          {
+            "node": "GET tool_first_uses (dedup check)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET tool_first_uses (dedup check)": {
+      "main": [
+        [
+          {
+            "node": "Check Already Activated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Already Activated": {
+      "main": [
+        [
+          {
+            "node": "Already Activated?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Activated?": {
+      "main": [
+        [
+          {
+            "node": "Return: Already Activated (Early Exit)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "INSERT tool_first_uses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT tool_first_uses": {
+      "main": [
+        [
+          {
+            "node": "Confirm First Use Recorded",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GET users: first_tool_used flag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm First Use Recorded": {
+      "main": [
+        [
+          {
+            "node": "Merge Insert + Flag Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET users: first_tool_used flag": {
+      "main": [
+        [
+          {
+            "node": "Merge Insert + Flag Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Insert + Flag Check": {
+      "main": [
+        [
+          {
+            "node": "Needs first_tool_used Flag?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs first_tool_used Flag?": {
+      "main": [
+        [
+          {
+            "node": "PATCH users: first_tool_used=true",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip: Flag Already Set",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH users: first_tool_used=true": {
+      "main": [
+        [
+          {
+            "node": "Merge Flag Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip: Flag Already Set": {
+      "main": [
+        [
+          {
+            "node": "Merge Flag Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Flag Result": {
+      "main": [
+        [
+          {
+            "node": "INSERT notifications (tool_tip)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT notifications (tool_tip)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Notification Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Notification Created": {
+      "main": [
+        [
+          {
+            "node": "Return: Activation Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "activation"
+    },
+    {
+      "name": "product"
+    },
+    {
+      "name": "notifications"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

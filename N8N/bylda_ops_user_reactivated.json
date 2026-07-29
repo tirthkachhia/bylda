@@ -1,0 +1,360 @@
+{
+  "name": "User Reactivated",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-user-reactivated",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "g1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-user-reactivated"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id = body.user_id || null;\nconst plan_tier = (body.plan_tier || 'free').toLowerCase().trim();\n\nif (!user_id) throw new Error('Missing required field: user_id');\n\nconst validTiers = ['free', 'starter', 'pro', 'scale'];\nconst resolvedTier = validTiers.includes(plan_tier) ? plan_tier : 'free';\n\nreturn [{\n  json: {\n    user_id,\n    plan_tier: resolvedTier,\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "g1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan_status\": \"active\",\n  \"access_blocked\": false,\n  \"payment_status\": \"active\",\n  \"reactivated_at\": \"{{ $json.now }}\",\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "g1000001-0003-0003-0003-000000000003",
+      "name": "PATCH users: reactivate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-feature-flag-sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Parse & Validate').first().json.user_id }}\",\n  \"plan_tier\": \"{{ $('Parse & Validate').first().json.plan_tier }}\"\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "g1000001-0004-0004-0004-000000000004",
+      "name": "Call: Feature Flag Sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_credits?user_id=eq.{{ $('Parse & Validate').first().json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"credits_gated\": false,\n  \"updated_at\": \"{{ $('Parse & Validate').first().json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "g1000001-0005-0005-0005-000000000005",
+      "name": "PATCH user_credits: ungate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 600],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Parse & Validate').first().json;\n\nif (!items || items.length === 0) {\n  throw new Error('No results received from parallel reactivation patches');\n}\n\nreturn [{\n  json: {\n    user_id: origin.user_id,\n    plan_tier: origin.plan_tier,\n    now: origin.now,\n    branches_completed: items.length\n  }\n}];"
+      },
+      "id": "g1000001-0006-0006-0006-000000000006",
+      "name": "Merge Parallel Branches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/suspension_log",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"event_type\": \"reinstated\",\n  \"reason\": \"payment_retry_succeeded\",\n  \"plan_tier\": \"{{ $json.plan_tier }}\",\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "g1000001-0007-0007-0007-000000000007",
+      "name": "INSERT suspension_log: reinstated",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "log-check",
+              "leftValue": "={{ $json[0]?.user_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g1000001-0008-0008-0008-000000000008",
+      "name": "Validate Log Written",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1440, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"user_reactivated\",\n  \"user_id\": \"{{ $('Merge Parallel Branches').first().json.user_id }}\",\n  \"plan_tier\": \"{{ $('Merge Parallel Branches').first().json.plan_tier }}\",\n  \"plan_status\": \"active\",\n  \"access_blocked\": false,\n  \"credits_gated\": false,\n  \"entitlements_synced\": true,\n  \"reactivated_at\": \"{{ $('Merge Parallel Branches').first().json.now }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "g1000001-0009-0009-0009-000000000009",
+      "name": "Return: Reactivated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1700, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"action\": \"reactivation_log_failed\",\n  \"message\": \"Reactivation patches applied but suspension_log INSERT failed \u2014 check Supabase\",\n  \"user_id\": \"{{ $('Merge Parallel Branches').first().json.user_id }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "g1000001-0010-0010-0010-000000000010",
+      "name": "Return: Log Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1700, 520]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "PATCH users: reactivate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call: Feature Flag Sync",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PATCH user_credits: ungate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH users: reactivate": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call: Feature Flag Sync": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH user_credits: ungate": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Parallel Branches": {
+      "main": [
+        [
+          {
+            "node": "INSERT suspension_log: reinstated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT suspension_log: reinstated": {
+      "main": [
+        [
+          {
+            "node": "Validate Log Written",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Log Written": {
+      "main": [
+        [
+          {
+            "node": "Return: Reactivated",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return: Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "billing"
+    },
+    {
+      "name": "reactivation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

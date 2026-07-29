@@ -1,0 +1,156 @@
+[
+  {
+    "index": 1,
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Main Router \u00b7 DHR",
+    "file": "01-stg-ai-webhook-to-ai-operator-main-router-dhr.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 15,
+    "tags": [
+      "env:stg",
+      "owner:dhruv",
+      "cat:ai",
+      "review:pending",
+      "p1:high",
+      "ai-powered",
+      "claude-generated"
+    ]
+  },
+  {
+    "index": 2,
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR",
+    "file": "02-stg-ai-webhook-to-ai-operator-context-loader-dhr.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 9,
+    "tags": [
+      "env:stg",
+      "owner:dhruv",
+      "cat:ai",
+      "review:pending",
+      "p1:high",
+      "ai-powered",
+      "claude-generated"
+    ]
+  },
+  {
+    "index": 3,
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Tool Dispatcher \u00b7 DHR",
+    "file": "03-stg-ai-webhook-to-ai-operator-tool-dispatcher-dhr.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 11,
+    "tags": [
+      "env:stg",
+      "owner:dhruv",
+      "cat:ai",
+      "review:pending",
+      "p1:high",
+      "ai-powered",
+      "claude-generated"
+    ]
+  },
+  {
+    "index": 4,
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Response Formatter \u00b7 DHR",
+    "file": "04-stg-ai-webhook-to-ai-operator-response-formatter-dhr.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 8,
+    "tags": [
+      "env:stg",
+      "owner:dhruv",
+      "cat:ai",
+      "review:pending",
+      "p1:high",
+      "ai-powered",
+      "claude-generated"
+    ]
+  },
+  {
+    "index": 5,
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR",
+    "file": "05-stg-ai-webhook-to-operator-memory-write-dhr.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 9,
+    "tags": [
+      "env:stg",
+      "owner:dhruv",
+      "cat:ai",
+      "review:pending",
+      "p2:normal",
+      "ai-powered",
+      "claude-generated"
+    ]
+  },
+  {
+    "index": 6,
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Read \u00b7 DHR",
+    "file": "06-stg-ai-webhook-to-operator-memory-read-dhr.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 7,
+    "tags": [
+      "env:stg",
+      "owner:dhruv",
+      "cat:ai",
+      "review:pending",
+      "p2:normal",
+      "ai-powered",
+      "claude-generated"
+    ]
+  },
+  {
+    "index": 7,
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR",
+    "file": "07-stg-ai-webhook-to-operator-confidence-fallback-handler-dhr.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 7,
+    "tags": [
+      "env:stg",
+      "owner:dhruv",
+      "cat:ai",
+      "review:pending",
+      "p1:high",
+      "ai-powered",
+      "claude-generated"
+    ]
+  },
+  {
+    "index": 8,
+    "name": "STG \u00b7 OPS \u00b7 Webhook \u2192 Operator Escalation to Human Admin \u00b7 ANS",
+    "file": "08-stg-ops-webhook-to-operator-escalation-to-human-admin-ans.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 10,
+    "tags": ["env:stg", "owner:ansh", "cat:ops", "review:pending", "p1:high", "claude-generated"]
+  },
+  {
+    "index": 9,
+    "name": "STG \u00b7 INFRA \u00b7 Schedule \u2192 Operator Health Check Self Test Ping \u00b7 ANS",
+    "file": "09-stg-infra-schedule-to-operator-health-check-self-test-ping-ans.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 13,
+    "tags": ["env:stg", "owner:ansh", "cat:infra", "review:pending", "p1:high", "claude-generated"]
+  },
+  {
+    "index": 10,
+    "name": "STG \u00b7 INFRA \u00b7 Webhook \u2192 Operator Version Update Prompt Swap \u00b7 ANS",
+    "file": "10-stg-infra-webhook-to-operator-version-update-prompt-swap-ans.json",
+    "parses_strict": true,
+    "parse_error": null,
+    "node_count": 8,
+    "tags": [
+      "env:stg",
+      "owner:ansh",
+      "cat:infra",
+      "review:pending",
+      "p1:high",
+      "no-direct-edit",
+      "claude-generated"
+    ]
+  }
+]

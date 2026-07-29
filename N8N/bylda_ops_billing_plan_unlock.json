@@ -1,0 +1,125 @@
+{
+  "name": "Billing - Plan Unlock",
+  "meta": {
+    "description": "TASK-107 · Triggered when a user upgrades their plan. Updates feature_entitlements, logs plan_upgraded activation event, and dispatches welcome email via follow-up workflow.",
+    "templateId": "bylda-ops-billing-plan-unlock"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-billing-plan-unlock",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t107-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst user_id = body.user_id || null;\nconst organization_id = body.organization_id || body.org_id || null;\nconst workspace_id = body.workspace_id || null;\nconst new_plan = body.new_plan || body.plan || null;\nconst old_plan = body.old_plan || 'starter';\nconst stripe_subscription_id = body.stripe_subscription_id || null;\nif (!user_id) throw new Error('user_id is required');\nif (!new_plan) throw new Error('new_plan is required');\nconst VALID_PLANS = ['starter', 'growth', 'pro', 'accelerator'];\nif (!VALID_PLANS.includes(new_plan)) throw new Error(`Invalid plan: ${new_plan}`);\nreturn [{ json: { user_id, organization_id, workspace_id, new_plan, old_plan, stripe_subscription_id, now: new Date().toISOString() } }];"
+      },
+      "id": "t107-0002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/subscriptions?organization_id=eq.{{ $json.organization_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan\": {{ JSON.stringify($json.new_plan) }},\n  \"status\": \"active\",\n  \"updated_at\": {{ JSON.stringify($json.now) }}\n}",
+        "options": {}
+      },
+      "id": "t107-0003",
+      "name": "Update Subscription Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/activation_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": {{ JSON.stringify($('Parse & Validate').item.json.user_id) }},\n  \"workspace_id\": {{ $('Parse & Validate').item.json.workspace_id ? JSON.stringify($('Parse & Validate').item.json.workspace_id) : 'null' }},\n  \"event_name\": \"plan_upgraded\",\n  \"properties\": {\n    \"old_plan\": {{ JSON.stringify($('Parse & Validate').item.json.old_plan) }},\n    \"new_plan\": {{ JSON.stringify($('Parse & Validate').item.json.new_plan) }},\n    \"stripe_subscription_id\": {{ $('Parse & Validate').item.json.stripe_subscription_id ? JSON.stringify($('Parse & Validate').item.json.stripe_subscription_id) : 'null' }\n  }\n}",
+        "options": {}
+      },
+      "id": "t107-0004",
+      "name": "Log plan_upgraded Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 640]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-provision-follow-up",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event_type\": \"plan_upgraded\",\n  \"user_id\": {{ JSON.stringify($('Parse & Validate').item.json.user_id) }},\n  \"workspace_id\": {{ $('Parse & Validate').item.json.workspace_id ? JSON.stringify($('Parse & Validate').item.json.workspace_id) : 'null' }},\n  \"payload\": { \"new_plan\": {{ JSON.stringify($('Parse & Validate').item.json.new_plan) }} }\n}",
+        "options": {}
+      },
+      "id": "t107-0005",
+      "name": "Trigger Follow-Up Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"user_id\": \"{{ $('Parse & Validate').item.json.user_id }}\",\n  \"new_plan\": \"{{ $('Parse & Validate').item.json.new_plan }}\",\n  \"unlocked\": true\n}"
+      },
+      "id": "t107-0006",
+      "name": "Return ACK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse & Validate", "type": "main", "index": 0 }]] },
+    "Parse & Validate": {
+      "main": [
+        [
+          { "node": "Update Subscription Plan", "type": "main", "index": 0 },
+          { "node": "Log plan_upgraded Event", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Update Subscription Plan": {
+      "main": [[{ "node": "Trigger Follow-Up Email", "type": "main", "index": 0 }]]
+    },
+    "Log plan_upgraded Event": {
+      "main": [[{ "node": "Trigger Follow-Up Email", "type": "main", "index": 0 }]]
+    },
+    "Trigger Follow-Up Email": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["billing", "plan-unlock", "sprint-3"]
+}

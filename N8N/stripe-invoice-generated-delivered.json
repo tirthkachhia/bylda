@@ -1,0 +1,252 @@
+{
+  "name": "Stripe Invoice Generated and Delivered",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-invoice-finalized",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e1f2a3b4-0001-0001-0001-000000000001",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "stripe-invoice-finalized"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = body;\nconst invoice = event?.data?.object || {};\n\nconst customerId = invoice.customer || '';\nconst invoiceId = invoice.id || '';\nconst invoicePdfUrl = invoice.invoice_pdf || '';\nconst hostedInvoiceUrl = invoice.hosted_invoice_url || '';\nconst amountDue = invoice.amount_due || 0;\nconst currency = (invoice.currency || 'usd').toUpperCase();\nconst amountDisplay = `$${(amountDue / 100).toFixed(2)} ${currency}`;\nconst status = invoice.status || '';\n\n// Billing period\nconst periodStart = invoice.period_start\n  ? new Date(invoice.period_start * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })\n  : '';\nconst periodEnd = invoice.period_end\n  ? new Date(invoice.period_end * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })\n  : '';\nconst billingPeriod = periodStart && periodEnd ? `${periodStart} \u2013 ${periodEnd}` : 'Current billing period';\nconst periodStartIso = invoice.period_start ? new Date(invoice.period_start * 1000).toISOString() : null;\nconst periodEndIso = invoice.period_end ? new Date(invoice.period_end * 1000).toISOString() : null;\nconst invoiceNumber = invoice.number || invoiceId;\nconst dueDate = invoice.due_date\n  ? new Date(invoice.due_date * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })\n  : 'Upon receipt';\n\nreturn [{ json: {\n  customerId,\n  invoiceId,\n  invoiceNumber,\n  invoicePdfUrl,\n  hostedInvoiceUrl,\n  amountDue,\n  amountDisplay,\n  currency,\n  status,\n  billingPeriod,\n  periodStartIso,\n  periodEndIso,\n  dueDate,\n  createdAt: new Date().toISOString(),\n  rawPayload: JSON.stringify(body)\n} }];"
+      },
+      "id": "e1f2a3b4-0002-0002-0002-000000000002",
+      "name": "Parse Invoice Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": false,
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $json.customerId }}"
+            },
+            {
+              "name": "select",
+              "value": "id,email,first_name,stripe_customer_id,plan_tier"
+            }
+          ]
+        },
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "e1f2a3b4-0003-0003-0003-000000000003",
+      "name": "Get User from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const users = $input.first().json;\nconst user = Array.isArray(users) ? users[0] : users;\nconst parsed = $('Parse Invoice Payload').first().json;\n\nconst planDisplayNames = { free: 'Free', starter: 'Starter', pro: 'Pro', scale: 'Scale' };\nconst planTier = user?.plan_tier || 'starter';\nconst planDisplay = planDisplayNames[planTier] || planTier;\n\nreturn [{ json: {\n  ...parsed,\n  userId: user?.id || '',\n  email: user?.email || '',\n  firstName: user?.first_name || 'there',\n  planTier,\n  planDisplay\n} }];"
+      },
+      "id": "e1f2a3b4-0004-0004-0004-000000000004",
+      "name": "Merge User Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/invoices",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.userId }}\",\n  \"stripe_customer_id\": \"{{ $json.customerId }}\",\n  \"invoice_id\": \"{{ $json.invoiceId }}\",\n  \"invoice_number\": \"{{ $json.invoiceNumber }}\",\n  \"amount_due\": {{ $json.amountDue }},\n  \"currency\": \"{{ $json.currency }}\",\n  \"status\": \"{{ $json.status }}\",\n  \"pdf_url\": \"{{ $json.invoicePdfUrl }}\",\n  \"hosted_url\": \"{{ $json.hostedInvoiceUrl }}\",\n  \"billing_period_start\": {{ $json.periodStartIso ? '\"' + $json.periodStartIso + '\"' : 'null' }},\n  \"billing_period_end\": {{ $json.periodEndIso ? '\"' + $json.periodEndIso + '\"' : 'null' }},\n  \"plan_tier\": \"{{ $json.planTier }}\",\n  \"created_at\": \"{{ $json.createdAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "e1f2a3b4-0005-0005-0005-000000000005",
+      "name": "Store Invoice in Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda Billing <billing@usebylda.com>\",\n  \"to\": [\"{{ $('Merge User Data').first().json.email }}\"],\n  \"subject\": \"Your Bylda invoice for {{ $('Merge User Data').first().json.billingPeriod }}\",\n  \"html\": \"<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;'><div style='border-bottom: 2px solid #6366f1; padding-bottom: 20px; margin-bottom: 28px;'><h1 style='font-size: 22px; margin: 0; color: #6366f1;'>Bylda</h1><p style='margin: 4px 0 0; font-size: 13px; color: #94a3b8;'>Billing & Invoices</p></div><h2 style='font-size: 20px; margin-top: 0;'>Invoice ready, {{ $('Merge User Data').first().json.firstName }}</h2><p style='font-size: 16px; color: #444; line-height: 1.7;'>Your invoice for the <strong>{{ $('Merge User Data').first().json.planDisplay }}</strong> plan is ready to view and download.</p><div style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin: 28px 0;'><table style='width: 100%; border-collapse: collapse; font-size: 15px;'><tr style='border-bottom: 1px solid #e2e8f0;'><td style='padding: 10px 0; color: #64748b;'>Invoice number</td><td style='padding: 10px 0; text-align: right; font-weight: 600; color: #1a1a1a;'>{{ $('Merge User Data').first().json.invoiceNumber }}</td></tr><tr style='border-bottom: 1px solid #e2e8f0;'><td style='padding: 10px 0; color: #64748b;'>Billing period</td><td style='padding: 10px 0; text-align: right; font-weight: 600; color: #1a1a1a;'>{{ $('Merge User Data').first().json.billingPeriod }}</td></tr><tr style='border-bottom: 1px solid #e2e8f0;'><td style='padding: 10px 0; color: #64748b;'>Plan</td><td style='padding: 10px 0; text-align: right; font-weight: 600; color: #1a1a1a;'>{{ $('Merge User Data').first().json.planDisplay }}</td></tr><tr style='border-bottom: 1px solid #e2e8f0;'><td style='padding: 10px 0; color: #64748b;'>Due date</td><td style='padding: 10px 0; text-align: right; font-weight: 600; color: #1a1a1a;'>{{ $('Merge User Data').first().json.dueDate }}</td></tr><tr><td style='padding: 14px 0 0; color: #1a1a1a; font-weight: 700; font-size: 17px;'>Amount due</td><td style='padding: 14px 0 0; text-align: right; font-weight: 700; font-size: 20px; color: #6366f1;'>{{ $('Merge User Data').first().json.amountDisplay }}</td></tr></table></div><div style='display: flex; gap: 12px; margin: 28px 0;'><a href='{{ $('Merge User Data').first().json.hostedInvoiceUrl }}' style='background: #6366f1; color: white; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: 700; display: inline-block; margin-right: 12px;'>View Invoice</a><a href='{{ $('Merge User Data').first().json.invoicePdfUrl }}' style='background: #f1f5f9; color: #1a1a1a; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: 600; display: inline-block; border: 1px solid #e2e8f0;'>Download PDF</a></div><p style='font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px;'>Questions about this invoice? Reply to this email and we'll sort it out.</p><p style='font-size: 14px; color: #555;'>\u2014 Bylda Billing Team</p></div>\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "e1f2a3b4-0006-0006-0006-000000000006",
+      "name": "Send Invoice Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "e1f2a3b4-0007-0007-0007-000000000007",
+      "name": "Return 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Stripe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Invoice Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Invoice Payload": {
+      "main": [
+        [
+          {
+            "node": "Get User from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Merge User Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge User Data": {
+      "main": [
+        [
+          {
+            "node": "Store Invoice in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Invoice in Supabase": {
+      "main": [
+        [
+          {
+            "node": "Send Invoice Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invoice Email": {
+      "main": [
+        [
+          {
+            "node": "Return 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["bylda-ops", "stripe", "invoices", "billing"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "bylda-ops-invoice-finalized-v1"
+}

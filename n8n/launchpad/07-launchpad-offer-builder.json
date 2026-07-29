@@ -1,0 +1,415 @@
+{
+  "name": "Launchpad Offer Builder",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "v1/offer/build",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "=eq.tool_offer_builder"
+            },
+            {
+              "name": "select",
+              "value": "enabled"
+            }
+          ]
+        }
+      },
+      "id": "verify_entitlement",
+      "name": "Verify Offer Builder Entitlement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json[0] }}",
+              "value2": null
+            }
+          ]
+        }
+      },
+      "id": "check_entitlement",
+      "name": "Entitlement Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Feature not enabled\",\n  \"upgrade_url\": \"https://usebylda.com/launchpad?tier=premium\"\n}"
+      },
+      "id": "upsell_not_entitled",
+      "name": "Return Upsell - Not Entitled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BYLDA_OPS_WEBHOOK_URL }}/credit-deduction",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "offer_builder"
+            },
+            {
+              "name": "cost",
+              "value": "15"
+            }
+          ]
+        }
+      },
+      "id": "deduct_credits",
+      "name": "Deduct Credits (15)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json.insufficient_credits }}"
+            }
+          ]
+        }
+      },
+      "id": "check_credits",
+      "name": "Credits Sufficient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Insufficient credits\",\n  \"required\": 15,\n  \"current\": \"{{ $json.current_credits }}\",\n  \"upgrade_url\": \"https://usebylda.com/billing\"\n}"
+      },
+      "id": "upsell_insufficient_credits",
+      "name": "Return Upsell - Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_ai_config",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "brand_voice,tone,style"
+            }
+          ]
+        }
+      },
+      "id": "fetch_brand_voice",
+      "name": "Fetch Brand Voice Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ANTHROPIC_API_URL }}/v1/messages",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-opus-4-20250805"
+            },
+            {
+              "name": "max_tokens",
+              "value": "4000"
+            }
+          ]
+        },
+        "body": "{\n  \"model\": \"claude-opus-4-20250805\",\n  \"max_tokens\": 4000,\n  \"system\": \"You are an expert offer architect specializing in high-converting B2B SaaS offers. You understand value equations, price anchoring, urgency/scarcity mechanics, and persuasion psychology. Generate a complete offer stack based on Alex Hormozi's offer framework: dream outcome, likelihood of achievement, time to achievement, effort/sacrifice required, bonus stack (5 bonuses with $ values), guarantee, scarcity element, urgency element, and complete offer copy. OUTPUT ONLY VALID JSON with no markdown formatting or extra text. Format: { \\\"dream_outcome\\\": \\\"\\\", \\\"value_equation\\\": { \\\"likelihood\\\": \\\"\\\", \\\"time_delay\\\": \\\"\\\", \\\"effort_sacrifice\\\": \\\"\\\" }, \\\"bonuses\\\": [{ \\\"name\\\": \\\"\\\", \\\"value\\\": number }, ...], \\\"guarantee\\\": \\\"\\\", \\\"scarcity\\\": \\\"\\\", \\\"urgency\\\": \\\"\\\", \\\"offer_copy\\\": \\\"\\\", \\\"total_value\\\": number, \\\"anchor_price\\\": number }\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Build a high-converting offer for: Core Product: {{ $json.body.core_product }}, Target Market: {{ $json.body.target_market }}, Price Target: ${{ $json.body.price_target }}, Brand Voice: {{ $json[0].brand_voice || 'professional and direct' }}, Tone: {{ $json[0].tone || 'consultative' }}. Create dream outcome, value equation (likelihood, time, effort), 5 bonuses with $ values, money-back guarantee, scarcity (specific limit), urgency (deadline), complete offer copy, calculate total bonus value and anchor price (3x offer price). Return ONLY JSON.\"\n    }\n  ]\n}"
+      },
+      "id": "call_claude_api",
+      "name": "Call Claude Offer Builder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300],
+      "onError": "continueErrorOutput",
+      "credentials": [
+        {
+          "name": "anthropicApi",
+          "type": "anthropicApi"
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude response from nested structure\nconst responseContent = $json.content[0].text;\n\n// Parse JSON from Claude\nlet offer;\ntry {\n  offer = JSON.parse(responseContent);\n} catch(e) {\n  // If Claude wrapped in markdown backticks, extract it\n  const jsonMatch = responseContent.match(/```json\\n?(.*?)\\n?```/s);\n  if (jsonMatch) {\n    offer = JSON.parse(jsonMatch[1]);\n  } else if (responseContent.match(/^\\{/)) {\n    // Try raw object\n    offer = JSON.parse(responseContent);\n  } else {\n    throw new Error('Invalid JSON from Claude: ' + responseContent.substring(0, 200));\n  }\n}\n\n// Validate required top-level fields\nconst requiredFields = [\n  'dream_outcome',\n  'value_equation',\n  'bonuses',\n  'guarantee',\n  'scarcity',\n  'urgency',\n  'offer_copy',\n  'total_value',\n  'anchor_price'\n];\n\nfor (const field of requiredFields) {\n  if (offer[field] === undefined || offer[field] === null) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\n// Validate value_equation object\nconst veFields = ['likelihood', 'time_delay', 'effort_sacrifice'];\nif (!offer.value_equation || typeof offer.value_equation !== 'object') {\n  throw new Error('value_equation must be an object');\n}\nfor (const field of veFields) {\n  if (!offer.value_equation[field]) {\n    throw new Error(`value_equation missing field: ${field}`);\n  }\n}\n\n// Validate bonuses array\nif (!Array.isArray(offer.bonuses) || offer.bonuses.length !== 5) {\n  throw new Error(`Expected exactly 5 bonuses, got ${offer.bonuses.length}`);\n}\n\nfor (let i = 0; i < offer.bonuses.length; i++) {\n  const bonus = offer.bonuses[i];\n  if (!bonus.name || !bonus.value) {\n    throw new Error(`Bonus ${i + 1} missing name or value`);\n  }\n  if (typeof bonus.value !== 'number' || bonus.value <= 0) {\n    throw new Error(`Bonus ${i + 1} value must be positive number, got: ${bonus.value}`);\n  }\n}\n\n// Validate numeric fields\nif (typeof offer.total_value !== 'number' || offer.total_value <= 0) {\n  throw new Error(`total_value must be positive number, got: ${offer.total_value}`);\n}\nif (typeof offer.anchor_price !== 'number' || offer.anchor_price <= 0) {\n  throw new Error(`anchor_price must be positive number, got: ${offer.anchor_price}`);\n}\n\n// Validate text fields are not empty\nif (!offer.guarantee || offer.guarantee.trim().length === 0) {\n  throw new Error('guarantee cannot be empty');\n}\nif (!offer.scarcity || offer.scarcity.trim().length === 0) {\n  throw new Error('scarcity cannot be empty');\n}\nif (!offer.urgency || offer.urgency.trim().length === 0) {\n  throw new Error('urgency cannot be empty');\n}\nif (!offer.offer_copy || offer.offer_copy.trim().length === 0) {\n  throw new Error('offer_copy cannot be empty');\n}\n\nreturn offer;"
+      },
+      "id": "parse_claude_response",
+      "name": "Parse & Validate Offer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_outputs",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "offer_builder"
+            },
+            {
+              "name": "type",
+              "value": "offer"
+            },
+            {
+              "name": "created_at",
+              "value": "=now()"
+            }
+          ]
+        },
+        "body": "{\n  \"user_id\": \"{{ $json.body.user_id }}\",\n  \"tool\": \"offer_builder\",\n  \"type\": \"offer\",\n  \"metadata\": {\n    \"core_product\": \"{{ $json.body.core_product }}\",\n    \"target_market\": \"{{ $json.body.target_market }}\",\n    \"price_target\": \"{{ $json.body.price_target }}\"\n  },\n  \"payload\": {\n    \"dream_outcome\": \"{{ $json.dream_outcome }}\",\n    \"value_equation\": {{ JSON.stringify($json.value_equation) }},\n    \"bonuses\": {{ JSON.stringify($json.bonuses) }},\n    \"guarantee\": \"{{ $json.guarantee }}\",\n    \"scarcity\": \"{{ $json.scarcity }}\",\n    \"urgency\": \"{{ $json.urgency }}\",\n    \"offer_copy\": \"{{ $json.offer_copy }}\",\n    \"total_value\": {{ $json.total_value }},\n    \"anchor_price\": {{ $json.anchor_price }},\n    \"offer_price\": {{ $json.body.price_target }}\n  },\n  \"created_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "insert_to_supabase",
+      "name": "Insert to tool_outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"offer\": {\n    \"dream_outcome\": \"{{ $json.dream_outcome }}\",\n    \"value_equation\": {{ JSON.stringify($json.value_equation) }},\n    \"bonuses\": {{ JSON.stringify($json.bonuses) }},\n    \"guarantee\": \"{{ $json.guarantee }}\",\n    \"scarcity\": \"{{ $json.scarcity }}\",\n    \"urgency\": \"{{ $json.urgency }}\",\n    \"offer_copy\": \"{{ $json.offer_copy }}\",\n    \"total_value\": {{ $json.total_value }},\n    \"anchor_price\": {{ $json.anchor_price }}\n  }\n}"
+      },
+      "id": "return_success",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.message || 'Unknown error building offer' }}\"\n}"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 450]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "verify_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify_entitlement": {
+      "main": [
+        [
+          {
+            "node": "check_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_entitlement": {
+      "main": [
+        [
+          {
+            "node": "deduct_credits",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_not_entitled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduct_credits": {
+      "main": [
+        [
+          {
+            "node": "check_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_credits": {
+      "main": [
+        [
+          {
+            "node": "fetch_brand_voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_insufficient_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_brand_voice": {
+      "main": [
+        [
+          {
+            "node": "call_claude_api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_claude_api": {
+      "main": [
+        [
+          {
+            "node": "parse_claude_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_claude_response": {
+      "main": [
+        [
+          {
+            "node": "insert_to_supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert_to_supabase": {
+      "main": [
+        [
+          {
+            "node": "return_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null
+}

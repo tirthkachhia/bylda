@@ -1,0 +1,432 @@
+{
+  "name": "Stripe Plan Downgrade",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-plan-downgrade",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c3d4e5f6-0001-0001-0001-000000000001",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "stripe-plan-downgrade"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst event = body;\nconst subscription = event?.data?.object || {};\nconst previousAttributes = event?.data?.previous_attributes || {};\n\nconst customerId = subscription.customer || '';\nconst subscriptionId = subscription.id || '';\nconst newPriceId = subscription.items?.data?.[0]?.price?.id || '';\nconst oldPriceId = previousAttributes.items?.data?.[0]?.price?.id || '';\n\nconst tierRank = { free: 0, starter: 1, pro: 2, scale: 3 };\n\nconst priceToTier = (priceId) => {\n  if (!priceId) return 'free';\n  if (priceId.includes('scale')) return 'scale';\n  if (priceId.includes('pro')) return 'pro';\n  if (priceId.includes('starter')) return 'starter';\n  const map = {\n    'price_free': 'free',\n    'price_starter': 'starter',\n    'price_pro': 'pro',\n    'price_scale': 'scale'\n  };\n  return map[priceId] || 'free';\n};\n\nconst oldTier = priceToTier(oldPriceId);\nconst newTier = priceToTier(newPriceId);\nconst isDowngrade = tierRank[newTier] < tierRank[oldTier];\n\nconst featureFlags = {\n  free: { launchpad_access: true, bylda_os_access: false, ai_tools_limit: 3, automation_systems: 0, priority_support: false, white_label: false },\n  starter: { launchpad_access: true, bylda_os_access: false, ai_tools_limit: 10, automation_systems: 2, priority_support: false, white_label: false },\n  pro: { launchpad_access: true, bylda_os_access: true, ai_tools_limit: 10, automation_systems: 6, priority_support: true, white_label: false },\n  scale: { launchpad_access: true, bylda_os_access: true, ai_tools_limit: 10, automation_systems: 6, priority_support: true, white_label: true }\n};\n\nconst oldFlags = featureFlags[oldTier] || featureFlags['free'];\nconst newFlags = featureFlags[newTier] || featureFlags['free'];\n\n// Features being REVOKED\nconst revokedFeatures = [];\nif (oldFlags.bylda_os_access && !newFlags.bylda_os_access) revokedFeatures.push('Bylda OS Access');\nif (oldFlags.priority_support && !newFlags.priority_support) revokedFeatures.push('Priority Support');\nif (oldFlags.white_label && !newFlags.white_label) revokedFeatures.push('White Label');\nif (oldFlags.automation_systems > newFlags.automation_systems) revokedFeatures.push(`Reduced to ${newFlags.automation_systems} Automation Systems`);\nif (oldFlags.ai_tools_limit > newFlags.ai_tools_limit) revokedFeatures.push(`Reduced to ${newFlags.ai_tools_limit} AI Tools`);\n\nconst planDisplayNames = { free: 'Free', starter: 'Starter ($49/mo)', pro: 'Pro ($149/mo)', scale: 'Scale ($299/mo)' };\n\nreturn [{ json: {\n  customerId,\n  subscriptionId,\n  oldPriceId,\n  newPriceId,\n  oldTier,\n  newTier,\n  isDowngrade,\n  newFlags,\n  revokedFeatures,\n  oldPlanDisplayName: planDisplayNames[oldTier] || oldTier,\n  newPlanDisplayName: planDisplayNames[newTier] || newTier,\n  updatedAt: new Date().toISOString(),\n  rawPayload: JSON.stringify(body)\n} }];"
+      },
+      "id": "c3d4e5f6-0002-0002-0002-000000000002",
+      "name": "Parse Downgrade Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-is-downgrade",
+              "leftValue": "={{ $json.isDowngrade }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-0003-0003-0003-000000000003",
+      "name": "Is Downgrade?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK - Not a downgrade",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c3d4e5f6-0004-0004-0004-000000000004",
+      "name": "Return 200 Not Downgrade",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": false,
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $('Parse Downgrade Payload').first().json.customerId }}"
+            },
+            {
+              "name": "select",
+              "value": "email,first_name,stripe_customer_id"
+            }
+          ]
+        },
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c3d4e5f6-0005-0005-0005-000000000005",
+      "name": "Get User from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const users = $input.first().json;\nconst user = Array.isArray(users) ? users[0] : users;\nconst parsed = $('Parse Downgrade Payload').first().json;\nreturn [{ json: { ...parsed, email: user?.email || '', firstName: user?.first_name || 'there' } }];"
+      },
+      "id": "c3d4e5f6-0006-0006-0006-000000000006",
+      "name": "Merge User Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $json.customerId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan_tier\": \"{{ $json.newTier }}\",\n  \"updated_at\": \"{{ $json.updatedAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c3d4e5f6-0007-0007-0007-000000000007",
+      "name": "Update User Plan Tier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "=eq.{{ $('Merge User Data').first().json.email }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan_tier\": \"{{ $('Merge User Data').first().json.newTier }}\",\n  \"launchpad_access\": {{ $('Merge User Data').first().json.newFlags.launchpad_access }},\n  \"bylda_os_access\": {{ $('Merge User Data').first().json.newFlags.bylda_os_access }},\n  \"ai_tools_limit\": {{ $('Merge User Data').first().json.newFlags.ai_tools_limit }},\n  \"automation_systems\": {{ $('Merge User Data').first().json.newFlags.automation_systems }},\n  \"priority_support\": {{ $('Merge User Data').first().json.newFlags.priority_support }},\n  \"white_label\": {{ $('Merge User Data').first().json.newFlags.white_label }},\n  \"updated_at\": \"{{ $('Merge User Data').first().json.updatedAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c3d4e5f6-0008-0008-0008-000000000008",
+      "name": "Revoke Feature Flags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <hello@usebylda.com>\",\n  \"to\": [\"{{ $('Merge User Data').first().json.email }}\"],\n  \"subject\": \"Your plan has changed to {{ $('Merge User Data').first().json.newPlanDisplayName }}\",\n  \"html\": \"<h1>Hi {{ $('Merge User Data').first().json.firstName }},</h1><p>Your Bylda plan has been updated from <strong>{{ $('Merge User Data').first().json.oldPlanDisplayName }}</strong> to <strong>{{ $('Merge User Data').first().json.newPlanDisplayName }}</strong>.</p><p>The following features are no longer available on your current plan:</p><ul>{{ $('Merge User Data').first().json.revokedFeatures.map(f => '<li>' + f + '</li>').join('') }}</ul><p>Want to get them back? <a href='https://usebylda.com/upgrade'>Upgrade your plan anytime.</a></p><p>\u2014 The Bylda Team</p>\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c3d4e5f6-0009-0009-0009-000000000009",
+      "name": "Send Downgrade Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/plan_change_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Merge User Data').first().json.email }}\",\n  \"stripe_customer_id\": \"{{ $('Merge User Data').first().json.customerId }}\",\n  \"stripe_subscription_id\": \"{{ $('Merge User Data').first().json.subscriptionId }}\",\n  \"old_tier\": \"{{ $('Merge User Data').first().json.oldTier }}\",\n  \"new_tier\": \"{{ $('Merge User Data').first().json.newTier }}\",\n  \"old_price_id\": \"{{ $('Merge User Data').first().json.oldPriceId }}\",\n  \"new_price_id\": \"{{ $('Merge User Data').first().json.newPriceId }}\",\n  \"change_type\": \"downgrade\",\n  \"revoked_features\": {{ JSON.stringify($('Merge User Data').first().json.revokedFeatures) }},\n  \"changed_at\": \"{{ $('Merge User Data').first().json.updatedAt }}\"\n}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c3d4e5f6-0010-0010-0010-000000000010",
+      "name": "Log Plan Change",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "c3d4e5f6-0011-0011-0011-000000000011",
+      "name": "Return 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    }
+  ],
+  "connections": {
+    "Stripe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Downgrade Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Downgrade Payload": {
+      "main": [
+        [
+          {
+            "node": "Is Downgrade?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Downgrade?": {
+      "main": [
+        [
+          {
+            "node": "Return 200 Not Downgrade",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get User from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Merge User Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge User Data": {
+      "main": [
+        [
+          {
+            "node": "Update User Plan Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Plan Tier": {
+      "main": [
+        [
+          {
+            "node": "Revoke Feature Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revoke Feature Flags": {
+      "main": [
+        [
+          {
+            "node": "Send Downgrade Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Downgrade Email": {
+      "main": [
+        [
+          {
+            "node": "Log Plan Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Plan Change": {
+      "main": [
+        [
+          {
+            "node": "Return 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["bylda-ops", "stripe", "downgrade", "billing"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "bylda-ops-downgrade-v1"
+}

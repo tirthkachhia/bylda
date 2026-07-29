@@ -1,0 +1,562 @@
+{
+  "name": "Dashboard Auto Creation Post Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-dashboard-init",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "m1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500],
+      "webhookId": "bylda-ops-dashboard-init"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id        = body.user_id        || null;\n// Optional pre-passed fields from AI Config Builder\nconst config_id      = body.config_id      || null;\nconst operator_name  = body.operator_name  || null;\nconst operator_tone  = body.operator_tone  || null;\nconst recommended_tools = Array.isArray(body.recommended_tools) ? body.recommended_tools : null;\nconst primary_niche  = body.primary_niche  || null;\n\nif (!user_id) throw new Error('Missing required field: user_id');\n\nconst has_ai_context = !!(operator_name && recommended_tools && primary_niche);\n\nreturn [{\n  json: {\n    user_id,\n    config_id,\n    has_ai_context,\n    prefilled_ai: { operator_name, operator_tone, recommended_tools, primary_niche },\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "m1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_profiles?user_id=eq.{{ $json.user_id }}&select=user_id,email,business_name,plan_tier",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "m1000001-0003-0003-0003-000000000003",
+      "name": "GET user_profiles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 280],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements?user_id=eq.{{ $('Parse & Validate').first().json.user_id }}&select=*",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "m1000001-0004-0004-0004-000000000004",
+      "name": "GET user_entitlements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 500],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_credits?user_id=eq.{{ $('Parse & Validate').first().json.user_id }}&select=balance,unlimited",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "m1000001-0005-0005-0005-000000000005",
+      "name": "GET user_credits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 720],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all three parallel fetches\nconst items = $input.all();\nconst origin = $('Parse & Validate').first().json;\n\nif (!items || items.length < 3) {\n  throw new Error(`Expected 3 parallel fetch results, got ${items?.length || 0}. Check Supabase connectivity.`);\n}\n\n// Each item comes in order of connection \u2014 profile, entitlements, credits\n// Use safe extraction since order may vary\nconst findItem = (key) => items.find(i => i.json && (Array.isArray(i.json) ? i.json[0]?.[key] !== undefined : i.json[key] !== undefined));\n\n// Profile\nconst profileRaw = items[0].json;\nconst profile = Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;\nif (!profile?.user_id) throw new Error(`No user_profiles record for user_id: ${origin.user_id}`);\n\n// Entitlements\nconst entRaw = items[1].json;\nconst entitlements = Array.isArray(entRaw) ? entRaw[0] : entRaw;\nif (!entitlements?.user_id) throw new Error(`No user_entitlements record for user_id: ${origin.user_id}`);\n\n// Credits\nconst credRaw = items[2].json;\nconst credits = Array.isArray(credRaw) ? credRaw[0] : credRaw;\n\nreturn [{\n  json: {\n    user_id:       origin.user_id,\n    now:           origin.now,\n    has_ai_context: origin.has_ai_context,\n    prefilled_ai:  origin.prefilled_ai,\n    config_id:     origin.config_id,\n    profile,\n    entitlements,\n    credit_balance: credits?.unlimited ? 'unlimited' : (credits?.balance ?? 0)\n  }\n}];"
+      },
+      "id": "m1000001-0006-0006-0006-000000000006",
+      "name": "Merge Parallel Fetches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-ai",
+              "leftValue": "={{ $json.has_ai_context }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "m1000001-0007-0007-0007-000000000007",
+      "name": "Has AI Context?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use pre-passed AI context \u2014 no extra DB fetch\nconst d = $input.first().json;\nconst ai = d.prefilled_ai;\n\nreturn [{\n  json: {\n    ...d,\n    operator_name:     ai.operator_name,\n    operator_tone:     ai.operator_tone || 'professional',\n    recommended_tools: ai.recommended_tools || [],\n    primary_niche:     ai.primary_niche,\n    gtm_summary:       null  // not passed in pre-fill, will fallback below\n  }\n}];"
+      },
+      "id": "m1000001-0008-0008-0008-000000000008",
+      "name": "Use Pre-Passed AI Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 320]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/ai_operator_configs?user_id=eq.{{ $json.user_id }}&select=operator_name,operator_tone,recommended_tools,primary_niche,gtm_strategy_summary",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "m1000001-0009-0009-0009-000000000009",
+      "name": "GET ai_operator_configs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 680],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fetchResult = $input.first().json;\nconst origin = $('Merge Parallel Fetches').first().json;\n\nconst record = Array.isArray(fetchResult) ? fetchResult[0] : fetchResult;\n\n// Graceful fallback if AI config not yet ready\nconst operator_name     = record?.operator_name     || `${origin.profile.business_name || 'My'} AI Operator`;\nconst operator_tone     = record?.operator_tone     || 'professional';\nconst recommended_tools = record?.recommended_tools || ['launchpad_tool_1', 'launchpad_tool_2'];\nconst primary_niche     = record?.primary_niche     || 'General Business Automation';\nconst gtm_summary       = record?.gtm_strategy_summary || null;\n\nreturn [{\n  json: {\n    ...origin,\n    operator_name,\n    operator_tone,\n    recommended_tools,\n    primary_niche,\n    gtm_summary\n  }\n}];"
+      },
+      "id": "m1000001-0010-0010-0010-000000000010",
+      "name": "Extract AI Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 680]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge both AI context paths into unified shape\nconst items = $input.all();\nif (!items || items.length === 0) throw new Error('No AI context data after merge');\nreturn [items[0]];"
+      },
+      "id": "m1000001-0011-0011-0011-000000000011",
+      "name": "Merge AI Context Paths",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\n// \u2500\u2500 1. Filter recommended tools against actual entitlements \u2500\u2500\nconst ent = d.entitlements || {};\nconst allToolKeys = Array.from({length: 10}, (_, i) => `launchpad_tool_${i + 1}`);\n\nconst entitled_tools = allToolKeys.filter(key => ent[key] === true);\nconst recommended = Array.isArray(d.recommended_tools) ? d.recommended_tools : [];\n\n// Keep AI-recommended tools that user actually has access to\n// Fall back to first 2 entitled tools if none of the recommended are entitled\nlet active_tools = recommended.filter(t => entitled_tools.includes(t));\nif (active_tools.length === 0) {\n  active_tools = entitled_tools.slice(0, 2);\n}\n\n// \u2500\u2500 2. Bylda OS systems user has access to \u2500\u2500\nconst bylda_os_keys = [\n  'bylda_os_lead_capture',\n  'bylda_os_followup',\n  'bylda_os_booking',\n  'bylda_os_nurture',\n  'bylda_os_reporting',\n  'bylda_os_sales'\n];\nconst active_bylda_os = bylda_os_keys.filter(k => ent[k] === true);\n\n// \u2500\u2500 3. Generate quick_start_steps based on niche + active tools \u2500\u2500\nconst niche = (d.primary_niche || '').toLowerCase();\nconst plan_tier = (d.profile.plan_tier || 'free').toLowerCase();\n\n// Tool display names\nconst toolLabels = {\n  launchpad_tool_1:  'AI Lead Finder',\n  launchpad_tool_2:  'Copy Generator',\n  launchpad_tool_3:  'Offer Builder',\n  launchpad_tool_4:  'Email Sequencer',\n  launchpad_tool_5:  'Funnel Mapper',\n  launchpad_tool_6:  'Competitor Analyst',\n  launchpad_tool_7:  'Ad Creative Studio',\n  launchpad_tool_8:  'VSL Script Writer',\n  launchpad_tool_9:  'AI Sales Closer',\n  launchpad_tool_10: 'Business Automator'\n};\n\n// Niche-aware quick start steps\nconst nicheStepMap = [\n  { keywords: ['saas', 'software', 'tech'],\n    steps: [\n      { step: 1, title: 'Map your SaaS funnel', action: 'Run Funnel Mapper with your trial-to-paid flow', tool: 'launchpad_tool_5' },\n      { step: 2, title: 'Generate onboarding emails', action: 'Use Email Sequencer to build a 5-part activation sequence', tool: 'launchpad_tool_4' },\n      { step: 3, title: 'Analyse top competitors', action: 'Run Competitor Analyst on your top 3 rivals', tool: 'launchpad_tool_6' }\n    ]\n  },\n  { keywords: ['agency', 'marketing', 'ads', 'creative'],\n    steps: [\n      { step: 1, title: 'Generate ad creatives', action: 'Use Ad Creative Studio to produce 5 scroll-stopping concepts', tool: 'launchpad_tool_7' },\n      { step: 2, title: 'Build your offer', action: 'Run Offer Builder to craft your agency retainer package', tool: 'launchpad_tool_3' },\n      { step: 3, title: 'Write case study copy', action: 'Use Copy Generator to turn your results into proof assets', tool: 'launchpad_tool_2' }\n    ]\n  },\n  { keywords: ['ecom', 'ecommerce', 'store', 'product', 'retail'],\n    steps: [\n      { step: 1, title: 'Find high-intent buyers', action: 'Run AI Lead Finder for your target customer profile', tool: 'launchpad_tool_1' },\n      { step: 2, title: 'Create product ad copy', action: 'Use Copy Generator for your top 3 products', tool: 'launchpad_tool_2' },\n      { step: 3, title: 'Build abandoned cart sequence', action: 'Set up Email Sequencer with a 3-step recovery flow', tool: 'launchpad_tool_4' }\n    ]\n  },\n  { keywords: ['coach', 'consulting', 'consultant', 'service'],\n    steps: [\n      { step: 1, title: 'Craft your signature offer', action: 'Run Offer Builder with your core transformation outcome', tool: 'launchpad_tool_3' },\n      { step: 2, title: 'Write your VSL script', action: 'Use VSL Script Writer to build a 5-minute video sales letter', tool: 'launchpad_tool_8' },\n      { step: 3, title: 'Automate lead outreach', action: 'Use AI Lead Finder to identify and pre-qualify ideal clients', tool: 'launchpad_tool_1' }\n    ]\n  }\n];\n\n// Find matching niche steps\nlet quick_start_steps = null;\nfor (const entry of nicheStepMap) {\n  if (entry.keywords.some(kw => niche.includes(kw))) {\n    quick_start_steps = entry.steps;\n    break;\n  }\n}\n\n// Generic fallback steps\nif (!quick_start_steps) {\n  quick_start_steps = [\n    { step: 1, title: 'Generate compelling copy', action: 'Use Copy Generator to create your homepage headline and hero copy', tool: 'launchpad_tool_2' },\n    { step: 2, title: 'Define your offer', action: 'Run Offer Builder to structure your core product or service offer', tool: 'launchpad_tool_3' },\n    { step: 3, title: 'Build your outreach list', action: 'Use AI Lead Finder to identify your first 100 ideal prospects', tool: 'launchpad_tool_1' }\n  ];\n}\n\n// Filter quick start steps to only include tools the user has access to\n// If tool not entitled, keep step but mark it as 'upgrade_required'\nquick_start_steps = quick_start_steps.map(s => ({\n  ...s,\n  entitled: entitled_tools.includes(s.tool) || active_tools.includes(s.tool),\n  tool_label: toolLabels[s.tool] || s.tool\n}));\n\n// \u2500\u2500 4. Assemble final dashboard_data object \u2500\u2500\nconst dashboard_data = {\n  user_id:            d.user_id,\n  business_name:      d.profile.business_name || 'Your Business',\n  email:              d.profile.email || '',\n  plan_tier:          d.profile.plan_tier || 'free',\n  operator_name:      d.operator_name,\n  operator_tone:      d.operator_tone,\n  primary_niche:      d.primary_niche,\n  credit_balance:     d.credit_balance,\n  active_tools,\n  entitled_tools,\n  active_bylda_os,\n  quick_start_steps,\n  gtm_summary:        d.gtm_summary || 'Complete your AI profile to unlock your personalised go-to-market strategy.',\n  ai_operator_access: ent.ai_operator_access === true,\n  subagent_access:    ent.subagent_access === true,\n  dashboard_version:  1,\n  generated_at:       d.now\n};\n\nreturn [{\n  json: {\n    user_id: d.user_id,\n    now:     d.now,\n    dashboard_data\n  }\n}];"
+      },
+      "id": "m1000001-0012-0012-0012-000000000012",
+      "name": "Build Dashboard Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_dashboards",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"dashboard_data\": {{ JSON.stringify($json.dashboard_data) }},\n  \"plan_tier\": {{ JSON.stringify($json.dashboard_data.plan_tier) }},\n  \"operator_name\": {{ JSON.stringify($json.dashboard_data.operator_name) }},\n  \"dashboard_version\": 1,\n  \"created_at\": \"{{ $json.now }}\",\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "m1000001-0013-0013-0013-000000000013",
+      "name": "UPSERT user_dashboards",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 360],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $('Build Dashboard Data').first().json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dashboard_ready\": true,\n  \"dashboard_ready_at\": \"{{ $('Build Dashboard Data').first().json.now }}\",\n  \"updated_at\": \"{{ $('Build Dashboard Data').first().json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "m1000001-0014-0014-0014-000000000014",
+      "name": "PATCH users: dashboard_ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 640],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Build Dashboard Data').first().json;\n\nif (!items || items.length < 2) {\n  throw new Error(`Expected 2 write results (upsert + patch), got ${items?.length || 0}`);\n}\n\nconst upsertRaw = items[0].json;\nconst upserted  = Array.isArray(upsertRaw) ? upsertRaw[0] : upsertRaw;\n\nreturn [{\n  json: {\n    user_id:        origin.user_id,\n    now:            origin.now,\n    dashboard_data: origin.dashboard_data,\n    dashboard_id:   upserted?.id || null,\n    writes_ok:      !!upserted?.user_id\n  }\n}];"
+      },
+      "id": "m1000001-0015-0015-0015-000000000015",
+      "name": "Merge Write Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-welcome-sequence",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"email\": {{ JSON.stringify($json.dashboard_data.email) }},\n  \"business_name\": {{ JSON.stringify($json.dashboard_data.business_name) }},\n  \"operator_name\": {{ JSON.stringify($json.dashboard_data.operator_name) }},\n  \"plan_tier\": {{ JSON.stringify($json.dashboard_data.plan_tier) }},\n  \"active_tools\": {{ JSON.stringify($json.dashboard_data.active_tools) }},\n  \"dashboard_url\": \"/dashboard/{{ $json.user_id }}\"\n}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "m1000001-0016-0016-0016-000000000016",
+      "name": "Trigger: Welcome Sequence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2940, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const triggerResult = $input.first().json;\nconst origin = $('Merge Write Results').first().json;\n\nconst welcome_triggered = !triggerResult?.error;\n\nreturn [{\n  json: {\n    ...origin,\n    welcome_triggered\n  }\n}];"
+      },
+      "id": "m1000001-0017-0017-0017-000000000017",
+      "name": "Confirm Welcome Triggered",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3180, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"dashboard_url\": \"/dashboard/{{ $json.user_id }}\",\n  \"dashboard_id\": \"{{ $json.dashboard_id }}\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"operator_name\": {{ JSON.stringify($json.dashboard_data.operator_name) }},\n  \"active_tools\": {{ JSON.stringify($json.dashboard_data.active_tools) }},\n  \"credit_balance\": {{ JSON.stringify($json.dashboard_data.credit_balance) }},\n  \"welcome_sequence_triggered\": {{ $json.welcome_triggered }},\n  \"generated_at\": \"{{ $json.now }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "m1000001-0018-0018-0018-000000000018",
+      "name": "Return: Dashboard Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3420, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "GET user_profiles",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GET user_entitlements",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GET user_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET user_profiles": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Fetches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET user_entitlements": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Fetches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET user_credits": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Fetches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Parallel Fetches": {
+      "main": [
+        [
+          {
+            "node": "Has AI Context?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has AI Context?": {
+      "main": [
+        [
+          {
+            "node": "Use Pre-Passed AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GET ai_operator_configs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Pre-Passed AI Context": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Context Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET ai_operator_configs": {
+      "main": [
+        [
+          {
+            "node": "Extract AI Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract AI Config": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Context Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge AI Context Paths": {
+      "main": [
+        [
+          {
+            "node": "Build Dashboard Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Dashboard Data": {
+      "main": [
+        [
+          {
+            "node": "UPSERT user_dashboards",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PATCH users: dashboard_ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UPSERT user_dashboards": {
+      "main": [
+        [
+          {
+            "node": "Merge Write Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH users: dashboard_ready": {
+      "main": [
+        [
+          {
+            "node": "Merge Write Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Write Results": {
+      "main": [
+        [
+          {
+            "node": "Trigger: Welcome Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger: Welcome Sequence": {
+      "main": [
+        [
+          {
+            "node": "Confirm Welcome Triggered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Welcome Triggered": {
+      "main": [
+        [
+          {
+            "node": "Return: Dashboard Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "dashboard"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

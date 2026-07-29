@@ -1,0 +1,72 @@
+[
+  {
+    "file": "01-stg-ai-webhook-to-ai-operator-main-router-dhr.json",
+    "id": "hFGG6Vkt2pAchhwL",
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Main Router \u00b7 DHR",
+    "action": "CREATE",
+    "tag_status": 200
+  },
+  {
+    "file": "02-stg-ai-webhook-to-ai-operator-context-loader-dhr.json",
+    "id": "Ie9dip70txtokrku",
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR",
+    "action": "CREATE",
+    "tag_status": 200
+  },
+  {
+    "file": "03-stg-ai-webhook-to-ai-operator-tool-dispatcher-dhr.json",
+    "id": "gQjIp82IEcqTRdF8",
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Tool Dispatcher \u00b7 DHR",
+    "action": "CREATE",
+    "tag_status": 200
+  },
+  {
+    "file": "04-stg-ai-webhook-to-ai-operator-response-formatter-dhr.json",
+    "id": "jiXnyKueXebynAtb",
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Response Formatter \u00b7 DHR",
+    "action": "CREATE",
+    "tag_status": 200
+  },
+  {
+    "file": "05-stg-ai-webhook-to-operator-memory-write-dhr.json",
+    "id": "Jq2uNlVjXMq8lWay",
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR",
+    "action": "CREATE",
+    "tag_status": 200
+  },
+  {
+    "file": "06-stg-ai-webhook-to-operator-memory-read-dhr.json",
+    "id": "xDxqqOWwOC10iRg8",
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Read \u00b7 DHR",
+    "action": "CREATE",
+    "tag_status": 200
+  },
+  {
+    "file": "07-stg-ai-webhook-to-operator-confidence-fallback-handler-dhr.json",
+    "id": "S4mZcKL8oUiAtEZT",
+    "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR",
+    "action": "CREATE",
+    "tag_status": 200
+  },
+  {
+    "file": "08-stg-ops-webhook-to-operator-escalation-to-human-admin-ans.json",
+    "id": "d2fFOkaNN4dDyjp0",
+    "name": "STG \u00b7 OPS \u00b7 Webhook \u2192 Operator Escalation to Human Admin \u00b7 ANS",
+    "action": "UPDATE",
+    "tag_status": 200
+  },
+  {
+    "file": "09-stg-infra-schedule-to-operator-health-check-self-test-ping-ans.json",
+    "id": "3VYhGxZmdZa7FPOY",
+    "name": "STG \u00b7 INFRA \u00b7 Schedule \u2192 Operator Health Check Self Test Ping \u00b7 ANS",
+    "action": "UPDATE",
+    "tag_status": 200
+  },
+  {
+    "file": "10-stg-infra-webhook-to-operator-version-update-prompt-swap-ans.json",
+    "id": "5SrmhbslL2xYw3eI",
+    "name": "STG \u00b7 INFRA \u00b7 Webhook \u2192 Operator Version Update Prompt Swap \u00b7 ANS",
+    "action": "UPDATE",
+    "tag_status": 200
+  }
+]

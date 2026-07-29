@@ -1,0 +1,102 @@
+[
+  {
+    "index": 1,
+    "name": "Launchpad Ad Creative Generator",
+    "file": "01-launchpad-ad-creative-generator.json",
+    "webhook_paths": ["v1/ad-creative/generate"],
+    "node_count": 14,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 2,
+    "name": "Launchpad Cold Email Sequencer",
+    "file": "02-launchpad-cold-email-sequencer.json",
+    "webhook_paths": ["v1/cold-email/sequence"],
+    "node_count": 13,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 3,
+    "name": "Launchpad ICP Builder",
+    "file": "03-launchpad-icp-builder.json",
+    "webhook_paths": ["v1/icp/build"],
+    "node_count": 14,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 4,
+    "name": "Launchpad Landing Page Copy",
+    "file": "04-launchpad-landing-page-copy.json",
+    "webhook_paths": ["v1/landing-copy/generate"],
+    "node_count": 13,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 5,
+    "name": "Launchpad Lead Magnet Builder",
+    "file": "05-launchpad-lead-magnet-builder.json",
+    "webhook_paths": ["v1/lead-magnet/generate"],
+    "node_count": 13,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 6,
+    "name": "Launchpad Niche Validator",
+    "file": "06-launchpad-niche-validator.json",
+    "webhook_paths": ["v1/niche/validate"],
+    "node_count": 13,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 7,
+    "name": "Launchpad Offer Builder",
+    "file": "07-launchpad-offer-builder.json",
+    "webhook_paths": ["v1/offer/build"],
+    "node_count": 13,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 8,
+    "name": "Launchpad Pitch Deck Outliner",
+    "file": "08-launchpad-pitch-deck-outliner.json",
+    "webhook_paths": ["v1/pitch-deck/outline"],
+    "node_count": 13,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 9,
+    "name": "Launchpad Pricing Strategist",
+    "file": "09-launchpad-pricing-strategist.json",
+    "webhook_paths": ["v1/pricing/strategy"],
+    "node_count": 13,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  },
+  {
+    "index": 10,
+    "name": "Launchpad VSL Generator",
+    "file": "10-launchpad-vsl-generator.json",
+    "webhook_paths": ["v1/vsl/generate"],
+    "node_count": 16,
+    "parses_strict": true,
+    "parse_error": null,
+    "tags": ["env:stg", "app:launchpad", "review:pending", "claude-generated"]
+  }
+]

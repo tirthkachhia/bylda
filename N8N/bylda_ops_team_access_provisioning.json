@@ -1,0 +1,518 @@
+{
+  "name": "Multi Seat Team Access Provisioning",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-team-provision",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "i1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-team-provision"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst owner_user_id  = body.owner_user_id || null;\nconst invitee_email  = (body.invitee_email || '').toLowerCase().trim();\nconst seat_role      = (body.seat_role || 'viewer').toLowerCase().trim();\n\nif (!owner_user_id)  throw new Error('Missing required field: owner_user_id');\nif (!invitee_email)  throw new Error('Missing required field: invitee_email');\n\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (!emailRegex.test(invitee_email)) throw new Error(`Invalid invitee_email: ${invitee_email}`);\n\nconst validRoles = ['viewer', 'editor', 'admin'];\nconst resolvedRole = validRoles.includes(seat_role) ? seat_role : 'viewer';\n\n// Generate a unique invite token\nconst token_raw = `${owner_user_id}-${invitee_email}-${Date.now()}`;\nconst invite_token = Buffer.from(token_raw).toString('base64').replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_').substring(0, 32);\n\nconst roleLabels = {\n  viewer: 'Viewer (read-only access)',\n  editor: 'Editor (can create and edit)',\n  admin:  'Admin (full team management)'\n};\n\nreturn [{\n  json: {\n    owner_user_id,\n    invitee_email,\n    seat_role: resolvedRole,\n    role_label: roleLabels[resolvedRole],\n    invite_token,\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "i1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $json.owner_user_id }}&select=user_id,email,plan_tier,plan_status,team_name",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "i1000001-0003-0003-0003-000000000003",
+      "name": "GET owner user record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fetchResult = $input.first().json;\nconst origin = $('Parse & Validate').first().json;\n\nconst record = Array.isArray(fetchResult) ? fetchResult[0] : fetchResult;\n\nif (!record || !record.user_id) {\n  throw new Error(`Owner not found in users table: ${origin.owner_user_id}`);\n}\n\nconst plan_tier   = (record.plan_tier || '').toLowerCase();\nconst plan_status = (record.plan_status || '').toLowerCase();\nconst is_scale    = plan_tier === 'scale';\nconst is_active   = plan_status === 'active';\nconst team_name   = record.team_name || 'your team';\nconst owner_email = record.email || '';\n\nreturn [{\n  json: {\n    ...origin,\n    owner_email,\n    owner_plan_tier: plan_tier,\n    owner_plan_status: plan_status,\n    team_name,\n    is_scale,\n    is_active,\n    authorized: is_scale && is_active\n  }\n}];"
+      },
+      "id": "i1000001-0004-0004-0004-000000000004",
+      "name": "Check Scale Authorization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "auth-check",
+              "leftValue": "={{ $json.authorized }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "i1000001-0005-0005-0005-000000000005",
+      "name": "Is Scale + Active?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst reason = !d.is_scale\n  ? `Plan upgrade required. Owner is on '${d.owner_plan_tier}' \u2014 multi-seat access requires Scale ($299/mo).`\n  : `Account is ${d.owner_plan_status}. Reactivate billing to invite team members.`;\n\nreturn [{ json: { ...d, denial_reason: reason } }];"
+      },
+      "id": "i1000001-0006-0006-0006-000000000006",
+      "name": "Build Denial Reason",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"allowed\": false,\n  \"reason\": \"not_authorized\",\n  \"message\": \"{{ $json.denial_reason }}\",\n  \"owner_user_id\": \"{{ $json.owner_user_id }}\",\n  \"owner_plan_tier\": \"{{ $json.owner_plan_tier }}\",\n  \"upgrade_link\": \"https://usebylda.com/upgrade/scale\"\n}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "i1000001-0007-0007-0007-000000000007",
+      "name": "Return: 403 Not Authorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1700, 600]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/team_members?owner_user_id=eq.{{ $json.owner_user_id }}&invitee_email=eq.{{ $json.invitee_email }}&select=id,status",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "i1000001-0008-0008-0008-000000000008",
+      "name": "Check Duplicate Invite",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 260],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const dupResult = $input.first().json;\nconst origin = $('Check Scale Authorization').first().json;\n\nconst existing = Array.isArray(dupResult) ? dupResult[0] : null;\nconst is_duplicate = !!existing;\nconst existing_status = existing?.status || null;\n\nreturn [{\n  json: {\n    ...origin,\n    is_duplicate,\n    existing_status\n  }\n}];"
+      },
+      "id": "i1000001-0009-0009-0009-000000000009",
+      "name": "Evaluate Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "dup-check",
+              "leftValue": "={{ $json.is_duplicate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "i1000001-0010-0010-0010-000000000010",
+      "name": "Already Invited?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1940, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"allowed\": false,\n  \"reason\": \"duplicate_invite\",\n  \"message\": \"{{ $json.invitee_email }} has already been invited to this team (status: {{ $json.existing_status }}).\",\n  \"invitee_email\": \"{{ $json.invitee_email }}\",\n  \"existing_status\": \"{{ $json.existing_status }}\"\n}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "i1000001-0011-0011-0011-000000000011",
+      "name": "Return: 409 Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2200, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/team_members",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"owner_user_id\": \"{{ $json.owner_user_id }}\",\n  \"invitee_email\": \"{{ $json.invitee_email }}\",\n  \"role\": \"{{ $json.seat_role }}\",\n  \"status\": \"invited\",\n  \"invite_token\": \"{{ $json.invite_token }}\",\n  \"invited_at\": \"{{ $json.now }}\",\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "i1000001-0012-0012-0012-000000000012",
+      "name": "INSERT team_members",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 380],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const insertResult = $input.first().json;\nconst origin = $('Evaluate Duplicate').first().json;\n\nconst record = Array.isArray(insertResult) ? insertResult[0] : insertResult;\n\nif (!record || !record.id) {\n  throw new Error('team_members INSERT did not return a record \u2014 check Supabase RLS policies');\n}\n\n// Build the pre-filled signup link with team context\nconst base_url = process.env.APP_BASE_URL || 'https://app.usebylda.com';\nconst signup_link = `${base_url}/join?token=${origin.invite_token}&team=${encodeURIComponent(origin.owner_user_id)}&role=${origin.seat_role}&email=${encodeURIComponent(origin.invitee_email)}`;\n\nreturn [{\n  json: {\n    ...origin,\n    seat_id: record.id,\n    signup_link\n  }\n}];"
+      },
+      "id": "i1000001-0013-0013-0013-000000000013",
+      "name": "Confirm Insert + Build Invite Link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <noreply@usebylda.com>\",\n  \"to\": [\"{{ $json.invitee_email }}\"],\n  \"subject\": \"You've been invited to join {{ $json.team_name }} on Bylda\",\n  \"html\": \"<div style='font-family:sans-serif;max-width:580px;margin:0 auto;color:#1a1a1a'><div style='background:#6366f1;padding:24px 32px;border-radius:12px 12px 0 0'><h1 style='color:white;margin:0;font-size:22px'>Bylda</h1></div><div style='background:#ffffff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px'><h2 style='margin-top:0'>You're invited to {{ $json.team_name }}</h2><p>Hi there,</p><p><strong>{{ $json.owner_email }}</strong> has invited you to join their Bylda workspace as a <strong>{{ $json.role_label }}</strong>.</p><p>Bylda is an AI automation platform that helps businesses run on autopilot \u2014 from lead capture to sales automation.</p><div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:24px 0'><p style='margin:0 0 8px;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em'>Your invite details</p><p style='margin:4px 0'><strong>Team:</strong> {{ $json.team_name }}</p><p style='margin:4px 0'><strong>Role:</strong> {{ $json.role_label }}</p><p style='margin:4px 0'><strong>Email:</strong> {{ $json.invitee_email }}</p></div><a href='{{ $json.signup_link }}' style='display:inline-block;padding:14px 32px;background:#6366f1;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px'>Accept Invite \u2192</a><p style='margin-top:24px;font-size:13px;color:#64748b'>This invite link is unique to your email address. If you didn't expect this invitation, you can safely ignore this email.</p><hr style='border:none;border-top:1px solid #e2e8f0;margin:24px 0'/><p style='font-size:12px;color:#94a3b8'>Bylda \u00b7 Tampa, FL \u00b7 <a href='https://usebylda.com' style='color:#94a3b8'>usebylda.com</a></p></div></div>\",\n  \"text\": \"You've been invited to join {{ $json.team_name }} on Bylda as {{ $json.role_label }}.\\n\\nInvited by: {{ $json.owner_email }}\\nYour role: {{ $json.role_label }}\\n\\nAccept your invite here: {{ $json.signup_link }}\\n\\nIf you didn't expect this, ignore this email.\\n\\nBylda \u00b7 support@usebylda.com\"\n}",
+        "options": {}
+      },
+      "id": "i1000001-0014-0014-0014-000000000014",
+      "name": "Send Invite Email (Resend)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2680, 380]
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailResult = $input.first().json;\nconst origin = $('Confirm Insert + Build Invite Link').first().json;\n\nconst email_id   = emailResult?.id || null;\nconst email_sent = !!email_id;\n\nif (!email_sent) {\n  console.warn(`Invite email may have failed for ${origin.invitee_email}. Resend response: ${JSON.stringify(emailResult)}`);\n}\n\nreturn [{\n  json: {\n    ...origin,\n    email_sent,\n    email_id\n  }\n}];"
+      },
+      "id": "i1000001-0015-0015-0015-000000000015",
+      "name": "Confirm Email Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2920, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/admin_audit_log",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.owner_user_id }}\",\n  \"email\": \"{{ $json.owner_email }}\",\n  \"event_type\": \"team_member_invited\",\n  \"metadata\": {{ JSON.stringify({ invitee_email: $json.invitee_email, seat_role: $json.seat_role, seat_id: $json.seat_id, invite_token: $json.invite_token, email_sent: $json.email_sent }) }},\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "i1000001-0016-0016-0016-000000000016",
+      "name": "INSERT admin_audit_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3160, 380],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"team_member_invited\",\n  \"seat\": {\n    \"id\": \"{{ $('Confirm Insert + Build Invite Link').first().json.seat_id }}\",\n    \"owner_user_id\": \"{{ $('Confirm Insert + Build Invite Link').first().json.owner_user_id }}\",\n    \"invitee_email\": \"{{ $('Confirm Insert + Build Invite Link').first().json.invitee_email }}\",\n    \"role\": \"{{ $('Confirm Insert + Build Invite Link').first().json.seat_role }}\",\n    \"status\": \"invited\",\n    \"invite_token\": \"{{ $('Confirm Insert + Build Invite Link').first().json.invite_token }}\",\n    \"signup_link\": \"{{ $('Confirm Insert + Build Invite Link').first().json.signup_link }}\",\n    \"invited_at\": \"{{ $('Confirm Insert + Build Invite Link').first().json.now }}\"\n  },\n  \"email_sent\": {{ $('Confirm Email Sent').first().json.email_sent }}\n}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "id": "i1000001-0017-0017-0017-000000000017",
+      "name": "Return: 201 Seat Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3400, 380]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "GET owner user record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET owner user record": {
+      "main": [
+        [
+          {
+            "node": "Check Scale Authorization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Scale Authorization": {
+      "main": [
+        [
+          {
+            "node": "Is Scale + Active?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Scale + Active?": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate Invite",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Denial Reason",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Denial Reason": {
+      "main": [
+        [
+          {
+            "node": "Return: 403 Not Authorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate Invite": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Already Invited?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Invited?": {
+      "main": [
+        [
+          {
+            "node": "Return: 409 Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "INSERT team_members",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT team_members": {
+      "main": [
+        [
+          {
+            "node": "Confirm Insert + Build Invite Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Insert + Build Invite Link": {
+      "main": [
+        [
+          {
+            "node": "Send Invite Email (Resend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invite Email (Resend)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Email Sent": {
+      "main": [
+        [
+          {
+            "node": "INSERT admin_audit_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT admin_audit_log": {
+      "main": [
+        [
+          {
+            "node": "Return: 201 Seat Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "teams"
+    },
+    {
+      "name": "scale"
+    },
+    {
+      "name": "provisioning"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

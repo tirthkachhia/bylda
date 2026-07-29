@@ -1,0 +1,98 @@
+{
+  "name": "AI - Build Pitch (n8n)",
+  "meta": {
+    "description": "TASK-097 · Calls generate-pitch edge function via n8n, logs activation event, returns structured pitch output.",
+    "templateId": "bylda-ops-ai-build-pitch"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-ai-build-pitch",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t097-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst user_id = body.user_id || null;\nconst workspace_id = body.workspace_id || null;\nconst idea = body.idea || body.product || '';\nconst target_customer = body.target_customer || 'Investors';\nconst traction = body.traction || null;\nconst ask = body.ask || null;\nconst market_size = body.market_size || null;\nif (!idea.trim()) throw new Error('idea is required');\nif (!user_id) throw new Error('user_id is required');\nreturn [{ json: { user_id, workspace_id, idea, target_customer, traction, ask, market_size, now: new Date().toISOString() } }];"
+      },
+      "id": "t097-0002",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/functions/v1/generate-pitch",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"idea\": {{ JSON.stringify($json.idea) }},\n  \"target_customer\": {{ JSON.stringify($json.target_customer) }},\n  \"traction\": {{ $json.traction ? JSON.stringify($json.traction) : 'null' }},\n  \"ask\": {{ $json.ask ? JSON.stringify($json.ask) : 'null' }},\n  \"market_size\": {{ $json.market_size ? JSON.stringify($json.market_size) : 'null' }},\n  \"user_id\": {{ JSON.stringify($json.user_id) }}\n}",
+        "options": {}
+      },
+      "id": "t097-0003",
+      "name": "Call Generate-Pitch Edge Fn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/activation_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Parse Input').item.json.user_id }}\",\n  \"workspace_id\": {{ $('Parse Input').item.json.workspace_id ? JSON.stringify($('Parse Input').item.json.workspace_id) : 'null' }},\n  \"event_name\": \"first_tool_run\",\n  \"properties\": { \"tool_key\": \"generate-pitch\", \"via\": \"n8n\" }\n}",
+        "options": {}
+      },
+      "id": "t097-0004",
+      "name": "Log first_tool_run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Call Generate-Pitch Edge Fn').item.json }}"
+      },
+      "id": "t097-0005",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]] },
+    "Parse Input": {
+      "main": [[{ "node": "Call Generate-Pitch Edge Fn", "type": "main", "index": 0 }]]
+    },
+    "Call Generate-Pitch Edge Fn": {
+      "main": [[{ "node": "Log first_tool_run", "type": "main", "index": 0 }]]
+    },
+    "Log first_tool_run": { "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["ai", "pitch", "sprint-3"]
+}

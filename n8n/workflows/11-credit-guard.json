@@ -1,0 +1,283 @@
+{
+  "name": "Credit Guard",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "credit-guard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cg000001-0001-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "credit-guard-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body ?? $input.item.json;\nconst action = body.action;\nconst userId = body.user_id;\nconst toolSlug = body.tool_slug;\nconst amount = body.amount ?? 0;\nconst reservationId = body.reservation_id;\n\nconst validActions = ['reserve', 'confirm', 'refund'];\nif (!validActions.includes(action)) {\n  throw new Error(`Invalid action '${action}'. Must be one of: ${validActions.join(', ')}`);\n}\nif (action === 'reserve' && (!userId || !toolSlug)) {\n  throw new Error('reserve requires user_id and tool_slug');\n}\nif ((action === 'confirm' || action === 'refund') && !reservationId) {\n  throw new Error(`${action} requires reservation_id`);\n}\n\nreturn [{ json: { action, user_id: userId, tool_slug: toolSlug, amount, reservation_id: reservationId } }];"
+      },
+      "id": "cg000001-0002-4000-8000-000000000002",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "reserve-branch",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "reserve",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cg000001-0003-4000-8000-000000000003",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE(alloc.credits, 0) - COALESCE(used.credits, 0) AS balance\nFROM auth.users u\nLEFT JOIN (\n  SELECT user_id, SUM(amount) AS credits FROM credit_allocations GROUP BY user_id\n) alloc ON alloc.user_id = u.id\nLEFT JOIN (\n  SELECT user_id, SUM(cost) AS credits FROM credit_ledger WHERE status = 'confirmed' GROUP BY user_id\n) used ON used.user_id = u.id\nWHERE u.id = '{{ $('Validate Input').item.json.user_id }}'",
+        "options": {}
+      },
+      "id": "cg000001-0004-4000-8000-000000000004",
+      "name": "Check Balance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 160],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const balance = $('Check Balance').item.json.balance ?? 0;\nconst amount = $('Validate Input').item.json.amount ?? 0;\n\nif (balance < amount) {\n  return [{ json: { sufficient: false, balance, required: amount } }];\n}\nreturn [{ json: { sufficient: true, balance, required: amount } }];"
+      },
+      "id": "cg000001-0005-4000-8000-000000000005",
+      "name": "Sufficient?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "sufficient-check",
+              "leftValue": "={{ $json.sufficient }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cg000001-0006-4000-8000-000000000006",
+      "name": "Has Credits?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1440, 160]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO credit_ledger (user_id, tool, cost, status, meta)\nVALUES (\n  '{{ $('Validate Input').item.json.user_id }}',\n  '{{ $('Validate Input').item.json.tool_slug }}',\n  {{ $('Validate Input').item.json.amount }},\n  'reserved',\n  '{\"source\": \"credit_guard\"}'::jsonb\n)\nRETURNING reservation_id, cost, created_at",
+        "options": {}
+      },
+      "id": "cg000001-0007-4000-8000-000000000007",
+      "name": "Insert Reservation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1680, 80],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"reserve\",\n  \"reservation_id\": \"{{ $('Insert Reservation').item.json.reservation_id }}\",\n  \"amount_reserved\": {{ $('Validate Input').item.json.amount }},\n  \"balance_before\": {{ $('Sufficient?').item.json.balance }}\n}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "cg000001-0008-4000-8000-000000000008",
+      "name": "Reserve Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1920, 80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"insufficient_credits\",\n  \"balance\": {{ $json.balance }},\n  \"required\": {{ $json.required }}\n}",
+        "options": { "responseCode": 402 }
+      },
+      "id": "cg000001-0009-4000-8000-000000000009",
+      "name": "Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "confirm-branch",
+              "leftValue": "={{ $('Validate Input').item.json.action }}",
+              "rightValue": "confirm",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cg000001-0010-4000-8000-000000000010",
+      "name": "Confirm or Refund?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 440]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE credit_ledger SET status = 'confirmed', updated_at = NOW()\nWHERE reservation_id = '{{ $('Validate Input').item.json.reservation_id }}'\n  AND status = 'reserved'\nRETURNING reservation_id, cost, user_id",
+        "options": {}
+      },
+      "id": "cg000001-0011-4000-8000-000000000011",
+      "name": "Confirm Debit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 360],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE credit_ledger SET status = 'refunded', updated_at = NOW()\nWHERE reservation_id = '{{ $('Validate Input').item.json.reservation_id }}'\n  AND status = 'reserved'\nRETURNING reservation_id, cost, user_id",
+        "options": {}
+      },
+      "id": "cg000001-0012-4000-8000-000000000012",
+      "name": "Refund Reservation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 520],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"{{ $('Validate Input').item.json.action }}\",\n  \"reservation_id\": \"{{ $('Validate Input').item.json.reservation_id }}\"\n}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "cg000001-0013-4000-8000-000000000013",
+      "name": "Confirm/Refund Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 440]
+    },
+    {
+      "parameters": {
+        "errorWorkflow": ""
+      },
+      "id": "cg000001-0099-4000-8000-000000000099",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 540]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_error_log (workflow_name, error_message, error_node, execution_id)\nVALUES ('Credit Guard', '{{ $json.message }}', '{{ $json.node?.name ?? \"unknown\" }}', '{{ $json.execution?.id ?? \"\" }}')",
+        "options": {}
+      },
+      "id": "cg000001-0100-4000-8000-000000000100",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 540],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": \"{{ $('Error Trigger').item.json.message }}\", \"stage\": \"credit_guard_error\" }",
+        "options": { "responseCode": 500 }
+      },
+      "id": "cg000001-0101-4000-8000-000000000101",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 540]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
+    "Validate Input": { "main": [[{ "node": "Route Action", "type": "main", "index": 0 }]] },
+    "Route Action": {
+      "main": [
+        [{ "node": "Check Balance", "type": "main", "index": 0 }],
+        [{ "node": "Confirm or Refund?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Balance": { "main": [[{ "node": "Sufficient?", "type": "main", "index": 0 }]] },
+    "Sufficient?": { "main": [[{ "node": "Has Credits?", "type": "main", "index": 0 }]] },
+    "Has Credits?": {
+      "main": [
+        [{ "node": "Insert Reservation", "type": "main", "index": 0 }],
+        [{ "node": "Insufficient Credits", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert Reservation": { "main": [[{ "node": "Reserve Success", "type": "main", "index": 0 }]] },
+    "Confirm or Refund?": {
+      "main": [
+        [{ "node": "Confirm Debit", "type": "main", "index": 0 }],
+        [{ "node": "Refund Reservation", "type": "main", "index": 0 }]
+      ]
+    },
+    "Confirm Debit": {
+      "main": [[{ "node": "Confirm/Refund Success", "type": "main", "index": 0 }]]
+    },
+    "Refund Reservation": {
+      "main": [[{ "node": "Confirm/Refund Success", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger": { "main": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Log Error": { "main": [[{ "node": "Error Response", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [{ "name": "bylda-ops" }, { "name": "credit-guard" }],
+  "triggerCount": 1,
+  "updatedAt": "2026-05-14T00:00:00.000Z",
+  "id": "bylda-ops-credit-guard-v1"
+}

@@ -1,0 +1,419 @@
+{
+  "name": "Launchpad Lead Magnet Builder",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "v1/lead-magnet/generate",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "=eq.tool_lead_magnet"
+            },
+            {
+              "name": "select",
+              "value": "enabled"
+            }
+          ]
+        }
+      },
+      "id": "verify_entitlement",
+      "name": "Verify Lead Magnet Entitlement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json[0] }}",
+              "value2": null
+            }
+          ]
+        }
+      },
+      "id": "check_entitlement",
+      "name": "Entitlement Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Feature not enabled\",\n  \"upgrade_url\": \"https://usebylda.com/launchpad?tier=pro\"\n}"
+      },
+      "id": "upsell_not_entitled",
+      "name": "Return Upsell - Not Entitled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BYLDA_OPS_WEBHOOK_URL }}/credit-deduction",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "lead_magnet_builder"
+            },
+            {
+              "name": "cost",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "id": "deduct_credits",
+      "name": "Deduct Credits (10)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json.insufficient_credits }}"
+            }
+          ]
+        }
+      },
+      "id": "check_credits",
+      "name": "Credits Sufficient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Insufficient credits\",\n  \"required\": 10,\n  \"current\": \"{{ $json.current_credits }}\",\n  \"upgrade_url\": \"https://usebylda.com/billing\"\n}"
+      },
+      "id": "upsell_insufficient_credits",
+      "name": "Return Upsell - Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_ai_config",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "brand_voice,tone,style"
+            }
+          ]
+        }
+      },
+      "id": "fetch_brand_voice",
+      "name": "Fetch Brand Voice Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ANTHROPIC_API_URL }}/v1/messages",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-opus-4-20250805"
+            },
+            {
+              "name": "max_tokens",
+              "value": "2000"
+            }
+          ]
+        },
+        "body": "{\n  \"model\": \"claude-opus-4-20250805\",\n  \"max_tokens\": 2000,\n  \"system\": \"You are an expert lead magnet strategist and copywriter specializing in {{ $json.body.niche }} niches. You understand the ICP and their pain points deeply. Generate compelling, high-converting lead magnets that address {{ $json.body.icp_pain_point }}. Always output ONLY valid JSON with no markdown formatting. Format: { \\\"title\\\": \\\"\\\", \\\"hook\\\": \\\"\\\", \\\"outline\\\": [], \\\"body_markdown\\\": \\\"\\\", \\\"cta\\\": \\\"\\\" }\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Create a {{ $json.body.format }} lead magnet for {{ $json.body.niche }} business owners struggling with: {{ $json.body.icp_pain_point }}. Brand voice: {{ $json[0].brand_voice || 'professional and direct' }}. Tone: {{ $json[0].tone || 'consultative' }}. Return ONLY valid JSON.\"\n    }\n  ]\n}"
+      },
+      "id": "call_claude_api",
+      "name": "Call Claude Lead Magnet Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300],
+      "onError": "continueErrorOutput",
+      "credentials": [
+        {
+          "name": "anthropicApi",
+          "type": "anthropicApi"
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude response from nested structure\nconst responseContent = $json.content[0].text;\n\n// Parse JSON from Claude\nlet parsed;\ntry {\n  parsed = JSON.parse(responseContent);\n} catch(e) {\n  // If Claude wrapped in markdown backticks, extract it\n  const jsonMatch = responseContent.match(/```json\\n?(.*?)\\n?```/s);\n  if (jsonMatch) {\n    parsed = JSON.parse(jsonMatch[1]);\n  } else {\n    throw new Error('Invalid JSON from Claude: ' + responseContent);\n  }\n}\n\n// Validate required fields\nconst required = ['title', 'hook', 'outline', 'body_markdown', 'cta'];\nfor (const field of required) {\n  if (!parsed[field]) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\nreturn parsed;"
+      },
+      "id": "parse_claude_response",
+      "name": "Parse Claude Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_outputs",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "lead_magnet_builder"
+            },
+            {
+              "name": "format",
+              "value": "={{ $json.body.format }}"
+            },
+            {
+              "name": "niche",
+              "value": "={{ $json.body.niche }}"
+            },
+            {
+              "name": "created_at",
+              "value": "=now()"
+            }
+          ]
+        },
+        "body": "{\n  \"user_id\": \"{{ $json.body.user_id }}\",\n  \"tool\": \"lead_magnet_builder\",\n  \"format\": \"{{ $json.body.format }}\",\n  \"niche\": \"{{ $json.body.niche }}\",\n  \"payload\": {\n    \"title\": \"{{ $json.title }}\",\n    \"hook\": \"{{ $json.hook }}\",\n    \"outline\": {{ JSON.stringify($json.outline) }},\n    \"body_markdown\": \"{{ $json.body_markdown }}\",\n    \"cta\": \"{{ $json.cta }}\"\n  },\n  \"created_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "insert_to_supabase",
+      "name": "Insert to tool_outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"output_id\": \"{{ $json[0].id }}\",\n  \"payload\": {\n    \"title\": \"{{ $json.title }}\",\n    \"hook\": \"{{ $json.hook }}\",\n    \"outline\": {{ JSON.stringify($json.outline) }},\n    \"body_markdown\": \"{{ $json.body_markdown }}\",\n    \"cta\": \"{{ $json.cta }}\"\n  }\n}"
+      },
+      "id": "return_success",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.message || 'Unknown error generating lead magnet' }}\"\n}"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 450]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "verify_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify_entitlement": {
+      "main": [
+        [
+          {
+            "node": "check_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_entitlement": {
+      "main": [
+        [
+          {
+            "node": "deduct_credits",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_not_entitled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduct_credits": {
+      "main": [
+        [
+          {
+            "node": "check_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_credits": {
+      "main": [
+        [
+          {
+            "node": "fetch_brand_voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_insufficient_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_brand_voice": {
+      "main": [
+        [
+          {
+            "node": "call_claude_api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_claude_api": {
+      "main": [
+        [
+          {
+            "node": "parse_claude_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_claude_response": {
+      "main": [
+        [
+          {
+            "node": "insert_to_supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert_to_supabase": {
+      "main": [
+        [
+          {
+            "node": "return_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null
+}

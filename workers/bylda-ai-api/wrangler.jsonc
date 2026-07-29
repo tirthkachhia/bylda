@@ -1,0 +1,12 @@
+{
+  // Secrets needed: ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_GATEWAY_ID
+  "name": "bylda-ai-api",
+  "compatibility_date": "2025-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "worker.ts",
+  "routes": [{ "pattern": "app.usebylda.com/api/bylda", "zone_name": "usebylda.com" }],
+  "vars": {
+    "SUPABASE_URL": "https://ipidfqwlszuhjgjygbvx.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwaWRmcXdsc3p1aGpnanlnYnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzU4OTUsImV4cCI6MjA5MjQxMTg5NX0.4F3q4epd_H8xn2JB5-RtSSy81U9zJBS7HO2KahD4HIc",
+  },
+}

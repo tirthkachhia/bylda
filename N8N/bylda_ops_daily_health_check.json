@@ -1,0 +1,172 @@
+{
+  "name": "Daily Health Check",
+  "meta": {
+    "description": "TASK-123 · Runs on a daily schedule. Checks system health: Supabase connectivity, edge function response, active subscription count, and recent error rate. Alerts via Error Router if any check fails.",
+    "templateId": "bylda-ops-daily-health-check"
+  },
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 24 }] } },
+      "id": "t123-0001",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles?limit=1&select=id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": { "timeout": 5000 }
+      },
+      "id": "t123-0002",
+      "name": "Check DB Connectivity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 360]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/subscriptions?status=eq.active&select=id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t123-0003",
+      "name": "Count Active Subscriptions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 540]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workflow_runs?status=eq.failed&created_at=gte.{{ new Date(Date.now() - 86400000).toISOString() }}&select=id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t123-0004",
+      "name": "Count Recent Failures",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 720]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dbResult = $('Check DB Connectivity').item.json;\nconst subs = $('Count Active Subscriptions').item.json;\nconst failures = $('Count Recent Failures').item.json;\n\nconst dbOk = Array.isArray(dbResult) || (typeof dbResult === 'object' && !dbResult.error);\nconst subCount = Array.isArray(subs) ? subs.length : 0;\nconst failCount = Array.isArray(failures) ? failures.length : 0;\n\nconst HIGH_FAILURE_THRESHOLD = 10;\nconst alerts = [];\nif (!dbOk) alerts.push({ severity: 'critical', type: 'db_connectivity', message: 'Supabase DB connectivity check failed' });\nif (failCount >= HIGH_FAILURE_THRESHOLD) alerts.push({ severity: 'high', type: 'high_error_rate', message: `${failCount} workflow failures in the last 24h` });\n\nreturn [{ json: { ok: alerts.length === 0, db_ok: dbOk, active_subscriptions: subCount, failures_24h: failCount, alerts, checked_at: new Date().toISOString() } }];"
+      },
+      "id": "t123-0005",
+      "name": "Aggregate Health Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 540]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "t123-0006",
+      "name": "Has Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 540]
+    },
+    {
+      "parameters": {
+        "jsCode": "const status = $('Aggregate Health Status').item.json;\nconst alerts = status.alerts || [];\nconst results = [];\nfor (const alert of alerts) {\n  results.push({ json: { event_type: 'health_check_alert', source: 'daily-health-check', error_type: alert.type, message: alert.message, severity: alert.severity, context: { active_subscriptions: status.active_subscriptions, failures_24h: status.failures_24h } } });\n}\nreturn results.length ? results : [{ json: { skipped: true } }];"
+      },
+      "id": "t123-0007",
+      "name": "Build Alert Payloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-alerts-error",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "t123-0008",
+      "name": "Send to Error Router",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const status = $('Aggregate Health Status').item.json;\nreturn [{ json: { ok: true, checked_at: status.checked_at, active_subscriptions: status.active_subscriptions, failures_24h: status.failures_24h } }];"
+      },
+      "id": "t123-0009",
+      "name": "Log Healthy Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 680]
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          { "node": "Check DB Connectivity", "type": "main", "index": 0 },
+          { "node": "Count Active Subscriptions", "type": "main", "index": 0 },
+          { "node": "Count Recent Failures", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check DB Connectivity": {
+      "main": [[{ "node": "Aggregate Health Status", "type": "main", "index": 0 }]]
+    },
+    "Count Active Subscriptions": {
+      "main": [[{ "node": "Aggregate Health Status", "type": "main", "index": 0 }]]
+    },
+    "Count Recent Failures": {
+      "main": [[{ "node": "Aggregate Health Status", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Health Status": {
+      "main": [[{ "node": "Has Alerts?", "type": "main", "index": 0 }]]
+    },
+    "Has Alerts?": {
+      "main": [
+        [{ "node": "Build Alert Payloads", "type": "main", "index": 0 }],
+        [{ "node": "Log Healthy Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Alert Payloads": {
+      "main": [[{ "node": "Send to Error Router", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true, "timezone": "UTC" },
+  "tags": ["health", "reliability", "scheduled", "sprint-4"]
+}

@@ -1,0 +1,409 @@
+{
+  "name": "Niche Based Tool Pre Configuration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-tool-preconfig",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "o1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-tool-preconfig"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id = body.user_id || null;\nif (!user_id) throw new Error('Missing required field: user_id');\n\nreturn [{ json: { user_id, now: new Date().toISOString() } }];"
+      },
+      "id": "o1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/ai_operator_configs?user_id=eq.{{ $json.user_id }}&select=*",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "o1000001-0003-0003-0003-000000000003",
+      "name": "GET ai_operator_configs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 280],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements?user_id=eq.{{ $('Parse & Validate').first().json.user_id }}&select=launchpad_tool_1,launchpad_tool_2,launchpad_tool_3,launchpad_tool_4,launchpad_tool_5,launchpad_tool_6,launchpad_tool_7,launchpad_tool_8,launchpad_tool_9,launchpad_tool_10",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "o1000001-0004-0004-0004-000000000004",
+      "name": "GET user_entitlements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 520],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Parse & Validate').first().json;\n\nif (!items || items.length < 2) {\n  throw new Error(`Expected 2 fetch results (ai_config + entitlements), got ${items?.length || 0}`);\n}\n\nconst aiRaw = items[0].json;\nconst entRaw = items[1].json;\n\nconst aiConfig = Array.isArray(aiRaw) ? aiRaw[0] : aiRaw;\nconst ent = Array.isArray(entRaw) ? entRaw[0] : entRaw;\n\nif (!aiConfig || !aiConfig.user_id) {\n  throw new Error(`No ai_operator_config found for user_id: ${origin.user_id}. Run Business Profile AI Config Builder first.`);\n}\nif (!ent || !ent.user_id === undefined) {\n  throw new Error(`No user_entitlements found for user_id: ${origin.user_id}.`);\n}\n\n// Tool metadata: name, description, what config fields Claude should generate\nconst toolMeta = {\n  launchpad_tool_1: {\n    name: 'AI Lead Finder',\n    description: 'Finds and qualifies high-intent prospects',\n    config_fields: 'target_industry, ideal_company_size, decision_maker_title, pain_point_keywords (array of 5), geographic_focus, lead_volume_per_run (integer), qualification_criteria (array of 3 strings)'\n  },\n  launchpad_tool_2: {\n    name: 'Copy Generator',\n    description: 'Generates conversion-ready copy for any channel',\n    config_fields: 'brand_voice, primary_cta, tone (formal/conversational/bold), product_or_service_name, key_benefit_1, key_benefit_2, key_benefit_3, target_audience_description, default_word_count (integer)'\n  },\n  launchpad_tool_3: {\n    name: 'Offer Builder',\n    description: 'Structures irresistible offers',\n    config_fields: 'core_transformation, price_point_range, delivery_format (1:1/group/digital/done-for-you), guarantee_type, bonus_stack (array of 3), urgency_mechanism, ideal_client_result'\n  },\n  launchpad_tool_4: {\n    name: 'Email Sequencer',\n    description: 'Builds automated follow-up email sequences',\n    config_fields: 'sequence_length (integer 3-10), primary_goal (book_call/sell_product/nurture/re-engage), sender_first_name, send_days (array of integers), subject_line_style (question/statement/curiosity), open_with (story/stat/question), default_cta'\n  },\n  launchpad_tool_5: {\n    name: 'Funnel Mapper',\n    description: 'Visualises and optimises sales funnels',\n    config_fields: 'funnel_type (lead_gen/sales/webinar/product/service), top_of_funnel_channel, average_deal_value (integer), typical_sales_cycle_days (integer), current_conversion_bottleneck, funnel_stages (array of stage names)'\n  },\n  launchpad_tool_6: {\n    name: 'Competitor Analyst',\n    description: 'Reverse-engineers competitor strategies',\n    config_fields: 'analysis_focus (pricing/messaging/traffic/offers/all), known_competitors (array of up to 5 names), primary_differentiator, market_position (premium/mid/budget), intel_priority (array of 3 areas to investigate)'\n  },\n  launchpad_tool_7: {\n    name: 'Ad Creative Studio',\n    description: 'Produces ad concepts and copy',\n    config_fields: 'primary_ad_platform (facebook/google/linkedin/tiktok/youtube), ad_format (image/video/carousel), hook_style (pain/desire/curiosity/social_proof), offer_in_ad, target_demographic, budget_tier (low/mid/high), desired_ctr_benchmark'\n  },\n  launchpad_tool_8: {\n    name: 'VSL Script Writer',\n    description: 'Writes video sales letter scripts',\n    config_fields: 'vsl_length_minutes (integer 3-30), opening_hook_type (bold_claim/story/question/stat), problem_agitate_style, social_proof_type (testimonials/case_studies/credentials/results), cta_placement (early/middle/end/multiple), price_reveal_strategy'\n  },\n  launchpad_tool_9: {\n    name: 'AI Sales Closer',\n    description: 'AI-powered sales scripts and objection handling',\n    config_fields: 'sales_format (discovery_call/demo/proposal/chat), average_deal_size, top_objection_1, top_objection_2, top_objection_3, closing_technique (assumptive/alternative_choice/urgency/value_stack), follow_up_cadence_days'\n  },\n  launchpad_tool_10: {\n    name: 'Business Automator',\n    description: 'Automates back-office operations',\n    config_fields: 'automation_priority (lead_followup/invoicing/scheduling/reporting/onboarding), current_manual_task_1, current_manual_task_2, team_size (integer), tools_in_stack (array of current software names), hours_per_week_on_manual_tasks (integer)'\n  }\n};\n\n// Build list of enabled tools\nconst enabledTools = Object.keys(toolMeta).filter(key => ent[key] === true);\n\nif (enabledTools.length === 0) {\n  throw new Error(`User ${origin.user_id} has no enabled launchpad tools in user_entitlements.`);\n}\n\nreturn [{\n  json: {\n    user_id:      origin.user_id,\n    now:          origin.now,\n    ai_config:    aiConfig,\n    enabled_tools: enabledTools,\n    tool_meta:    toolMeta,\n    tool_count:   enabledTools.length\n  }\n}];"
+      },
+      "id": "o1000001-0005-0005-0005-000000000005",
+      "name": "Merge Fetches + Build Tool List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Explode enabled tools into individual items for per-tool processing\nconst origin = $input.first().json;\nconst { user_id, now, ai_config, enabled_tools, tool_meta } = origin;\n\n// Build one output item per enabled tool\nconst items = enabled_tools.map(tool_id => ({\n  json: {\n    user_id,\n    now,\n    tool_id,\n    tool_name:         tool_meta[tool_id].name,\n    tool_description:  tool_meta[tool_id].description,\n    config_fields:     tool_meta[tool_id].config_fields,\n    ai_config,\n    total_tools:       enabled_tools.length\n  }\n}));\n\nreturn items;"
+      },
+      "id": "o1000001-0006-0006-0006-000000000006",
+      "name": "Split Into Per-Tool Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Claude prompt for this specific tool\nconst d = $input.first().json;\nconst ai = d.ai_config;\n\nconst systemPrompt = `You are an AI business configuration engine for Bylda. Given a user's business profile and operator config, generate the ideal default configuration for the ${d.tool_name} tool. Return ONLY a valid JSON object \u2014 no markdown, no backticks, no explanation. Your entire response must be parseable by JSON.parse().`;\n\nconst userMessage = `Generate the default configuration for the \"${d.tool_name}\" tool (${d.tool_description}) for this business.\n\nBusiness Profile:\n- Operator Name: ${ai.operator_name || 'AI Operator'}\n- Operator Tone: ${ai.operator_tone || 'professional'}\n- Primary Niche: ${ai.primary_niche || 'General Business'}\n- Target Customer Profile: ${ai.target_customer_profile || 'Business owners'}\n- Top Pain Points: ${JSON.stringify(ai.top_3_pain_points || [])}\n- GTM Strategy: ${ai.gtm_strategy_summary || 'Grow revenue through automation'}\n- Brand Voice Keywords: ${JSON.stringify(ai.brand_voice_keywords || [])}\n\nGenerate a JSON config object with these exact fields (fill each with a sensible, specific default based on the business profile above):\n${d.config_fields}\n\nRules:\n- Be specific \u2014 use actual niche-relevant values, not generic placeholders\n- Align tone and language with the operator_tone: ${ai.operator_tone || 'professional'}\n- Arrays should have the exact number of items specified\n- Integer fields must be actual integers\n- Respond ONLY with the raw JSON object`;\n\nreturn [{\n  json: {\n    ...d,\n    system_prompt: systemPrompt,\n    user_message:  userMessage\n  }\n}];"
+      },
+      "id": "o1000001-0007-0007-0007-000000000007",
+      "name": "Build Claude Prompt Per Tool",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-3-5-sonnet-20241022\",\n  \"max_tokens\": 800,\n  \"system\": {{ JSON.stringify($json.system_prompt) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.user_message) }}\n    }\n  ]\n}",
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "o1000001-0008-0008-0008-000000000008",
+      "name": "Call Claude API (Per Tool)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eW91XpbDik7WWUjo",
+          "name": "ANTHROPIC_PROD_API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const claudeResponse = $input.first().json;\n// Retrieve the originating tool context \u2014 passed through item pairing\nconst toolContext = $('Build Claude Prompt Per Tool').first().json;\n\n// Extract text from Claude response\nconst content = claudeResponse?.content;\nif (!content || !Array.isArray(content) || content.length === 0) {\n  throw new Error(`Claude returned no content for tool ${toolContext.tool_id}`);\n}\n\nconst rawText = content\n  .filter(b => b.type === 'text')\n  .map(b => b.text)\n  .join('')\n  .trim();\n\n// Strip accidental markdown fences\nconst cleaned = rawText\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet default_config;\ntry {\n  default_config = JSON.parse(cleaned);\n} catch (e) {\n  // Non-fatal: store raw text with error flag rather than failing entire batch\n  console.warn(`JSON parse failed for tool ${toolContext.tool_id}: ${e.message}. Storing raw.`);\n  default_config = { _parse_error: true, _raw: cleaned.substring(0, 500) };\n}\n\nreturn [{\n  json: {\n    user_id:       toolContext.user_id,\n    now:           toolContext.now,\n    tool_id:       toolContext.tool_id,\n    tool_name:     toolContext.tool_name,\n    default_config,\n    parse_ok:      !default_config._parse_error,\n    total_tools:   toolContext.total_tools\n  }\n}];"
+      },
+      "id": "o1000001-0009-0009-0009-000000000009",
+      "name": "Parse Claude Response Per Tool",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1960, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_configs",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"tool_id\": \"{{ $json.tool_id }}\",\n  \"tool_name\": {{ JSON.stringify($json.tool_name) }},\n  \"default_config\": {{ JSON.stringify($json.default_config) }},\n  \"parse_ok\": {{ $json.parse_ok }},\n  \"created_at\": \"{{ $json.now }}\",\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "o1000001-0010-0010-0010-000000000010",
+      "name": "INSERT tool_configs (Per Tool)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all per-tool INSERT results and build summary\nconst items = $input.all();\nconst origin = $('Parse & Validate').first().json;\n\nconst total    = items.length;\nconst inserted = items.filter(i => {\n  const r = Array.isArray(i.json) ? i.json[0] : i.json;\n  return r?.user_id !== undefined;\n}).length;\n\nconst tool_ids = items.map(i => {\n  const r = Array.isArray(i.json) ? i.json[0] : i.json;\n  return r?.tool_id || 'unknown';\n});\n\nconst all_ok = inserted === total;\n\nreturn [{\n  json: {\n    user_id:       origin.user_id,\n    now:           origin.now,\n    tools_processed: total,\n    tools_inserted:  inserted,\n    tool_ids,\n    all_ok\n  }\n}];"
+      },
+      "id": "o1000001-0011-0011-0011-000000000011",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tools_preconfigured\": true,\n  \"tools_preconfigured_at\": \"{{ $json.now }}\",\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "o1000001-0012-0012-0012-000000000012",
+      "name": "PATCH users: tools_preconfigured",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2680, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"user_id\": \"{{ $('Aggregate Results').first().json.user_id }}\",\n  \"tools_configured\": {{ $('Aggregate Results').first().json.tools_inserted }},\n  \"tools_processed\": {{ $('Aggregate Results').first().json.tools_processed }},\n  \"tool_ids\": {{ JSON.stringify($('Aggregate Results').first().json.tool_ids) }},\n  \"all_configs_ok\": {{ $('Aggregate Results').first().json.all_ok }},\n  \"configured_at\": \"{{ $('Aggregate Results').first().json.now }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "o1000001-0013-0013-0013-000000000013",
+      "name": "Return: Tools Configured",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2920, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "GET ai_operator_configs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GET user_entitlements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET ai_operator_configs": {
+      "main": [
+        [
+          {
+            "node": "Merge Fetches + Build Tool List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET user_entitlements": {
+      "main": [
+        [
+          {
+            "node": "Merge Fetches + Build Tool List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Fetches + Build Tool List": {
+      "main": [
+        [
+          {
+            "node": "Split Into Per-Tool Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Into Per-Tool Items": {
+      "main": [
+        [
+          {
+            "node": "Build Claude Prompt Per Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Claude Prompt Per Tool": {
+      "main": [
+        [
+          {
+            "node": "Call Claude API (Per Tool)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude API (Per Tool)": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude Response Per Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude Response Per Tool": {
+      "main": [
+        [
+          {
+            "node": "INSERT tool_configs (Per Tool)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT tool_configs (Per Tool)": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "PATCH users: tools_preconfigured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH users: tools_preconfigured": {
+      "main": [
+        [
+          {
+            "node": "Return: Tools Configured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "ai"
+    },
+    {
+      "name": "tool-config"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

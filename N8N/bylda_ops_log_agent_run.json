@@ -1,0 +1,113 @@
+{
+  "name": "Usage - Log Agent Run",
+  "meta": {
+    "description": "TASK-106 · Receives agent run metadata (user_id, workspace_id, tool_key, tokens, status) and writes records to both agent_runs and usage_events tables via Supabase service role.",
+    "templateId": "bylda-ops-log-agent-run"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-log-agent-run",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t106-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst user_id = body.user_id || null;\nconst workspace_id = body.workspace_id || null;\nconst tool_key = body.tool_key || body.tool || 'operator';\nconst model = body.model || 'claude-sonnet-4-6';\nconst tokens_in = Number(body.tokens_in || body.input_tokens || 0);\nconst tokens_out = Number(body.tokens_out || body.output_tokens || 0);\nconst status = body.status || 'completed';\nconst duration_ms = Number(body.duration_ms || 0);\nconst session_id = body.session_id || null;\nif (!user_id) throw new Error('user_id is required');\nreturn [{ json: { user_id, workspace_id, tool_key, model, tokens_in, tokens_out, status, duration_ms, session_id, now: new Date().toISOString() } }];"
+      },
+      "id": "t106-0002",
+      "name": "Parse Run Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/agent_runs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": {{ JSON.stringify($json.user_id) }},\n  \"workspace_id\": {{ $json.workspace_id ? JSON.stringify($json.workspace_id) : 'null' }},\n  \"tool_key\": {{ JSON.stringify($json.tool_key) }},\n  \"model\": {{ JSON.stringify($json.model) }},\n  \"tokens_in\": {{ $json.tokens_in }},\n  \"tokens_out\": {{ $json.tokens_out }},\n  \"status\": {{ JSON.stringify($json.status) }},\n  \"duration_ms\": {{ $json.duration_ms }},\n  \"session_id\": {{ $json.session_id ? JSON.stringify($json.session_id) : 'null' }}\n}",
+        "options": {}
+      },
+      "id": "t106-0003",
+      "name": "Write agent_runs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/usage_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": {{ JSON.stringify($('Parse Run Metadata').item.json.user_id) }},\n  \"workspace_id\": {{ $('Parse Run Metadata').item.json.workspace_id ? JSON.stringify($('Parse Run Metadata').item.json.workspace_id) : 'null' }},\n  \"event_type\": \"agent_run\",\n  \"tool_key\": {{ JSON.stringify($('Parse Run Metadata').item.json.tool_key) }},\n  \"model\": {{ JSON.stringify($('Parse Run Metadata').item.json.model) }},\n  \"tokens_in\": {{ $('Parse Run Metadata').item.json.tokens_in }},\n  \"tokens_out\": {{ $('Parse Run Metadata').item.json.tokens_out }},\n  \"properties\": { \"status\": \"{{ $('Parse Run Metadata').item.json.status }}\", \"duration_ms\": {{ $('Parse Run Metadata').item.json.duration_ms }} }\n}",
+        "options": {}
+      },
+      "id": "t106-0004",
+      "name": "Write usage_events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentRun = $('Write agent_runs').item.json;\nconst runId = Array.isArray(agentRun) ? agentRun[0]?.id : agentRun?.id;\nreturn [{ json: { ok: true, agent_run_id: runId, logged_at: new Date().toISOString() } }];"
+      },
+      "id": "t106-0005",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ $json }}" },
+      "id": "t106-0006",
+      "name": "Return",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Run Metadata", "type": "main", "index": 0 }]] },
+    "Parse Run Metadata": {
+      "main": [
+        [
+          { "node": "Write agent_runs", "type": "main", "index": 0 },
+          { "node": "Write usage_events", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Write agent_runs": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Write usage_events": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Build Response": { "main": [[{ "node": "Return", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["usage", "logging", "sprint-2"]
+}

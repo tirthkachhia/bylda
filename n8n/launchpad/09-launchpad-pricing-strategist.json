@@ -1,0 +1,389 @@
+{
+  "name": "Launchpad Pricing Strategist",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "v1/pricing/strategy",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "=eq.tool_pricing"
+            },
+            {
+              "name": "select",
+              "value": "enabled"
+            }
+          ]
+        }
+      },
+      "id": "verify_entitlement",
+      "name": "Verify Pricing Strategist Entitlement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json[0] }}",
+              "value2": null
+            }
+          ]
+        }
+      },
+      "id": "check_entitlement",
+      "name": "Entitlement Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Feature not enabled\",\n  \"upgrade_url\": \"https://usebylda.com/launchpad?tier=growth\"\n}"
+      },
+      "id": "upsell_not_entitled",
+      "name": "Return Upsell - Not Entitled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BYLDA_OPS_WEBHOOK_URL }}/credit-deduction",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "pricing_strategist"
+            },
+            {
+              "name": "cost",
+              "value": "12"
+            }
+          ]
+        }
+      },
+      "id": "deduct_credits",
+      "name": "Deduct Credits (12)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json.insufficient_credits }}"
+            }
+          ]
+        }
+      },
+      "id": "check_credits",
+      "name": "Credits Sufficient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Insufficient credits\",\n  \"required\": 12,\n  \"current\": \"{{ $json.current_credits }}\",\n  \"upgrade_url\": \"https://usebylda.com/billing\"\n}"
+      },
+      "id": "upsell_insufficient_credits",
+      "name": "Return Upsell - Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate price anchors based on business model\nconst valueEstimate = parseFloat($json.body.offer_value_estimate) || 10000;\nconst marketAvg = parseFloat($json.body.market_avg_price) || valueEstimate / 2;\nconst businessModel = $json.body.business_model || 'subscription';\n\n// Strategy: price points at 33%, 50%, 66% of anchor\nconst anchor = valueEstimate * 3;\nconst tier1Price = Math.round(anchor * 0.33 / 50) * 50; // Round to nearest $50\nconst tier2Price = Math.round(anchor * 0.50 / 100) * 100; // Round to nearest $100\nconst tier3Price = Math.round(anchor * 0.66 / 100) * 100; // Round to nearest $100\n\nreturn {\n  business_model: businessModel,\n  value_estimate: valueEstimate,\n  market_avg_price: marketAvg,\n  anchor_price: anchor,\n  tier1_price: tier1Price,\n  tier2_price: tier2Price,\n  tier3_price: tier3Price\n};"
+      },
+      "id": "calculate_price_anchors",
+      "name": "Calculate Price Anchors",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ANTHROPIC_API_URL }}/v1/messages",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-opus-4-20250805"
+            },
+            {
+              "name": "max_tokens",
+              "value": "3200"
+            }
+          ]
+        },
+        "body": "{\n  \"model\": \"claude-opus-4-20250805\",\n  \"max_tokens\": 3200,\n  \"system\": \"You are an expert pricing strategist specializing in psychological pricing, value capture, and revenue optimization. Design 3-tier pricing using Goldilocks effect (left as decoy, middle as default, right as premium). Use charm pricing ($1,497 not $1,500), anchoring, and tiering psychology. For each tier: name, price, feature list (what's included), target buyer, anchor logic (why this price), positioning in tier strategy, and upsell path to next tier. Also provide overall anchor strategy and recommended default tier. OUTPUT ONLY VALID JSON with no markdown. Format: { \\\"tiers\\\": [{ \\\"tier_num\\\": 1, \\\"tier_name\\\": \\\"\\\", \\\"price\\\": \\\"$X\\\", \\\"features\\\": [], \\\"target_buyer\\\": \\\"\\\", \\\"anchor_logic\\\": \\\"\\\", \\\"positioning\\\": \\\"\\\", \\\"upsell_path\\\": \\\"\\\" }, ...], \\\"anchor_strategy\\\": \\\"\\\", \\\"recommended_default_tier\\\": 2, \\\"rationale\\\": \\\"\\\" }\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Create 3-tier pricing strategy for: Offer value estimate: ${{ $json.body.offer_value_estimate }}, Market average price: ${{ $json.body.market_avg_price }}, Business model: {{ $json.body.business_model }}. Price suggestions: Tier 1: ~${{ $json.tier1_price }}, Tier 2: ~${{ $json.tier2_price }}, Tier 3: ~${{ $json.tier3_price }}. Design using: 1) Tier 1 = left-side decoy (looks expensive, few take it), 2) Tier 2 = Goldilocks sweet spot (most choose this, highest revenue), 3) Tier 3 = premium upsell (aspirational). Use charm pricing ($X97 not $X00). For each tier specify: name (e.g., 'Starter', 'Growth', 'Enterprise'), exact price with charm pricing, 5-8 features/includes for each tier (escalating value), target buyer profile, anchor logic (why this price), positioning in overall strategy (what role does it play?), and upsell path (how to move from T1→T2 or T2→T3). Also provide overall anchor strategy and recommend which tier should be highlighted as default. Business model: {{ $json.body.business_model }} (affects bundling). Return ONLY JSON.\"\n    }\n  ]\n}"
+      },
+      "id": "call_claude_api",
+      "name": "Call Claude Pricing Strategist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300],
+      "onError": "continueErrorOutput",
+      "credentials": [
+        {
+          "name": "anthropicApi",
+          "type": "anthropicApi"
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude response from nested structure\nconst responseContent = $json.content[0].text;\n\n// Parse JSON from Claude\nlet pricing;\ntry {\n  pricing = JSON.parse(responseContent);\n} catch(e) {\n  // If Claude wrapped in markdown backticks, extract it\n  const jsonMatch = responseContent.match(/```json\\n?(.*?)\\n?```/s);\n  if (jsonMatch) {\n    pricing = JSON.parse(jsonMatch[1]);\n  } else if (responseContent.match(/^\\{/)) {\n    // Try raw object\n    pricing = JSON.parse(responseContent);\n  } else {\n    throw new Error('Invalid JSON from Claude: ' + responseContent.substring(0, 200));\n  }\n}\n\n// Validate required top-level fields\nconst requiredFields = [\n  'tiers',\n  'anchor_strategy',\n  'recommended_default_tier',\n  'rationale'\n];\n\nfor (const field of requiredFields) {\n  if (pricing[field] === undefined || pricing[field] === null) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\n// Validate tiers array\nif (!Array.isArray(pricing.tiers) || pricing.tiers.length !== 3) {\n  throw new Error(`Expected exactly 3 tiers, got ${pricing.tiers.length}`);\n}\n\n// Validate each tier\nfor (let i = 0; i < pricing.tiers.length; i++) {\n  const tier = pricing.tiers[i];\n  \n  const requiredTierFields = [\n    'tier_num',\n    'tier_name',\n    'price',\n    'features',\n    'target_buyer',\n    'anchor_logic',\n    'positioning',\n    'upsell_path'\n  ];\n  \n  for (const field of requiredTierFields) {\n    if (!tier[field] && tier[field] !== 0) {\n      throw new Error(`Tier ${i + 1} missing field: ${field}`);\n    }\n  }\n  \n  // Validate features is array\n  if (!Array.isArray(tier.features) || tier.features.length < 3) {\n    throw new Error(`Tier ${i + 1} must have minimum 3 features, got ${tier.features.length}`);\n  }\n  \n  // Validate each feature is non-empty\n  for (let j = 0; j < tier.features.length; j++) {\n    if (!tier.features[j] || tier.features[j].trim().length === 0) {\n      throw new Error(`Tier ${i + 1}, Feature ${j + 1} is empty`);\n    }\n  }\n  \n  // Validate text fields\n  if (tier.target_buyer.trim().length === 0) {\n    throw new Error(`Tier ${i + 1} target_buyer cannot be empty`);\n  }\n  if (tier.anchor_logic.trim().length === 0) {\n    throw new Error(`Tier ${i + 1} anchor_logic cannot be empty`);\n  }\n  if (tier.positioning.trim().length === 0) {\n    throw new Error(`Tier ${i + 1} positioning cannot be empty`);\n  }\n  if (tier.upsell_path.trim().length === 0) {\n    throw new Error(`Tier ${i + 1} upsell_path cannot be empty`);\n  }\n  \n  // Extract price as number for validation\n  const priceStr = tier.price.replace(/[^0-9.]/g, '');\n  const priceNum = parseFloat(priceStr);\n  if (isNaN(priceNum) || priceNum <= 0) {\n    throw new Error(`Tier ${i + 1} price is invalid: ${tier.price}`);\n  }\n  \n  // Ensure prices are in ascending order\n  if (i > 0) {\n    const prevPriceStr = pricing.tiers[i-1].price.replace(/[^0-9.]/g, '');\n    const prevPriceNum = parseFloat(prevPriceStr);\n    if (priceNum <= prevPriceNum) {\n      throw new Error(`Tier prices must be in ascending order. Tier ${i} (${priceNum}) <= Tier ${i-1} (${prevPriceNum})`);\n    }\n  }\n}\n\n// Validate anchor_strategy\nif (!pricing.anchor_strategy || pricing.anchor_strategy.trim().length === 0) {\n  throw new Error('anchor_strategy cannot be empty');\n}\n\n// Validate recommended_default_tier\nif (typeof pricing.recommended_default_tier !== 'number' || pricing.recommended_default_tier < 1 || pricing.recommended_default_tier > 3) {\n  throw new Error(`recommended_default_tier must be 1, 2, or 3, got ${pricing.recommended_default_tier}`);\n}\n\n// Validate rationale\nif (!pricing.rationale || pricing.rationale.trim().length === 0) {\n  throw new Error('rationale cannot be empty');\n}\n\nreturn pricing;"
+      },
+      "id": "parse_claude_response",
+      "name": "Parse & Validate Pricing Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_outputs",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "pricing_strategist"
+            },
+            {
+              "name": "type",
+              "value": "pricing_strategy"
+            },
+            {
+              "name": "created_at",
+              "value": "=now()"
+            }
+          ]
+        },
+        "body": "{\n  \"user_id\": \"{{ $json.body.user_id }}\",\n  \"tool\": \"pricing_strategist\",\n  \"type\": \"pricing_strategy\",\n  \"metadata\": {\n    \"business_model\": \"{{ $json.body.business_model }}\",\n    \"offer_value_estimate\": {{ $json.body.offer_value_estimate }},\n    \"market_avg_price\": {{ $json.body.market_avg_price }},\n    \"recommended_tier\": {{ $json.recommended_default_tier }}\n  },\n  \"payload\": {\n    \"tiers\": {{ JSON.stringify($json.tiers) }},\n    \"anchor_strategy\": \"{{ $json.anchor_strategy }}\",\n    \"recommended_default_tier\": {{ $json.recommended_default_tier }},\n    \"rationale\": \"{{ $json.rationale }}\",\n    \"business_model\": \"{{ $json.body.business_model }}\",\n    \"offer_value_estimate\": {{ $json.body.offer_value_estimate }},\n    \"market_avg_price\": {{ $json.body.market_avg_price }}\n  },\n  \"created_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "insert_to_tool_outputs",
+      "name": "Insert to tool_outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"pricing\": {\n    \"tiers\": {{ JSON.stringify($json.tiers) }},\n    \"anchor_strategy\": \"{{ $json.anchor_strategy }}\",\n    \"recommended_default_tier\": {{ $json.recommended_default_tier }},\n    \"rationale\": \"{{ $json.rationale }}\"\n  }\n}"
+      },
+      "id": "return_success",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.message || 'Unknown error generating pricing strategy' }}\"\n}"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 450]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "verify_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify_entitlement": {
+      "main": [
+        [
+          {
+            "node": "check_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_entitlement": {
+      "main": [
+        [
+          {
+            "node": "deduct_credits",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_not_entitled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduct_credits": {
+      "main": [
+        [
+          {
+            "node": "check_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_credits": {
+      "main": [
+        [
+          {
+            "node": "calculate_price_anchors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_insufficient_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "calculate_price_anchors": {
+      "main": [
+        [
+          {
+            "node": "call_claude_api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_claude_api": {
+      "main": [
+        [
+          {
+            "node": "parse_claude_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_claude_response": {
+      "main": [
+        [
+          {
+            "node": "insert_to_tool_outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert_to_tool_outputs": {
+      "main": [
+        [
+          {
+            "node": "return_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null
+}

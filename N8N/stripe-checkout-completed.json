@@ -1,0 +1,339 @@
+{
+  "name": "Stripe Checkout Completed",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-checkout-completed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "stripe-checkout-completed"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst headers = $input.first().json.headers;\n\n// Extract event data\nconst event = body;\nconst session = event?.data?.object || {};\n\n// Extract core fields\nconst customerEmail = session.customer_details?.email || session.metadata?.email || '';\nconst customerId = session.customer || '';\nconst subscriptionId = session.subscription || '';\nconst priceId = session.line_items?.data?.[0]?.price?.id || session.metadata?.price_id || '';\nconst businessName = session.metadata?.business_name || '';\nconst niche = session.metadata?.niche || '';\n\n// Map price ID to plan tier\nconst priceMap = {\n  'price_free': 'free',\n  'price_starter': 'starter',\n  'price_pro': 'pro',\n  'price_scale': 'scale'\n};\n\n// Check for partial matches if exact match not found\nlet planTier = priceMap[priceId] || 'free';\nif (!priceMap[priceId]) {\n  if (priceId.includes('starter')) planTier = 'starter';\n  else if (priceId.includes('pro')) planTier = 'pro';\n  else if (priceId.includes('scale')) planTier = 'scale';\n}\n\n// Feature flags by plan\nconst featureFlags = {\n  free: {\n    launchpad_access: true,\n    bylda_os_access: false,\n    ai_tools_limit: 3,\n    automation_systems: 0,\n    priority_support: false,\n    white_label: false\n  },\n  starter: {\n    launchpad_access: true,\n    bylda_os_access: false,\n    ai_tools_limit: 10,\n    automation_systems: 2,\n    priority_support: false,\n    white_label: false\n  },\n  pro: {\n    launchpad_access: true,\n    bylda_os_access: true,\n    ai_tools_limit: 10,\n    automation_systems: 6,\n    priority_support: true,\n    white_label: false\n  },\n  scale: {\n    launchpad_access: true,\n    bylda_os_access: true,\n    ai_tools_limit: 10,\n    automation_systems: 6,\n    priority_support: true,\n    white_label: true\n  }\n};\n\nconst flags = featureFlags[planTier] || featureFlags['free'];\n\nreturn [{\n  json: {\n    customerEmail,\n    customerId,\n    subscriptionId,\n    priceId,\n    planTier,\n    businessName,\n    niche,\n    flags,\n    rawPayload: JSON.stringify(body),\n    createdAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Parse Stripe Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $json.customerEmail }}\",\n  \"stripe_customer_id\": \"{{ $json.customerId }}\",\n  \"stripe_subscription_id\": \"{{ $json.subscriptionId }}\",\n  \"plan_tier\": \"{{ $json.planTier }}\",\n  \"status\": \"active\",\n  \"business_name\": \"{{ $json.businessName }}\",\n  \"niche\": \"{{ $json.niche }}\",\n  \"created_at\": \"{{ $json.createdAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Upsert User Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-supabase-success",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 400,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Supabase Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workflow_errors",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"workflow_name\": \"Stripe Checkout Completed\",\n  \"error_message\": \"Supabase upsert failed\",\n  \"raw_payload\": {{ $('Parse Stripe Payload').first().json.rawPayload }},\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Log Error to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 480],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Parse Stripe Payload').first().json.customerEmail }}\",\n  \"plan_tier\": \"{{ $('Parse Stripe Payload').first().json.planTier }}\",\n  \"launchpad_access\": {{ $('Parse Stripe Payload').first().json.flags.launchpad_access }},\n  \"bylda_os_access\": {{ $('Parse Stripe Payload').first().json.flags.bylda_os_access }},\n  \"ai_tools_limit\": {{ $('Parse Stripe Payload').first().json.flags.ai_tools_limit }},\n  \"automation_systems\": {{ $('Parse Stripe Payload').first().json.flags.automation_systems }},\n  \"priority_support\": {{ $('Parse Stripe Payload').first().json.flags.priority_support }},\n  \"white_label\": {{ $('Parse Stripe Payload').first().json.flags.white_label }},\n  \"updated_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "a1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Set Feature Flags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ONBOARDING_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Parse Stripe Payload').first().json.customerEmail }}\",\n  \"plan_tier\": \"{{ $('Parse Stripe Payload').first().json.planTier }}\",\n  \"business_name\": \"{{ $('Parse Stripe Payload').first().json.businessName }}\",\n  \"niche\": \"{{ $('Parse Stripe Payload').first().json.niche }}\",\n  \"triggered_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0007-0007-0007-000000000007",
+      "name": "Trigger Onboarding Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a1b2c3d4-0008-0008-0008-000000000008",
+      "name": "Return 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Error logged",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "a1b2c3d4-0009-0009-0009-000000000009",
+      "name": "Return 200 After Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 480]
+    }
+  ],
+  "connections": {
+    "Stripe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Stripe Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Stripe Payload": {
+      "main": [
+        [
+          {
+            "node": "Upsert User Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert User Supabase": {
+      "main": [
+        [
+          {
+            "node": "Supabase Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Success?": {
+      "main": [
+        [
+          {
+            "node": "Log Error to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Feature Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Return 200 After Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Feature Flags": {
+      "main": [
+        [
+          {
+            "node": "Trigger Onboarding Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Onboarding Workflow": {
+      "main": [
+        [
+          {
+            "node": "Return 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["bylda-ops", "stripe", "payments", "onboarding"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "bylda-ops-stripe-v1"
+}

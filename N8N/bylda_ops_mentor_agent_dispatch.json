@@ -1,0 +1,329 @@
+{
+  "name": "Bylda Mentor Agent Dispatch",
+  "meta": {
+    "description": "Handles AI mentor agent chat messages routed from the frontend. Receives agent_id + message, routes to the correct agent persona via Switch, calls OpenAI with a focused system prompt, and returns a structured JSON response.",
+    "templateId": "mentor-001"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mentor-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "mentor-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst agent_id = (body.agent_id || '').toLowerCase().trim();\nconst message = body.message || '';\nconst user_id = body.user_id || null;\nconst org_id = body.org_id || null;\nconst session_id = body.session_id || crypto.randomUUID();\n\nconst VALID_AGENTS = ['growth', 'offer', 'sales', 'content', 'automation', 'finance'];\nif (!message.trim()) throw new Error('message is required');\nif (!user_id) throw new Error('user_id is required');\nif (!VALID_AGENTS.includes(agent_id)) throw new Error(`Invalid agent_id. Must be one of: ${VALID_AGENTS.join(', ')}`);\n\nreturn [{ json: { agent_id, message, user_id, org_id, session_id, now: new Date().toISOString() } }];"
+      },
+      "id": "mentor-0002",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 500]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.agent_id }}",
+                    "rightValue": "growth",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "growth"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.agent_id }}",
+                    "rightValue": "offer",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "offer"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.agent_id }}",
+                    "rightValue": "sales",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "sales"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.agent_id }}",
+                    "rightValue": "content",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "content"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.agent_id }}",
+                    "rightValue": "automation",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "automation"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.agent_id }}",
+                    "rightValue": "finance",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "finance"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "mentor-0003",
+      "name": "Route by Agent ID",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [840, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are the Growth Commander, a tactical B2B growth advisor specialising in LinkedIn outreach, customer acquisition cost (CAC) reduction, and MRR scaling for early-stage startups. You give direct, data-driven recommendations that founders can act on today. Keep answers concise, specific, and focused on measurable outcomes.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($('Parse Request').item.json.message) }} }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 800\n}",
+        "options": {}
+      },
+      "id": "mentor-0004",
+      "name": "Growth Commander",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are the Offer Architect, an expert in crafting irresistible B2B SaaS offers through sharp value proposition design, outcome-based pricing tiers, and persuasive framing. You help founders articulate the specific transformation their product delivers so prospects immediately understand why it's worth the price. Your advice is concrete, buyer-centric, and conversion-focused.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($('Parse Request').item.json.message) }} }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 800\n}",
+        "options": {}
+      },
+      "id": "mentor-0005",
+      "name": "Offer Architect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are the Sales Operator, a hands-on B2B sales coach specialising in pipeline management, high-converting follow-up sequences, and deal-closing tactics for founder-led sales. You provide tactical scripts, objection-handling frameworks, and prioritisation advice to help founders close deals faster without a full sales team.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($('Parse Request').item.json.message) }} }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 800\n}",
+        "options": {}
+      },
+      "id": "mentor-0006",
+      "name": "Sales Operator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are the Content Strategist, a LinkedIn-focused inbound growth expert who helps B2B founders build authority, attract ideal customers, and generate pipeline through strategic content. You advise on post formats, content pillars, and publishing cadence that turn an audience into qualified leads.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($('Parse Request').item.json.message) }} }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 800\n}",
+        "options": {}
+      },
+      "id": "mentor-0007",
+      "name": "Content Strategist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are the Automation Engineer, an n8n and CRM automation specialist who helps founders eliminate repetitive work by designing reliable workflows for lead capture, nurture sequences, CRM updates, and operational triggers. You give step-by-step build instructions and practical automation architecture advice that a non-technical founder can implement.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($('Parse Request').item.json.message) }} }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 800\n}",
+        "options": {}
+      },
+      "id": "mentor-0008",
+      "name": "Automation Engineer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 900]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.OPENAI_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"You are the Finance Navigator, a startup finance advisor specialising in unit economics, cash runway optimisation, and LTV:CAC ratio improvement for early-stage SaaS businesses. You translate financial metrics into clear strategic actions so founders know exactly where to focus to improve profitability and extend runway.\" },\n    { \"role\": \"user\", \"content\": {{ JSON.stringify($('Parse Request').item.json.message) }} }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 800\n}",
+        "options": {}
+      },
+      "id": "mentor-0009",
+      "name": "Finance Navigator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1140, 1100]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResp = $input.first().json;\nconst ctx = $('Parse Request').item.json;\nconst content = aiResp?.choices?.[0]?.message?.content || aiResp?.error?.message || 'No response received.';\nreturn [{ json: { success: true, response: content, agent_id: ctx.agent_id, session_id: ctx.session_id } }];"
+      },
+      "id": "mentor-0010",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 500]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ $json }}" },
+      "id": "mentor-0011",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1740, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $input.first().json;\nconst errorMessage = err?.message || err?.error || 'An unexpected error occurred.';\nreturn [{ json: { success: false, error: errorMessage } }];"
+      },
+      "id": "mentor-0012",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 900]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "mentor-0013",
+      "name": "Return Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1140, 1300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Request", "type": "main", "index": 0 }]] },
+    "Parse Request": {
+      "main": [[{ "node": "Route by Agent ID", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Route by Agent ID": {
+      "main": [
+        [{ "node": "Growth Commander", "type": "main", "index": 0 }],
+        [{ "node": "Offer Architect", "type": "main", "index": 0 }],
+        [{ "node": "Sales Operator", "type": "main", "index": 0 }],
+        [{ "node": "Content Strategist", "type": "main", "index": 0 }],
+        [{ "node": "Automation Engineer", "type": "main", "index": 0 }],
+        [{ "node": "Finance Navigator", "type": "main", "index": 0 }]
+      ]
+    },
+    "Growth Commander": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Offer Architect": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Sales Operator": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Content Strategist": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Automation Engineer": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Finance Navigator": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Build Response": { "main": [[{ "node": "Return Response", "type": "main", "index": 0 }]] },
+    "Error Handler": { "main": [[{ "node": "Return Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["mentor", "ai", "dispatch", "sprint-2"]
+}

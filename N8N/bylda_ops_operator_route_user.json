@@ -1,0 +1,114 @@
+{
+  "name": "Operator - Route User",
+  "meta": {
+    "description": "TASK-092 · Receives an operator request, loads user context, routes to appropriate AI agent or tool, returns standardized response.",
+    "templateId": "bylda-ops-operator-route-user"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-operator-route",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t092-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst message = body.message || '';\nconst workspace_id = body.workspace_id || null;\nconst session_id = body.session_id || crypto.randomUUID();\nconst user_id = body.user_id || null;\nif (!message.trim()) throw new Error('message is required');\nif (!user_id) throw new Error('user_id is required');\n\n// Simple intent detection\nconst msg = message.toLowerCase();\nlet intent = 'general';\nif (/validate|test.*idea|pressure test/.test(msg)) intent = 'validate_idea';\nelse if (/pitch|investor/.test(msg)) intent = 'pitch';\nelse if (/gtm|go.to.market|strategy/.test(msg)) intent = 'gtm';\nelse if (/offer|pricing|package/.test(msg)) intent = 'offer';\nelse if (/first.*customer|acquisition/.test(msg)) intent = 'first_customers';\nelse if (/follow.?up|email sequence/.test(msg)) intent = 'followup';\nelse if (/kill.*idea|devil/.test(msg)) intent = 'kill_idea';\n\nreturn [{ json: { message, workspace_id, session_id, user_id, intent, now: new Date().toISOString() } }];"
+      },
+      "id": "t092-0002",
+      "name": "Parse & Detect Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workspaces?owner_id=eq.{{ $json.user_id }}&limit=1&select=id,lane,stage,current_mission_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "t092-0003",
+      "name": "Load Workspace Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Parse & Detect Intent').item.json;\nconst wsArr = $input.first().json;\nconst ws = Array.isArray(wsArr) ? wsArr[0] : wsArr;\nreturn [{ json: { ...ctx, workspace: ws || null, lane: ws?.lane || 'Idea', stage: ws?.stage || 'Idea' } }];"
+      },
+      "id": "t092-0004",
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/functions/v1/operator",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {{ JSON.stringify($json.message) }},\n  \"workspace_id\": {{ $json.workspace?.id ? JSON.stringify($json.workspace.id) : 'null' }},\n  \"session_id\": {{ JSON.stringify($json.session_id) }}\n}",
+        "options": {}
+      },
+      "id": "t092-0005",
+      "name": "Call Operator Edge Fn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst ctx = $('Merge Context').item.json;\nreturn [{ json: { ...resp, intent: ctx.intent, lane: ctx.lane, workspace_id: ctx.workspace?.id || null } }];"
+      },
+      "id": "t092-0006",
+      "name": "Enrich Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 400]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ $json }}" },
+      "id": "t092-0007",
+      "name": "Return",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1680, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse & Detect Intent", "type": "main", "index": 0 }]] },
+    "Parse & Detect Intent": {
+      "main": [[{ "node": "Load Workspace Context", "type": "main", "index": 0 }]]
+    },
+    "Load Workspace Context": {
+      "main": [[{ "node": "Merge Context", "type": "main", "index": 0 }]]
+    },
+    "Merge Context": {
+      "main": [[{ "node": "Call Operator Edge Fn", "type": "main", "index": 0 }]]
+    },
+    "Call Operator Edge Fn": {
+      "main": [[{ "node": "Enrich Response", "type": "main", "index": 0 }]]
+    },
+    "Enrich Response": { "main": [[{ "node": "Return", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["operator", "routing", "sprint-2"]
+}

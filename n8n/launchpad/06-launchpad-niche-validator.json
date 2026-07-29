@@ -1,0 +1,389 @@
+{
+  "name": "Launchpad Niche Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "v1/niche/validate",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "=eq.tool_niche_validator"
+            },
+            {
+              "name": "select",
+              "value": "enabled"
+            }
+          ]
+        }
+      },
+      "id": "verify_entitlement",
+      "name": "Verify Niche Validator Entitlement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json[0] }}",
+              "value2": null
+            }
+          ]
+        }
+      },
+      "id": "check_entitlement",
+      "name": "Entitlement Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Feature not enabled\",\n  \"upgrade_url\": \"https://usebylda.com/launchpad?tier=premium\"\n}"
+      },
+      "id": "upsell_not_entitled",
+      "name": "Return Upsell - Not Entitled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BYLDA_OPS_WEBHOOK_URL }}/credit-deduction",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "niche_validator"
+            },
+            {
+              "name": "cost",
+              "value": "15"
+            }
+          ]
+        }
+      },
+      "id": "deduct_credits",
+      "name": "Deduct Credits (15)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json.insufficient_credits }}"
+            }
+          ]
+        }
+      },
+      "id": "check_credits",
+      "name": "Credits Sufficient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Insufficient credits\",\n  \"required\": 15,\n  \"current\": \"{{ $json.current_credits }}\",\n  \"upgrade_url\": \"https://usebylda.com/billing\"\n}"
+      },
+      "id": "upsell_insufficient_credits",
+      "name": "Return Upsell - Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Default geography to 'US' if not provided\nconst geography = $json.body.geography || 'US';\n\nreturn {\n  geography: geography,\n  niche_idea: $json.body.niche_idea\n};"
+      },
+      "id": "normalize_geography",
+      "name": "Normalize Geography Parameter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ANTHROPIC_API_URL }}/v1/messages",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-opus-4-20250805"
+            },
+            {
+              "name": "max_tokens",
+              "value": "3500"
+            }
+          ]
+        },
+        "body": "{\n  \"model\": \"claude-opus-4-20250805\",\n  \"max_tokens\": 3500,\n  \"system\": \"You are an expert niche market analyst and business strategist. Analyze niche viability using market research methodology. Evaluate market size, competitive landscape, customer pain points, monetization potential, and business model viability. Provide quantitative estimates where possible, identify key players, highlight untapped opportunities. Assign viability score 0-100 based on: market size (TAM), growth trajectory, competition intensity, pain severity, monetization clarity, barrier to entry. Score 80+ = green light, 60-79 = yellow flag (do more research), <60 = red flag (pass). OUTPUT ONLY VALID JSON with no markdown formatting or extra text. Format: { \\\"niche_name\\\": \\\"\\\", \\\"geography\\\": \\\"\\\", \\\"market_size_estimate\\\": { \\\"tam_annual\\\": \\\"$X-YB\\\", \\\"reasoning\\\": \\\"\\\" }, \\\"competitors\\\": [{ \\\"name\\\": \\\"\\\", \\\"focus\\\": \\\"\\\", \\\"market_share_est\\\": \\\"\\\" }, ...], \\\"pain_points\\\": [\\\"point 1\\\", \\\"point 2\\\", ...], \\\"monetization_angles\\\": [{ \\\"angle\\\": \\\"\\\", \\\"revenue_model\\\": \\\"\\\", \\\"price_target\\\": \\\"\\\" }, ...], \\\"viability_score\\\": number, \\\"score_reasoning\\\": \\\"\\\", \\\"recommended_icp\\\": { \\\"profile\\\": \\\"\\\", \\\"pain_priority\\\": \\\"\\\" }, \\\"recommended_offer_angle\\\": \\\"\\\", \\\"key_opportunities\\\": [\\\"opp 1\\\", \\\"opp 2\\\", ...], \\\"key_risks\\\": [\\\"risk 1\\\", \\\"risk 2\\\", ...] }\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Validate this niche: {{ $json.niche_idea }} (Geography: {{ $json.geography }}). Provide market research analysis including: 1) Market size (TAM in {{ $json.geography }}), 2) 5 key competitors with focus and estimated market share, 3) 5-7 customer pain points (ranked by severity), 4) 3-4 monetization angles with revenue models and price targets, 5) Viability score 0-100 with reasoning, 6) Recommended ICP profile with pain point priority, 7) Recommended offer angle to own this market, 8) 3-4 key opportunities (white space), 9) 2-3 key risks. Be specific with numbers where possible. Assume current year data (2026). Return ONLY JSON.\"\n    }\n  ]\n}"
+      },
+      "id": "call_claude_api",
+      "name": "Call Claude Niche Validator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300],
+      "onError": "continueErrorOutput",
+      "credentials": [
+        {
+          "name": "anthropicApi",
+          "type": "anthropicApi"
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude response from nested structure\nconst responseContent = $json.content[0].text;\n\n// Parse JSON from Claude\nlet validation;\ntry {\n  validation = JSON.parse(responseContent);\n} catch(e) {\n  // If Claude wrapped in markdown backticks, extract it\n  const jsonMatch = responseContent.match(/```json\\n?(.*?)\\n?```/s);\n  if (jsonMatch) {\n    validation = JSON.parse(jsonMatch[1]);\n  } else if (responseContent.match(/^\\{/)) {\n    // Try raw object\n    validation = JSON.parse(responseContent);\n  } else {\n    throw new Error('Invalid JSON from Claude: ' + responseContent.substring(0, 200));\n  }\n}\n\n// Validate required top-level fields\nconst requiredFields = [\n  'niche_name',\n  'geography',\n  'market_size_estimate',\n  'competitors',\n  'pain_points',\n  'monetization_angles',\n  'viability_score',\n  'score_reasoning',\n  'recommended_icp',\n  'recommended_offer_angle',\n  'key_opportunities',\n  'key_risks'\n];\n\nfor (const field of requiredFields) {\n  if (validation[field] === undefined || validation[field] === null) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\n// Validate market_size_estimate object\nif (!validation.market_size_estimate.tam_annual || !validation.market_size_estimate.reasoning) {\n  throw new Error('market_size_estimate missing tam_annual or reasoning');\n}\n\n// Validate competitors array\nif (!Array.isArray(validation.competitors) || validation.competitors.length !== 5) {\n  throw new Error(`Expected exactly 5 competitors, got ${validation.competitors.length}`);\n}\n\nfor (let i = 0; i < validation.competitors.length; i++) {\n  const competitor = validation.competitors[i];\n  if (!competitor.name || !competitor.focus || !competitor.market_share_est) {\n    throw new Error(`Competitor ${i + 1} missing name, focus, or market_share_est`);\n  }\n}\n\n// Validate pain_points array\nif (!Array.isArray(validation.pain_points) || validation.pain_points.length < 5) {\n  throw new Error(`Expected minimum 5 pain points, got ${validation.pain_points.length}`);\n}\n\nfor (let i = 0; i < validation.pain_points.length; i++) {\n  if (!validation.pain_points[i] || validation.pain_points[i].trim().length === 0) {\n    throw new Error(`Pain point ${i + 1} is empty`);\n  }\n}\n\n// Validate monetization_angles array\nif (!Array.isArray(validation.monetization_angles) || validation.monetization_angles.length < 3) {\n  throw new Error(`Expected minimum 3 monetization angles, got ${validation.monetization_angles.length}`);\n}\n\nfor (let i = 0; i < validation.monetization_angles.length; i++) {\n  const angle = validation.monetization_angles[i];\n  if (!angle.angle || !angle.revenue_model || !angle.price_target) {\n    throw new Error(`Monetization angle ${i + 1} missing angle, revenue_model, or price_target`);\n  }\n}\n\n// Validate viability_score\nif (typeof validation.viability_score !== 'number' || validation.viability_score < 0 || validation.viability_score > 100) {\n  throw new Error(`viability_score must be number 0-100, got: ${validation.viability_score}`);\n}\n\n// Validate score_reasoning\nif (!validation.score_reasoning || validation.score_reasoning.trim().length === 0) {\n  throw new Error('score_reasoning cannot be empty');\n}\n\n// Validate recommended_icp object\nif (!validation.recommended_icp.profile || !validation.recommended_icp.pain_priority) {\n  throw new Error('recommended_icp missing profile or pain_priority');\n}\n\n// Validate recommended_offer_angle\nif (!validation.recommended_offer_angle || validation.recommended_offer_angle.trim().length === 0) {\n  throw new Error('recommended_offer_angle cannot be empty');\n}\n\n// Validate key_opportunities array\nif (!Array.isArray(validation.key_opportunities) || validation.key_opportunities.length < 3) {\n  throw new Error(`Expected minimum 3 key opportunities, got ${validation.key_opportunities.length}`);\n}\n\nfor (let i = 0; i < validation.key_opportunities.length; i++) {\n  if (!validation.key_opportunities[i] || validation.key_opportunities[i].trim().length === 0) {\n    throw new Error(`Key opportunity ${i + 1} is empty`);\n  }\n}\n\n// Validate key_risks array\nif (!Array.isArray(validation.key_risks) || validation.key_risks.length < 2) {\n  throw new Error(`Expected minimum 2 key risks, got ${validation.key_risks.length}`);\n}\n\nfor (let i = 0; i < validation.key_risks.length; i++) {\n  if (!validation.key_risks[i] || validation.key_risks[i].trim().length === 0) {\n    throw new Error(`Key risk ${i + 1} is empty`);\n  }\n}\n\n// Add viability category\nlet viability_category;\nif (validation.viability_score >= 80) {\n  viability_category = 'green_light';\n} else if (validation.viability_score >= 60) {\n  viability_category = 'yellow_flag';\n} else {\n  viability_category = 'red_flag';\n}\n\nvalidation.viability_category = viability_category;\n\nreturn validation;"
+      },
+      "id": "parse_claude_response",
+      "name": "Parse & Validate Niche Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_outputs",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "niche_validator"
+            },
+            {
+              "name": "type",
+              "value": "niche_validation"
+            },
+            {
+              "name": "created_at",
+              "value": "=now()"
+            }
+          ]
+        },
+        "body": "{\n  \"user_id\": \"{{ $json.body.user_id }}\",\n  \"tool\": \"niche_validator\",\n  \"type\": \"niche_validation\",\n  \"metadata\": {\n    \"niche_idea\": \"{{ $json.body.niche_idea }}\",\n    \"geography\": \"{{ $json.geography }}\",\n    \"viability_score\": {{ $json.viability_score }},\n    \"viability_category\": \"{{ $json.viability_category }}\"\n  },\n  \"payload\": {\n    \"niche_name\": \"{{ $json.niche_name }}\",\n    \"geography\": \"{{ $json.geography }}\",\n    \"market_size_estimate\": {{ JSON.stringify($json.market_size_estimate) }},\n    \"competitors\": {{ JSON.stringify($json.competitors) }},\n    \"pain_points\": {{ JSON.stringify($json.pain_points) }},\n    \"monetization_angles\": {{ JSON.stringify($json.monetization_angles) }},\n    \"viability_score\": {{ $json.viability_score }},\n    \"viability_category\": \"{{ $json.viability_category }}\",\n    \"score_reasoning\": \"{{ $json.score_reasoning }}\",\n    \"recommended_icp\": {{ JSON.stringify($json.recommended_icp) }},\n    \"recommended_offer_angle\": \"{{ $json.recommended_offer_angle }}\",\n    \"key_opportunities\": {{ JSON.stringify($json.key_opportunities) }},\n    \"key_risks\": {{ JSON.stringify($json.key_risks) }}\n  },\n  \"created_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "insert_to_supabase",
+      "name": "Insert to tool_outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"validation\": {\n    \"niche_name\": \"{{ $json.niche_name }}\",\n    \"geography\": \"{{ $json.geography }}\",\n    \"market_size_estimate\": {{ JSON.stringify($json.market_size_estimate) }},\n    \"competitors\": {{ JSON.stringify($json.competitors) }},\n    \"pain_points\": {{ JSON.stringify($json.pain_points) }},\n    \"monetization_angles\": {{ JSON.stringify($json.monetization_angles) }},\n    \"viability_score\": {{ $json.viability_score }},\n    \"viability_category\": \"{{ $json.viability_category }}\",\n    \"score_reasoning\": \"{{ $json.score_reasoning }}\",\n    \"recommended_icp\": {{ JSON.stringify($json.recommended_icp) }},\n    \"recommended_offer_angle\": \"{{ $json.recommended_offer_angle }}\",\n    \"key_opportunities\": {{ JSON.stringify($json.key_opportunities) }},\n    \"key_risks\": {{ JSON.stringify($json.key_risks) }}\n  }\n}"
+      },
+      "id": "return_success",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.message || 'Unknown error validating niche' }}\"\n}"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 450]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "verify_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify_entitlement": {
+      "main": [
+        [
+          {
+            "node": "check_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_entitlement": {
+      "main": [
+        [
+          {
+            "node": "deduct_credits",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_not_entitled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduct_credits": {
+      "main": [
+        [
+          {
+            "node": "check_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_credits": {
+      "main": [
+        [
+          {
+            "node": "normalize_geography",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_insufficient_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalize_geography": {
+      "main": [
+        [
+          {
+            "node": "call_claude_api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_claude_api": {
+      "main": [
+        [
+          {
+            "node": "parse_claude_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_claude_response": {
+      "main": [
+        [
+          {
+            "node": "insert_to_supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert_to_supabase": {
+      "main": [
+        [
+          {
+            "node": "return_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null
+}

@@ -1,0 +1,439 @@
+{
+  "name": "Plan Tier Feature Flag Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-feature-flag-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-feature-flag-sync"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id = body.user_id || null;\nconst plan_tier = (body.plan_tier || 'free').toLowerCase().trim();\n\nif (!user_id) {\n  throw new Error('Missing required field: user_id');\n}\n\nconst validTiers = ['free', 'starter', 'pro', 'scale'];\nconst resolvedTier = validTiers.includes(plan_tier) ? plan_tier : 'free';\n\nreturn [{\n  json: {\n    user_id,\n    plan_tier: resolvedTier,\n    updated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "b1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.plan_tier }}",
+                    "rightValue": "free",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "free"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.plan_tier }}",
+                    "rightValue": "starter",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "starter"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.plan_tier }}",
+                    "rightValue": "pro",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pro"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.plan_tier }}",
+                    "rightValue": "scale",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "scale"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "b1000001-0003-0003-0003-000000000003",
+      "name": "Switch: Plan Tier",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.1,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{\n  json: {\n    user_id: input.user_id,\n    plan_tier: 'free',\n    updated_at: input.updated_at,\n    launchpad_tool_1: true,\n    launchpad_tool_2: true,\n    launchpad_tool_3: false,\n    launchpad_tool_4: false,\n    launchpad_tool_5: false,\n    launchpad_tool_6: false,\n    launchpad_tool_7: false,\n    launchpad_tool_8: false,\n    launchpad_tool_9: false,\n    launchpad_tool_10: false,\n    bylda_os_lead_capture: false,\n    bylda_os_followup: false,\n    bylda_os_booking: false,\n    bylda_os_nurture: false,\n    bylda_os_reporting: false,\n    bylda_os_sales: false,\n    ai_operator_access: false,\n    subagent_access: false,\n    credits_monthly_allotment: 10\n  }\n}];"
+      },
+      "id": "b1000001-0004-0004-0004-000000000004",
+      "name": "Flags: Free",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{\n  json: {\n    user_id: input.user_id,\n    plan_tier: 'starter',\n    updated_at: input.updated_at,\n    launchpad_tool_1: true,\n    launchpad_tool_2: true,\n    launchpad_tool_3: true,\n    launchpad_tool_4: true,\n    launchpad_tool_5: true,\n    launchpad_tool_6: false,\n    launchpad_tool_7: false,\n    launchpad_tool_8: false,\n    launchpad_tool_9: false,\n    launchpad_tool_10: false,\n    bylda_os_lead_capture: true,\n    bylda_os_followup: true,\n    bylda_os_booking: false,\n    bylda_os_nurture: false,\n    bylda_os_reporting: false,\n    bylda_os_sales: false,\n    ai_operator_access: false,\n    subagent_access: false,\n    credits_monthly_allotment: 100\n  }\n}];"
+      },
+      "id": "b1000001-0005-0005-0005-000000000005",
+      "name": "Flags: Starter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{\n  json: {\n    user_id: input.user_id,\n    plan_tier: 'pro',\n    updated_at: input.updated_at,\n    launchpad_tool_1: true,\n    launchpad_tool_2: true,\n    launchpad_tool_3: true,\n    launchpad_tool_4: true,\n    launchpad_tool_5: true,\n    launchpad_tool_6: true,\n    launchpad_tool_7: true,\n    launchpad_tool_8: true,\n    launchpad_tool_9: false,\n    launchpad_tool_10: false,\n    bylda_os_lead_capture: true,\n    bylda_os_followup: true,\n    bylda_os_booking: true,\n    bylda_os_nurture: true,\n    bylda_os_reporting: true,\n    bylda_os_sales: false,\n    ai_operator_access: true,\n    subagent_access: false,\n    credits_monthly_allotment: 500\n  }\n}];"
+      },
+      "id": "b1000001-0006-0006-0006-000000000006",
+      "name": "Flags: Pro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{\n  json: {\n    user_id: input.user_id,\n    plan_tier: 'scale',\n    updated_at: input.updated_at,\n    launchpad_tool_1: true,\n    launchpad_tool_2: true,\n    launchpad_tool_3: true,\n    launchpad_tool_4: true,\n    launchpad_tool_5: true,\n    launchpad_tool_6: true,\n    launchpad_tool_7: true,\n    launchpad_tool_8: true,\n    launchpad_tool_9: true,\n    launchpad_tool_10: true,\n    bylda_os_lead_capture: true,\n    bylda_os_followup: true,\n    bylda_os_booking: true,\n    bylda_os_nurture: true,\n    bylda_os_reporting: true,\n    bylda_os_sales: true,\n    ai_operator_access: true,\n    subagent_access: true,\n    credits_monthly_allotment: 999999\n  }\n}];"
+      },
+      "id": "b1000001-0007-0007-0007-000000000007",
+      "name": "Flags: Scale",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 640]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all four branch outputs into a single item for the upsert node\nconst items = $input.all();\nif (!items || items.length === 0) throw new Error('No entitlement data received from Switch branches');\nreturn [items[0]];"
+      },
+      "id": "b1000001-0008-0008-0008-000000000008",
+      "name": "Merge Branches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1220, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "b1000001-0009-0009-0009-000000000009",
+      "name": "Upsert user_entitlements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-upsert",
+              "leftValue": "={{ $json[0]?.user_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b1000001-0010-0010-0010-000000000010",
+      "name": "Validate Upsert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1700, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Entitlements synced\",\n  \"entitlements\": {{ JSON.stringify($json[0]) }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b1000001-0011-0011-0011-000000000011",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1940, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Entitlement upsert failed \u2014 check Supabase logs\",\n  \"user_id\": \"{{ $('Merge Branches').first().json.user_id }}\",\n  \"plan_tier\": \"{{ $('Merge Branches').first().json.plan_tier }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "b1000001-0012-0012-0012-000000000012",
+      "name": "Return Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1940, 520]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Switch: Plan Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Plan Tier": {
+      "main": [
+        [
+          {
+            "node": "Flags: Free",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flags: Starter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flags: Pro",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flags: Scale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flags: Free": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flags: Starter": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flags: Pro": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flags: Scale": {
+      "main": [
+        [
+          {
+            "node": "Merge Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Branches": {
+      "main": [
+        [
+          {
+            "node": "Upsert user_entitlements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert user_entitlements": {
+      "main": [
+        [
+          {
+            "node": "Validate Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Upsert": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "feature-flags"
+    },
+    {
+      "name": "billing"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

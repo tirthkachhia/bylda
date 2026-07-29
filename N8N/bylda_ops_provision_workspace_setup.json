@@ -1,0 +1,214 @@
+{
+  "name": "Provision - Workspace Setup",
+  "meta": {
+    "description": "TASK-101 · Creates workspace record, seeds first mission + steps based on lane, logs activation events, and triggers welcome email.",
+    "templateId": "bylda-ops-provision-workspace-setup"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-provision-workspace",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t101-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-provision-workspace"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id         = body.user_id         || null;\nconst organization_id = body.organization_id || null;\nconst name            = body.name            || 'My Workspace';\nconst lane            = body.lane            || 'Idea';\nconst stage           = body.stage           || 'Idea';\nconst access_token    = body.access_token    || null;\n\nif (!user_id)         throw new Error('Missing: user_id');\nif (!organization_id) throw new Error('Missing: organization_id');\nif (!access_token)    throw new Error('Missing: access_token');\n\nconst ALLOWED_LANES = ['Idea', 'Offer', 'Customer', 'Systems'];\nconst safe_lane = ALLOWED_LANES.includes(lane) ? lane : 'Idea';\n\nconst MISSION_SEEDS = {\n  Idea: {\n    title: 'Validate Your Idea',\n    description: 'Stress-test your concept before investing time and money.',\n    steps: [\n      { title: 'Run the Idea Validator', description: 'Get a 0–100 viability score with strengths, weaknesses, and risks.', tool_key: 'idea-validator', sort_order: 0 },\n      { title: 'Kill My Idea (Devil\\'s Advocate)', description: \"Let Bylda argue against your idea. If it survives, it's worth pursuing.\", tool_key: 'kill-my-idea', sort_order: 1 },\n      { title: 'Define your one-sentence pitch', description: 'Write the sentence you\\'d use to explain your idea to a busy investor.', tool_key: null, sort_order: 2 }\n    ]\n  },\n  Offer: {\n    title: 'Build Your Core Offer',\n    description: 'Define what you sell, who you sell it to, and why they should buy today.',\n    steps: [\n      { title: 'Build your Offer', description: 'Define promise, deliverables, price, and guarantee.', tool_key: 'offer', sort_order: 0 },\n      { title: 'Create your GTM Strategy', description: 'Map target segment, channels, messaging, and 90-day plan.', tool_key: 'gtm-strategy', sort_order: 1 },\n      { title: 'Write your positioning sentence', description: \"Complete: 'We help [ICP] achieve [outcome] without [pain] in [timeframe].'\", tool_key: null, sort_order: 2 }\n    ]\n  },\n  Customer: {\n    title: 'Land Your First 10 Customers',\n    description: 'Stop waiting for inbound. Map a precision outreach plan.',\n    steps: [\n      { title: 'Generate First 10 Customers Plan', description: 'Get actionable strategies to land 10 customers in 30 days.', tool_key: 'first-10-customers', sort_order: 0 },\n      { title: 'Build Your Follow-Up Sequence', description: 'Create a 5-step sequence that converts cold leads to paying clients.', tool_key: 'followup', sort_order: 1 },\n      { title: 'Send your first outreach message', description: 'Pick one prospect and send the first message today.', tool_key: null, sort_order: 2 }\n    ]\n  },\n  Systems: {\n    title: 'Launch Your GTM System',\n    description: 'Build the engine that generates customers without you as the bottleneck.',\n    steps: [\n      { title: 'Create your GTM Strategy', description: 'Document the full GTM strategy your team can execute without you.', tool_key: 'gtm-strategy', sort_order: 0 },\n      { title: 'Build your Operations Plan', description: 'Design processes and automations that run the business.', tool_key: 'generate-ops-plan', sort_order: 1 },\n      { title: 'Identify first automation candidate', description: 'Pick one manual task happening 3× per week and spec it for automation.', tool_key: null, sort_order: 2 }\n    ]\n  }\n};\n\nconst seed = MISSION_SEEDS[safe_lane];\n\nreturn [{\n  json: {\n    user_id,\n    organization_id,\n    name,\n    lane: safe_lane,\n    stage,\n    access_token,\n    mission_title: seed.title,\n    mission_description: seed.description,\n    mission_steps: seed.steps,\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "t101-0002-0002-0002-000000000002",
+      "name": "Parse & Build Seed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workspaces",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"organization_id\": \"{{ $json.organization_id }}\",\n  \"owner_id\": \"{{ $json.user_id }}\",\n  \"name\": {{ JSON.stringify($json.name) }},\n  \"lane\": {{ JSON.stringify($json.lane) }},\n  \"stage\": {{ JSON.stringify($json.stage) }}\n}",
+        "options": {}
+      },
+      "id": "t101-0003-0003-0003-000000000003",
+      "name": "Create Workspace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const workspace = Array.isArray($input.first().json) ? $input.first().json[0] : $input.first().json;\nconst ctx = $('Parse & Build Seed').item.json;\nreturn [{\n  json: {\n    ...ctx,\n    workspace_id: workspace.id\n  }\n}];"
+      },
+      "id": "t101-0004-0004-0004-000000000004",
+      "name": "Extract Workspace ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/missions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"workspace_id\": \"{{ $json.workspace_id }}\",\n  \"title\": {{ JSON.stringify($json.mission_title) }},\n  \"description\": {{ JSON.stringify($json.mission_description) }},\n  \"lane\": {{ JSON.stringify($json.lane) }},\n  \"status\": \"active\",\n  \"sort_order\": 0,\n  \"assigned_at\": \"{{ $json.now }}\"\n}",
+        "options": {}
+      },
+      "id": "t101-0005-0005-0005-000000000005",
+      "name": "Create Mission",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mission = Array.isArray($input.first().json) ? $input.first().json[0] : $input.first().json;\nconst ctx = $('Extract Workspace ID').item.json;\n\nconst stepRows = ctx.mission_steps.map(s => ({\n  mission_id: mission.id,\n  title: s.title,\n  description: s.description,\n  tool_key: s.tool_key,\n  sort_order: s.sort_order,\n  status: 'pending'\n}));\n\nreturn [{\n  json: {\n    ...ctx,\n    mission_id: mission.id,\n    step_rows: stepRows\n  }\n}];"
+      },
+      "id": "t101-0006-0006-0006-000000000006",
+      "name": "Build Step Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/mission_steps",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.step_rows) }}",
+        "options": {}
+      },
+      "id": "t101-0007-0007-0007-000000000007",
+      "name": "Insert Mission Steps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 400]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workspaces?id=eq.{{ $('Build Step Rows').item.json.workspace_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"current_mission_id\": \"{{ $('Build Step Rows').item.json.mission_id }}\"\n}",
+        "options": {}
+      },
+      "id": "t101-0008-0008-0008-000000000008",
+      "name": "Set Current Mission",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1920, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/activation_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=[\n  {\n    \"user_id\": \"{{ $('Build Step Rows').item.json.user_id }}\",\n    \"workspace_id\": \"{{ $('Build Step Rows').item.json.workspace_id }}\",\n    \"event_name\": \"workspace_created\",\n    \"properties\": { \"lane\": \"{{ $('Build Step Rows').item.json.lane }}\", \"stage\": \"{{ $('Build Step Rows').item.json.stage }}\" }\n  },\n  {\n    \"user_id\": \"{{ $('Build Step Rows').item.json.user_id }}\",\n    \"workspace_id\": \"{{ $('Build Step Rows').item.json.workspace_id }}\",\n    \"event_name\": \"first_mission_assigned\",\n    \"properties\": { \"mission_id\": \"{{ $('Build Step Rows').item.json.mission_id }}\", \"mission_title\": {{ JSON.stringify($('Build Step Rows').item.json.mission_title) }}, \"lane\": \"{{ $('Build Step Rows').item.json.lane }}\" }\n  }\n]",
+        "options": {}
+      },
+      "id": "t101-0009-0009-0009-000000000009",
+      "name": "Log Activation Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2160, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"workspace_id\": \"{{ $('Build Step Rows').item.json.workspace_id }}\",\n  \"mission_id\": \"{{ $('Build Step Rows').item.json.mission_id }}\",\n  \"lane\": \"{{ $('Build Step Rows').item.json.lane }}\",\n  \"mission_title\": {{ JSON.stringify($('Build Step Rows').item.json.mission_title) }}\n}"
+      },
+      "id": "t101-0010-0010-0010-000000000010",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2400, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Parse & Build Seed", "type": "main", "index": 0 }]]
+    },
+    "Parse & Build Seed": {
+      "main": [[{ "node": "Create Workspace", "type": "main", "index": 0 }]]
+    },
+    "Create Workspace": {
+      "main": [[{ "node": "Extract Workspace ID", "type": "main", "index": 0 }]]
+    },
+    "Extract Workspace ID": {
+      "main": [[{ "node": "Create Mission", "type": "main", "index": 0 }]]
+    },
+    "Create Mission": {
+      "main": [[{ "node": "Build Step Rows", "type": "main", "index": 0 }]]
+    },
+    "Build Step Rows": {
+      "main": [[{ "node": "Insert Mission Steps", "type": "main", "index": 0 }]]
+    },
+    "Insert Mission Steps": {
+      "main": [[{ "node": "Set Current Mission", "type": "main", "index": 0 }]]
+    },
+    "Set Current Mission": {
+      "main": [[{ "node": "Log Activation Events", "type": "main", "index": 0 }]]
+    },
+    "Log Activation Events": {
+      "main": [[{ "node": "Return Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["provisioning", "workspace", "missions", "sprint-1"]
+}

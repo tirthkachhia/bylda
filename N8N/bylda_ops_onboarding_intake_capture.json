@@ -1,0 +1,319 @@
+{
+  "name": "Onboarding Intake Capture",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-onboarding-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "k1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-onboarding-intake"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id              = body.user_id              || null;\nconst business_name        = body.business_name        || null;\nconst niche                = body.niche                || null;\nconst target_customer      = body.target_customer      || null;\nconst primary_goal         = body.primary_goal         || null;\nconst monthly_revenue_range = body.monthly_revenue_range || null;\nconst biggest_challenge    = body.biggest_challenge    || null;\nconst website_url          = body.website_url          || null;\n\n// Required field validation\nconst required = { user_id, business_name, niche, target_customer, primary_goal, monthly_revenue_range, biggest_challenge };\nconst missing = Object.entries(required)\n  .filter(([_, v]) => !v)\n  .map(([k]) => k);\n\nif (missing.length > 0) {\n  throw new Error(`Missing required fields: ${missing.join(', ')}`);\n}\n\n// Sanitise website_url if provided\nlet sanitised_url = null;\nif (website_url) {\n  const trimmed = website_url.trim();\n  sanitised_url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;\n}\n\n// Validate monthly_revenue_range is a recognised band\nconst validRevenueBands = [\n  '$0',\n  '$0-$1k',\n  '$1k-$5k',\n  '$5k-$10k',\n  '$10k-$25k',\n  '$25k-$50k',\n  '$50k-$100k',\n  '$100k+'\n];\n\nconst revenue_normalised = validRevenueBands.find(\n  b => b.toLowerCase() === monthly_revenue_range.toLowerCase()\n) || monthly_revenue_range;\n\nreturn [{\n  json: {\n    user_id,\n    business_name:         business_name.trim(),\n    niche:                 niche.trim(),\n    target_customer:       target_customer.trim(),\n    primary_goal:          primary_goal.trim(),\n    monthly_revenue_range: revenue_normalised,\n    biggest_challenge:     biggest_challenge.trim(),\n    website_url:           sanitised_url,\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "k1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/onboarding_responses",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"business_name\": {{ JSON.stringify($json.business_name) }},\n  \"niche\": {{ JSON.stringify($json.niche) }},\n  \"target_customer\": {{ JSON.stringify($json.target_customer) }},\n  \"primary_goal\": {{ JSON.stringify($json.primary_goal) }},\n  \"monthly_revenue_range\": {{ JSON.stringify($json.monthly_revenue_range) }},\n  \"biggest_challenge\": {{ JSON.stringify($json.biggest_challenge) }},\n  \"website_url\": {{ $json.website_url ? JSON.stringify($json.website_url) : 'null' }},\n  \"completed_at\": \"{{ $json.now }}\",\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "k1000001-0003-0003-0003-000000000003",
+      "name": "Upsert onboarding_responses",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 240],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $('Parse & Validate').first().json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"onboarding_completed\": true,\n  \"onboarding_completed_at\": \"{{ $('Parse & Validate').first().json.now }}\",\n  \"updated_at\": \"{{ $('Parse & Validate').first().json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "k1000001-0004-0004-0004-000000000004",
+      "name": "PATCH users: onboarding_completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 560],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect both parallel branch outputs and validate before proceeding\nconst items = $input.all();\nconst origin = $('Parse & Validate').first().json;\n\nif (!items || items.length === 0) {\n  throw new Error('No results returned from parallel Supabase writes');\n}\n\nreturn [{\n  json: {\n    user_id:              origin.user_id,\n    business_name:        origin.business_name,\n    niche:                origin.niche,\n    target_customer:      origin.target_customer,\n    primary_goal:         origin.primary_goal,\n    monthly_revenue_range: origin.monthly_revenue_range,\n    biggest_challenge:    origin.biggest_challenge,\n    website_url:          origin.website_url,\n    now:                  origin.now,\n    writes_completed:     items.length\n  }\n}];"
+      },
+      "id": "k1000001-0005-0005-0005-000000000005",
+      "name": "Merge Parallel Writes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-ai-profile-builder",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"business_name\": {{ JSON.stringify($json.business_name) }},\n  \"niche\": {{ JSON.stringify($json.niche) }},\n  \"target_customer\": {{ JSON.stringify($json.target_customer) }},\n  \"primary_goal\": {{ JSON.stringify($json.primary_goal) }},\n  \"monthly_revenue_range\": {{ JSON.stringify($json.monthly_revenue_range) }},\n  \"biggest_challenge\": {{ JSON.stringify($json.biggest_challenge) }},\n  \"website_url\": {{ $json.website_url ? JSON.stringify($json.website_url) : 'null' }}\n}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "k1000001-0006-0006-0006-000000000006",
+      "name": "Trigger: AI Profile Builder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const triggerResult = $input.first().json;\nconst origin = $('Merge Parallel Writes').first().json;\n\n// AI Profile Builder runs async \u2014 we don't block on its result\n// Just capture whether it was reachable\nconst ai_builder_triggered = !triggerResult?.error;\n\nreturn [{\n  json: {\n    ...origin,\n    ai_builder_triggered\n  }\n}];"
+      },
+      "id": "k1000001-0007-0007-0007-000000000007",
+      "name": "Confirm AI Builder Triggered",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/admin_audit_log",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"event_type\": \"onboarding_completed\",\n  \"metadata\": {{ JSON.stringify({ business_name: $json.business_name, niche: $json.niche, primary_goal: $json.primary_goal, monthly_revenue_range: $json.monthly_revenue_range, website_url: $json.website_url, ai_builder_triggered: $json.ai_builder_triggered }) }},\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "k1000001-0008-0008-0008-000000000008",
+      "name": "INSERT admin_audit_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"next_step\": \"dashboard_creation\",\n  \"user_id\": \"{{ $('Confirm AI Builder Triggered').first().json.user_id }}\",\n  \"onboarding_completed\": true,\n  \"ai_profile_build_queued\": {{ $('Confirm AI Builder Triggered').first().json.ai_builder_triggered }},\n  \"completed_at\": \"{{ $('Confirm AI Builder Triggered').first().json.now }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "k1000001-0009-0009-0009-000000000009",
+      "name": "Return: Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1920, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Upsert onboarding_responses",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PATCH users: onboarding_completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert onboarding_responses": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH users: onboarding_completed": {
+      "main": [
+        [
+          {
+            "node": "Merge Parallel Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Parallel Writes": {
+      "main": [
+        [
+          {
+            "node": "Trigger: AI Profile Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger: AI Profile Builder": {
+      "main": [
+        [
+          {
+            "node": "Confirm AI Builder Triggered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm AI Builder Triggered": {
+      "main": [
+        [
+          {
+            "node": "INSERT admin_audit_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT admin_audit_log": {
+      "main": [
+        [
+          {
+            "node": "Return: Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "intake"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

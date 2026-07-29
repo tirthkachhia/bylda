@@ -1,0 +1,239 @@
+{
+  "name": "Failed Job Retry",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      },
+      "id": "fr000001-0001-4000-8000-000000000001",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, user_id, session_id, tool_slug, payload, reservation_id, retry_count\nFROM failed_jobs\nWHERE status IN ('pending', 'retrying')\n  AND next_retry_at <= NOW()\n  AND retry_count < 3\nORDER BY created_at ASC\nLIMIT 10",
+        "options": {}
+      },
+      "id": "fr000001-0002-4000-8000-000000000002",
+      "name": "Fetch Pending Jobs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-jobs",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fr000001-0003-4000-8000-000000000003",
+      "name": "Any Jobs?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE failed_jobs\nSET status = 'retrying', retry_count = retry_count + 1, updated_at = NOW()\nWHERE id = '{{ $json.id }}'\nRETURNING id, user_id, tool_slug, payload, retry_count",
+        "options": {}
+      },
+      "id": "fr000001-0004-4000-8000-000000000004",
+      "name": "Mark Retrying",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 160],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/operator",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "user_id": "={{ $('Fetch Pending Jobs').item.json.user_id }}",
+          "session_id": "={{ $('Fetch Pending Jobs').item.json.session_id }}",
+          "tool_slug": "={{ $('Fetch Pending Jobs').item.json.tool_slug }}",
+          "params": "={{ $('Fetch Pending Jobs').item.json.payload }}",
+          "_retry": true,
+          "_failed_job_id": "={{ $('Fetch Pending Jobs').item.json.id }}"
+        },
+        "options": {
+          "timeout": 30000,
+          "response": { "response": { "fullResponse": true } }
+        }
+      },
+      "id": "fr000001-0005-4000-8000-000000000005",
+      "name": "Re-run via Operator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.item.json;\nconst jobId = $('Fetch Pending Jobs').item.json.id;\nconst retryCount = $('Mark Retrying').item.json.retry_count;\n\nconst succeeded = response.statusCode >= 200 && response.statusCode < 300 &&\n  response.body?.status === 'success';\n\nreturn [{ json: { job_id: jobId, succeeded, retry_count: retryCount, response_status: response.statusCode } }];"
+      },
+      "id": "fr000001-0006-4000-8000-000000000006",
+      "name": "Evaluate Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "succeeded",
+              "leftValue": "={{ $json.succeeded }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fr000001-0007-4000-8000-000000000007",
+      "name": "Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1680, 160]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE failed_jobs\nSET status = 'resolved', resolved_at = NOW(), updated_at = NOW()\nWHERE id = '{{ $json.job_id }}'",
+        "options": {}
+      },
+      "id": "fr000001-0008-4000-8000-000000000008",
+      "name": "Mark Resolved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1920, 80],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const retryCount = $json.retry_count;\nconst jobId = $json.job_id;\n\n// Exponential backoff: 2m, 4m, 8m — then mark dead after 3 attempts\nif (retryCount >= 3) {\n  return [{ json: { job_id: jobId, action: 'mark_dead' } }];\n}\n\nconst backoffMinutes = Math.pow(2, retryCount);\nreturn [{ json: { job_id: jobId, action: 'schedule_retry', backoff_minutes: backoffMinutes } }];"
+      },
+      "id": "fr000001-0009-4000-8000-000000000009",
+      "name": "Backoff or Dead?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 240]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE failed_jobs\nSET\n  status = CASE WHEN '{{ $json.action }}' = 'mark_dead' THEN 'dead' ELSE 'pending' END,\n  next_retry_at = CASE WHEN '{{ $json.action }}' = 'mark_dead' THEN NULL ELSE NOW() + ({{ $json.backoff_minutes ?? 2 }} * INTERVAL '1 minute') END,\n  updated_at = NOW()\nWHERE id = '{{ $json.job_id }}'",
+        "options": {}
+      },
+      "id": "fr000001-0010-4000-8000-000000000010",
+      "name": "Update Retry Schedule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2160, 240],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO support_tickets (user_id, issue_summary, status)\nSELECT\n  fj.user_id,\n  'Automation failed after 3 retries. Job ID: ' || fj.id || ' | Tool: ' || fj.tool_slug,\n  'open'\nFROM failed_jobs fj\nWHERE fj.id = '{{ $('Backoff or Dead?').item.json.job_id }}'\n  AND '{{ $('Backoff or Dead?').item.json.action }}' = 'mark_dead'",
+        "options": {}
+      },
+      "id": "fr000001-0011-4000-8000-000000000011",
+      "name": "Create Support Ticket",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2400, 240],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": { "errorWorkflow": "" },
+      "id": "fr000001-0099-4000-8000-000000000099",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 540]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_error_log (workflow_name, error_message, error_node, execution_id)\nVALUES ('Failed Job Retry', '{{ $json.message }}', '{{ $json.node?.name ?? \"unknown\" }}', '{{ $json.execution?.id ?? \"\" }}')",
+        "options": {}
+      },
+      "id": "fr000001-0100-4000-8000-000000000100",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 540],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": { "main": [[{ "node": "Fetch Pending Jobs", "type": "main", "index": 0 }]] },
+    "Fetch Pending Jobs": { "main": [[{ "node": "Any Jobs?", "type": "main", "index": 0 }]] },
+    "Any Jobs?": {
+      "main": [[{ "node": "Mark Retrying", "type": "main", "index": 0 }], []]
+    },
+    "Mark Retrying": { "main": [[{ "node": "Re-run via Operator", "type": "main", "index": 0 }]] },
+    "Re-run via Operator": {
+      "main": [[{ "node": "Evaluate Result", "type": "main", "index": 0 }]]
+    },
+    "Evaluate Result": { "main": [[{ "node": "Succeeded?", "type": "main", "index": 0 }]] },
+    "Succeeded?": {
+      "main": [
+        [{ "node": "Mark Resolved", "type": "main", "index": 0 }],
+        [{ "node": "Backoff or Dead?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Backoff or Dead?": {
+      "main": [[{ "node": "Update Retry Schedule", "type": "main", "index": 0 }]]
+    },
+    "Update Retry Schedule": {
+      "main": [[{ "node": "Create Support Ticket", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger": { "main": [[{ "node": "Log Error", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [{ "name": "bylda-ops" }, { "name": "failed-job-retry" }],
+  "triggerCount": 1,
+  "updatedAt": "2026-05-14T00:00:00.000Z",
+  "id": "bylda-ops-failed-job-retry-v1"
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The production Worker that owns the usebylda.com routes is "bylda"
+  // (app.usebylda.com/* and usebylda.com/*). `wrangler deploy` must target that
+  // same service, otherwise Cloudflare rejects the deploy with "Can't deploy
+  // routes that are assigned to another worker" — which is exactly what happened
+  // while this was named "nova-launchpad" (a different, route-less worker).
+  // Deploying "bylda" updates the live worker in place, so the routes it already
+  // owns match the config and the deploy succeeds.
+  "name": "bylda",
+  "compatibility_date": "2025-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+
+  // Primary app route on usebylda.com
+  "routes": [
+    { "pattern": "app.usebylda.com/*", "zone_name": "usebylda.com" },
+    { "pattern": "usebylda.com/*", "zone_name": "usebylda.com" },
+  ],
+
+  "vars": {
+    // Supabase — project: ipidfqwlszuhjgjygbvx
+    "SUPABASE_URL": "https://ipidfqwlszuhjgjygbvx.supabase.co",
+    "SUPABASE_PROJECT_ID": "ipidfqwlszuhjgjygbvx",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwaWRmcXdsc3p1aGpnanlnYnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzU4OTUsImV4cCI6MjA5MjQxMTg5NX0.4F3q4epd_H8xn2JB5-RtSSy81U9zJBS7HO2KahD4HIc",
+    "VITE_SUPABASE_URL": "https://ipidfqwlszuhjgjygbvx.supabase.co",
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwaWRmcXdsc3p1aGpnanlnYnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzU4OTUsImV4cCI6MjA5MjQxMTg5NX0.4F3q4epd_H8xn2JB5-RtSSy81U9zJBS7HO2KahD4HIc",
+  },
+
+  // ── Secrets (set via: npx wrangler secret put <NAME>) ─────────────────────
+  // Required secrets — never commit these:
+  //
+  // ── Infrastructure ──────────────────────────────────────────────────────────
+  //   SUPABASE_SERVICE_ROLE_KEY   → Supabase → Project Settings → API → service_role
+  //   SUPABASE_JWT_SECRET         → Supabase → Project Settings → API → JWT Secret
+  //   CLOUDFLARE_ACCOUNT_ID       → Cloudflare Dashboard → right sidebar
+  //   CLOUDFLARE_AI_GATEWAY_ID    → Cloudflare → AI → AI Gateway → your gateway name
+  //   CLOUDFLARE_AI_GATEWAY_URL   → https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY_ID}
+  //
+  // ── Payments ────────────────────────────────────────────────────────────────
+  //   STRIPE_SECRET_KEY           → Stripe Dashboard → Developers → API keys
+  //   STRIPE_WEBHOOK_SECRET       → Stripe Dashboard → Webhooks → signing secret
+  //   STRIPE_PRICE_49             → Stripe price ID for Launch plan ($49)
+  //   STRIPE_PRICE_149            → Stripe price ID for Operate plan ($149)
+  //   STRIPE_PRICE_299            → Stripe price ID for Scale plan ($299)
+  //
+  // ── Communications ──────────────────────────────────────────────────────────
+  //   SENDGRID_API_KEY            → SendGrid → Settings → API Keys
+  //   TWILIO_ACCOUNT_SID          → Twilio Console
+  //   TWILIO_AUTH_TOKEN           → Twilio Console
+  //
+  // ── AI Providers (Phase 1 — required now) ───────────────────────────────────
+  //   ANTHROPIC_API_KEY           → console.anthropic.com → API Keys
+  //
+  // ── AI Providers (Phase 2 — add when enabling multi-provider routing) ───────
+  //   OPENAI_API_KEY              → platform.openai.com → API keys
+  //   GROK_API_KEY                → console.x.ai → API Keys
+  //   DEEPSEEK_API_KEY            → platform.deepseek.com → API Keys
+  //
+  // ── AI Providers (Phase 3 — optional / enterprise) ──────────────────────────
+  //   PERPLEXITY_API_KEY          → perplexity.ai/settings/api
+  //   GEMINI_API_KEY              → aistudio.google.com → Get API key
+  //   OPENROUTER_API_KEY          → openrouter.ai → Keys → Create Key
+  //
+  // NOTE: AI provider keys must ALSO be added to Supabase Edge Function secrets:
+  //   supabase.com/dashboard → your project → Edge Functions → Manage secrets
+
+  // ── Cloudflare Queue (replaces N8N for automation workflows) ──────────────
+  // NOTE: the Cloudflare Queue resource is still named "nova-automation-queue".
+  // Queues can't be renamed in place and wrangler won't auto-create one, so the
+  // binding keeps the existing resource name to avoid a failed deploy. To finish
+  // the rename: `wrangler queues create bylda-automation-queue`, migrate the
+  // consumer, then point these bindings at it.
+  "queues": {
+    "producers": [
+      {
+        "queue": "nova-automation-queue",
+        "binding": "AUTOMATION_QUEUE",
+      },
+    ],
+    // Consumer is in workers/bylda-automation-consumer/ — deployed separately
+  },
+
+  // ── Observability ─────────────────────────────────────────────────────────
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1,
+    },
+  },
+}

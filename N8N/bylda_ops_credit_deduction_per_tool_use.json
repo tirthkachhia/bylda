@@ -1,0 +1,408 @@
+{
+  "name": "Credit Deduction Per Tool Use",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-credit-gate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-credit-gate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id = body.user_id || null;\nconst tool_name = body.tool_name || null;\nconst credits_cost = parseInt(body.credits_cost, 10);\n\nif (!user_id) throw new Error('Missing required field: user_id');\nif (!tool_name) throw new Error('Missing required field: tool_name');\nif (isNaN(credits_cost) || credits_cost < 1) throw new Error('credits_cost must be a positive integer');\n\nreturn [{\n  json: {\n    user_id,\n    tool_name,\n    credits_cost,\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "d1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_credits?user_id=eq.{{ $json.user_id }}&select=balance,plan_tier",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "d1000001-0003-0003-0003-000000000003",
+      "name": "GET user_credits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fetchResult = $input.first().json;\nconst origin = $('Parse & Validate').first().json;\n\nconst record = Array.isArray(fetchResult) ? fetchResult[0] : fetchResult;\n\nif (!record || record.balance === undefined) {\n  throw new Error(`No user_credits record found for user_id: ${origin.user_id}`);\n}\n\nconst current_balance = parseInt(record.balance, 10);\nconst plan_tier = record.plan_tier || 'unknown';\nconst credits_cost = origin.credits_cost;\nconst balance_after = current_balance - credits_cost;\nconst allowed = current_balance >= credits_cost;\n\nreturn [{\n  json: {\n    user_id: origin.user_id,\n    tool_name: origin.tool_name,\n    credits_cost,\n    current_balance,\n    balance_after: allowed ? balance_after : current_balance,\n    plan_tier,\n    allowed,\n    now: origin.now\n  }\n}];"
+      },
+      "id": "d1000001-0004-0004-0004-000000000004",
+      "name": "Evaluate Balance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "balance-check",
+              "leftValue": "={{ $json.allowed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d1000001-0005-0005-0005-000000000005",
+      "name": "Balance Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"allowed\": false,\n  \"reason\": \"insufficient_credits\",\n  \"current_balance\": {{ $json.current_balance }},\n  \"credits_required\": {{ $json.credits_cost }},\n  \"shortfall\": {{ $json.credits_cost - $json.current_balance }},\n  \"plan_tier\": \"{{ $json.plan_tier }}\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"tool_name\": \"{{ $json.tool_name }}\"\n}",
+        "options": {
+          "responseCode": 402
+        }
+      },
+      "id": "d1000001-0006-0006-0006-000000000006",
+      "name": "Return: Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 600]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_credits?user_id=eq.{{ $json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"balance\": {{ $json.balance_after }},\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "d1000001-0007-0007-0007-000000000007",
+      "name": "PATCH user_credits (deduct)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 260],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass deduct context forward \u2014 PATCH returns array, re-attach original fields\nconst patchResult = $input.first().json;\nconst origin = $('Evaluate Balance').first().json;\n\nconst record = Array.isArray(patchResult) ? patchResult[0] : patchResult;\n\nif (!record || record.balance === undefined) {\n  throw new Error('PATCH to user_credits did not return updated record \u2014 check Supabase RLS policies');\n}\n\nreturn [{\n  json: {\n    user_id: origin.user_id,\n    tool_name: origin.tool_name,\n    credits_cost: origin.credits_cost,\n    balance_after: origin.balance_after,\n    plan_tier: origin.plan_tier,\n    now: origin.now\n  }\n}];"
+      },
+      "id": "d1000001-0008-0008-0008-000000000008",
+      "name": "Confirm Deduction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/credit_events",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"event_type\": \"deduction\",\n  \"tool_name\": \"{{ $json.tool_name }}\",\n  \"credits_used\": {{ $json.credits_cost }},\n  \"balance_after\": {{ $json.balance_after }},\n  \"plan_tier\": \"{{ $json.plan_tier }}\",\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "d1000001-0009-0009-0009-000000000009",
+      "name": "INSERT credit_events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1940, 260],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if balance is low after deduction \u2014 threshold: 5 credits\nconst origin = $('Confirm Deduction').first().json;\nconst balance_after = origin.balance_after;\nconst low_balance = balance_after <= 5 && balance_after >= 0;\n\nreturn [{\n  json: {\n    ...origin,\n    low_balance_alert: low_balance\n  }\n}];"
+      },
+      "id": "d1000001-0010-0010-0010-000000000010",
+      "name": "Check Low Balance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2180, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "low-balance-flag",
+              "leftValue": "={{ $json.low_balance_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d1000001-0011-0011-0011-000000000011",
+      "name": "Low Balance Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2420, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"allowed\": true,\n  \"balance_after\": {{ $json.balance_after }},\n  \"credits_used\": {{ $json.credits_cost }},\n  \"tool_name\": \"{{ $json.tool_name }}\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"warning\": \"low_balance\",\n  \"warning_message\": \"You have {{ $json.balance_after }} credits remaining. Upgrade to keep working.\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d1000001-0012-0012-0012-000000000012",
+      "name": "Return: Allowed (Low Balance Warning)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2680, 140]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"allowed\": true,\n  \"balance_after\": {{ $json.balance_after }},\n  \"credits_used\": {{ $json.credits_cost }},\n  \"tool_name\": \"{{ $json.tool_name }}\",\n  \"user_id\": \"{{ $json.user_id }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d1000001-0013-0013-0013-000000000013",
+      "name": "Return: Allowed (Healthy Balance)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2680, 380]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "GET user_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET user_credits": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Balance": {
+      "main": [
+        [
+          {
+            "node": "Balance Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Balance Gate": {
+      "main": [
+        [
+          {
+            "node": "PATCH user_credits (deduct)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return: Insufficient Credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH user_credits (deduct)": {
+      "main": [
+        [
+          {
+            "node": "Confirm Deduction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Deduction": {
+      "main": [
+        [
+          {
+            "node": "INSERT credit_events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT credit_events": {
+      "main": [
+        [
+          {
+            "node": "Check Low Balance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Low Balance": {
+      "main": [
+        [
+          {
+            "node": "Low Balance Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Low Balance Gate": {
+      "main": [
+        [
+          {
+            "node": "Return: Allowed (Low Balance Warning)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return: Allowed (Healthy Balance)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "credits"
+    },
+    {
+      "name": "gate-check"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

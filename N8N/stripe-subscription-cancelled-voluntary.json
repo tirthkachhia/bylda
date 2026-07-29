@@ -1,0 +1,494 @@
+{
+  "name": "Stripe Subscription Cancelled Voluntary",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-subscription-cancelled",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c9d0e1f2-0001-0001-0001-000000000001",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "stripe-subscription-cancelled"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = body;\nconst subscription = event?.data?.object || {};\n\nconst cancellationReason = subscription.cancellation_details?.reason || '';\nconst isVoluntary = cancellationReason === 'cancellation_requested';\n\nif (!isVoluntary) {\n  return [{ json: { skip: true, reason: 'Not a voluntary cancellation', cancellationReason } }];\n}\n\nconst customerId = subscription.customer || '';\nconst subscriptionId = subscription.id || '';\nconst cancelledAt = subscription.canceled_at\n  ? new Date(subscription.canceled_at * 1000).toISOString()\n  : new Date().toISOString();\nconst currentPeriodEnd = subscription.current_period_end\n  ? new Date(subscription.current_period_end * 1000).toISOString()\n  : null;\nconst accessEndDisplay = currentPeriodEnd\n  ? new Date(currentPeriodEnd).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })\n  : 'immediately';\n\n// 7 days in seconds for Wait node\nconst winBackWaitSeconds = 7 * 24 * 60 * 60;\n\nreturn [{ json: {\n  customerId,\n  subscriptionId,\n  cancellationReason,\n  cancelledAt,\n  currentPeriodEnd,\n  accessEndDisplay,\n  winBackWaitSeconds,\n  skip: false,\n  updatedAt: new Date().toISOString(),\n  rawPayload: JSON.stringify(body)\n} }];"
+      },
+      "id": "c9d0e1f2-0002-0002-0002-000000000002",
+      "name": "Parse Cancellation Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c9d0e1f2-0003-0003-0003-000000000003",
+      "name": "Should Skip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK - Not voluntary cancellation",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c9d0e1f2-0004-0004-0004-000000000004",
+      "name": "Return 200 Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": false,
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $('Parse Cancellation Payload').first().json.customerId }}"
+            },
+            {
+              "name": "select",
+              "value": "email,first_name,plan_tier,stripe_customer_id"
+            }
+          ]
+        },
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c9d0e1f2-0005-0005-0005-000000000005",
+      "name": "Get User from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const users = $input.first().json;\nconst user = Array.isArray(users) ? users[0] : users;\nconst parsed = $('Parse Cancellation Payload').first().json;\n\nconst planTier = user?.plan_tier || 'starter';\nconst planDisplayNames = { free: 'Free', starter: 'Starter', pro: 'Pro', scale: 'Scale' };\nconst planDisplay = planDisplayNames[planTier] || planTier;\n\nreturn [{ json: {\n  ...parsed,\n  email: user?.email || '',\n  firstName: user?.first_name || 'there',\n  planTier,\n  planDisplay\n} }];"
+      },
+      "id": "c9d0e1f2-0006-0006-0006-000000000006",
+      "name": "Merge User Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $json.customerId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan_status\": \"cancelled\",\n  \"plan_tier\": \"free\",\n  \"cancellation_reason\": \"voluntary\",\n  \"cancelled_at\": \"{{ $json.cancelledAt }}\",\n  \"updated_at\": \"{{ $json.updatedAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c9d0e1f2-0007-0007-0007-000000000007",
+      "name": "Update User Cancelled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "=eq.{{ $('Merge User Data').first().json.email }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan_tier\": \"free\",\n  \"launchpad_access\": true,\n  \"bylda_os_access\": false,\n  \"ai_tools_limit\": 3,\n  \"automation_systems\": 0,\n  \"priority_support\": false,\n  \"white_label\": false,\n  \"updated_at\": \"{{ $('Merge User Data').first().json.updatedAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c9d0e1f2-0008-0008-0008-000000000008",
+      "name": "Revoke Paid Feature Flags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <hello@usebylda.com>\",\n  \"to\": [\"{{ $('Merge User Data').first().json.email }}\"],\n  \"subject\": \"Your Bylda subscription has been cancelled\",\n  \"html\": \"<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;'><h1 style='font-size: 24px;'>We've cancelled your subscription, {{ $('Merge User Data').first().json.firstName }}.</h1><p style='font-size: 16px; color: #444; line-height: 1.7;'>Your <strong>{{ $('Merge User Data').first().json.planDisplay }}</strong> plan has been cancelled as requested. No further charges will be made.</p><div style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px 24px; margin: 28px 0;'><p style='margin: 0 0 8px; font-size: 14px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;'>What happens next</p><ul style='margin: 0; padding-left: 20px; font-size: 15px; color: #334155; line-height: 2;'><li>Access continues until: <strong>{{ $('Merge User Data').first().json.accessEndDisplay }}</strong></li><li>After that, your account moves to the Free tier (3 AI tools)</li><li>Your data is saved \u2014 nothing is deleted</li></ul></div><p style='font-size: 16px; color: #444;'>Changed your mind? You can reactivate anytime and pick up exactly where you left off.</p><div style='text-align: center; margin: 32px 0;'><a href='{{ $env.REACTIVATION_URL }}' style='background: #6366f1; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 700; display: inline-block;'>Reactivate My Account</a></div><p style='font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px;'>If there was something we could have done better, reply to this email and tell us \u2014 we read every response.</p><p style='font-size: 14px; color: #555;'>\u2014 The Bylda Team</p></div>\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c9d0e1f2-0009-0009-0009-000000000009",
+      "name": "Send Cancellation Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/billing_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_email\": \"{{ $('Merge User Data').first().json.email }}\",\n  \"stripe_customer_id\": \"{{ $('Merge User Data').first().json.customerId }}\",\n  \"event_type\": \"subscription_cancelled_voluntary\",\n  \"plan_tier\": \"{{ $('Merge User Data').first().json.planTier }}\",\n  \"cancellation_reason\": \"voluntary\",\n  \"access_ends_at\": \"{{ $('Merge User Data').first().json.currentPeriodEnd }}\",\n  \"occurred_at\": \"{{ $('Merge User Data').first().json.cancelledAt }}\"\n}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "c9d0e1f2-0010-0010-0010-000000000010",
+      "name": "Log to billing_events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "c9d0e1f2-0011-0011-0011-000000000011",
+      "name": "Return 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('Merge User Data').first().json.winBackWaitSeconds }}",
+        "unit": "seconds"
+      },
+      "id": "c9d0e1f2-0012-0012-0012-000000000012",
+      "name": "Wait 7 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2000, 520],
+      "webhookId": "wait-7-day-winback"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <hello@usebylda.com>\",\n  \"to\": [\"{{ $('Merge User Data').first().json.email }}\"],\n  \"subject\": \"Still thinking it over, {{ $('Merge User Data').first().json.firstName }}?\",\n  \"html\": \"<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;'><h1 style='font-size: 24px;'>Hey {{ $('Merge User Data').first().json.firstName }} \u2014 we've been thinking about you.</h1><p style='font-size: 16px; color: #444; line-height: 1.7;'>It's been a week since you cancelled your Bylda subscription. We wanted to check in and see if there's anything we can do to help.</p><div style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px 24px; margin: 28px 0;'><p style='margin: 0 0 12px; font-size: 15px; font-weight: 700; color: #1a1a1a;'>Here's what you're missing out on:</p><ul style='margin: 0; padding-left: 20px; font-size: 15px; color: #334155; line-height: 2;'><li>\ud83e\udd16 Automated lead generation running 24/7</li><li>\u26a1 Client onboarding on autopilot</li><li>\ud83d\udee0 AI tools that save 10+ hours per week</li><li>\ud83d\udcca Business systems that scale without you</li></ul></div><p style='font-size: 16px; color: #444;'>If cost was the issue \u2014 reply to this email. We'll work something out.</p><div style='text-align: center; margin: 32px 0;'><a href='{{ $env.REACTIVATION_URL }}' style='background: #6366f1; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 700; display: inline-block;'>Come Back to Bylda</a></div><p style='font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px;'>No pressure \u2014 just wanted you to know the door is always open.</p><p style='font-size: 14px; color: #555;'>\u2014 The Bylda Team</p></div>\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c9d0e1f2-0013-0013-0013-000000000013",
+      "name": "Send Win-Back Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2220, 520]
+    }
+  ],
+  "connections": {
+    "Stripe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Cancellation Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Cancellation Payload": {
+      "main": [
+        [
+          {
+            "node": "Should Skip?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Skip?": {
+      "main": [
+        [
+          {
+            "node": "Return 200 Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get User from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Merge User Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge User Data": {
+      "main": [
+        [
+          {
+            "node": "Update User Cancelled",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait 7 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Cancelled": {
+      "main": [
+        [
+          {
+            "node": "Revoke Paid Feature Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revoke Paid Feature Flags": {
+      "main": [
+        [
+          {
+            "node": "Send Cancellation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Cancellation Email": {
+      "main": [
+        [
+          {
+            "node": "Log to billing_events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to billing_events": {
+      "main": [
+        [
+          {
+            "node": "Return 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 7 Days": {
+      "main": [
+        [
+          {
+            "node": "Send Win-Back Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["bylda-ops", "stripe", "cancellation", "win-back", "billing"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "bylda-ops-cancelled-voluntary-v1"
+}

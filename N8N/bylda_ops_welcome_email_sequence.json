@@ -1,0 +1,365 @@
+{
+  "name": "Welcome Email Sequence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-welcome-sequence",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "n1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500],
+      "webhookId": "bylda-ops-welcome-sequence"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id       = body.user_id       || null;\nconst email         = body.email         || null;\nconst business_name = body.business_name || 'your business';\nconst operator_name = body.operator_name || 'Your AI Operator';\nconst plan_tier     = (body.plan_tier || 'free').toLowerCase();\nconst active_tools  = Array.isArray(body.active_tools) ? body.active_tools : [];\nconst dashboard_url = body.dashboard_url || `/dashboard/${user_id}`;\n\nif (!user_id) throw new Error('Missing required field: user_id');\nif (!email)   throw new Error('Missing required field: email');\n\n// Tool display metadata for personalised email content\nconst toolMeta = {\n  launchpad_tool_1:  { name: 'AI Lead Finder',       description: 'Find and qualify high-intent prospects automatically', emoji: '\ud83c\udfaf' },\n  launchpad_tool_2:  { name: 'Copy Generator',        description: 'Generate conversion-ready copy for any channel',      emoji: '\u270d\ufe0f' },\n  launchpad_tool_3:  { name: 'Offer Builder',         description: 'Structure irresistible offers that close faster',      emoji: '\ud83d\udd25' },\n  launchpad_tool_4:  { name: 'Email Sequencer',       description: 'Build automated follow-up that books calls for you',   emoji: '\ud83d\udce7' },\n  launchpad_tool_5:  { name: 'Funnel Mapper',         description: 'Visualise and optimise your entire sales funnel',      emoji: '\ud83d\uddfa\ufe0f' },\n  launchpad_tool_6:  { name: 'Competitor Analyst',    description: 'Reverse-engineer what is working for top competitors', emoji: '\ud83d\udd0d' },\n  launchpad_tool_7:  { name: 'Ad Creative Studio',    description: 'Produce scroll-stopping ad concepts in minutes',       emoji: '\ud83c\udfa8' },\n  launchpad_tool_8:  { name: 'VSL Script Writer',     description: 'Write high-converting video sales letter scripts',     emoji: '\ud83c\udfac' },\n  launchpad_tool_9:  { name: 'AI Sales Closer',       description: 'AI-powered objection handling and close scripts',      emoji: '\ud83d\udcb0' },\n  launchpad_tool_10: { name: 'Business Automator',    description: 'Automate your entire back-office operation',           emoji: '\u26a1' }\n};\n\nconst planLabels = {\n  free:    'Free',\n  starter: 'Starter',\n  pro:     'Pro',\n  scale:   'Scale'\n};\n\n// Pick top tool for Day 1 email focus\nconst primary_tool_key  = active_tools[0] || 'launchpad_tool_2';\nconst secondary_tool_key = active_tools[1] || 'launchpad_tool_1';\nconst primary_tool   = toolMeta[primary_tool_key]   || toolMeta['launchpad_tool_2'];\nconst secondary_tool = toolMeta[secondary_tool_key] || toolMeta['launchpad_tool_1'];\n\n// Upgrade CTA based on plan\nconst upgradeCTAs = {\n  free:    { cta: 'Upgrade to Starter for 100 credits and 5 tools', link: 'https://usebylda.com/upgrade/starter' },\n  starter: { cta: 'Upgrade to Pro for 500 credits and full Bylda OS', link: 'https://usebylda.com/upgrade/pro' },\n  pro:     { cta: 'Upgrade to Scale for unlimited credits and team seats', link: 'https://usebylda.com/upgrade/scale' },\n  scale:   { cta: null, link: null }\n};\n\nconst upgrade = upgradeCTAs[plan_tier] || upgradeCTAs['free'];\nconst app_base = process.env.APP_BASE_URL || 'https://app.usebylda.com';\nconst full_dashboard_url = `${app_base}${dashboard_url}`;\n\nreturn [{\n  json: {\n    user_id,\n    email,\n    business_name,\n    operator_name,\n    plan_tier,\n    plan_label:          planLabels[plan_tier] || 'Free',\n    active_tools,\n    dashboard_url:       full_dashboard_url,\n    primary_tool_key,\n    primary_tool,\n    secondary_tool_key,\n    secondary_tool,\n    upgrade_cta:         upgrade.cta,\n    upgrade_link:        upgrade.link,\n    now:                 new Date().toISOString()\n  }\n}];"
+      },
+      "id": "n1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Build Email Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"welcome_sequence_queued\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"emails_scheduled\": 3,\n  \"queued_at\": \"{{ $json.now }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "n1000001-0003-0003-0003-000000000003",
+      "name": "Return: Sequence Queued",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <noreply@usebylda.com>\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"{{ $json.operator_name }} is live \u2014 your Bylda workspace is ready\",\n  \"html\": \"<div style='font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a'><div style='background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:32px;border-radius:12px 12px 0 0;text-align:center'><h1 style='color:white;margin:0;font-size:28px;font-weight:700'>Bylda</h1><p style='color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:16px'>Your AI automation workspace is live</p></div><div style='background:#fff;padding:40px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px'><h2 style='margin-top:0;font-size:22px'>Welcome to Bylda, {{ $json.business_name }}</h2><p>Your AI operator, <strong>{{ $json.operator_name }}</strong>, has been configured and your workspace is ready.</p><p>You're on the <strong>{{ $json.plan_label }}</strong> plan with access to your Launchpad tools and Bylda OS systems.</p><div style='background:#f8fafc;border-left:4px solid #6366f1;padding:20px;border-radius:0 8px 8px 0;margin:24px 0'><p style='margin:0 0 8px;font-weight:600;color:#6366f1'>Your first tool to try:</p><p style='margin:0;font-size:18px'>{{ $json.primary_tool.emoji }} <strong>{{ $json.primary_tool.name }}</strong></p><p style='margin:8px 0 0;color:#475569'>{{ $json.primary_tool.description }}</p></div><a href='{{ $json.dashboard_url }}' style='display:inline-block;padding:14px 36px;background:#6366f1;color:white;border-radius:8px;text-decoration:none;font-weight:700;font-size:16px;margin-bottom:24px'>Open Your Workspace \u2192</a>{{ $json.upgrade_cta ? \\\"<div style='background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:16px;margin-top:8px'><p style='margin:0;font-size:14px;color:#92400e'>\ud83d\udca1 \" + $json.upgrade_cta + \" \u2014 <a href='\" + $json.upgrade_link + \"' style='color:#92400e;font-weight:600'>Upgrade now</a></p></div>\\\" : '' }}<hr style='border:none;border-top:1px solid #e2e8f0;margin:32px 0'/><p style='font-size:13px;color:#64748b'>Over the next 3 days, we'll send you quick tips to get the most from Bylda. Reply to this email any time \u2014 we read every one.</p><p style='font-size:12px;color:#94a3b8'>Bylda \u00b7 Tampa, FL \u00b7 <a href='https://usebylda.com' style='color:#94a3b8'>usebylda.com</a></p></div></div>\",\n  \"text\": \"Welcome to Bylda, {{ $json.business_name }}!\\n\\nYour AI operator '{{ $json.operator_name }}' is live on the {{ $json.plan_label }} plan.\\n\\nFirst tool to try: {{ $json.primary_tool.emoji }} {{ $json.primary_tool.name }}\\n{{ $json.primary_tool.description }}\\n\\nOpen your workspace: {{ $json.dashboard_url }}\\n\\nMore tips coming over the next 3 days.\\n\\nBylda \u00b7 support@usebylda.com\"\n}",
+        "options": {}
+      },
+      "id": "n1000001-0004-0004-0004-000000000004",
+      "name": "Send Day 0: Welcome Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailResult = $input.first().json;\nconst origin = $('Parse & Build Email Context').first().json;\n\nconst day0_email_id   = emailResult?.id || null;\nconst day0_email_sent = !!day0_email_id;\n\nif (!day0_email_sent) {\n  console.warn(`Day 0 welcome email may have failed for ${origin.email}. Resend response: ${JSON.stringify(emailResult)}`);\n}\n\nreturn [{\n  json: {\n    ...origin,\n    day0_email_id,\n    day0_email_sent\n  }\n}];"
+      },
+      "id": "n1000001-0005-0005-0005-000000000005",
+      "name": "Confirm Day 0 Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 700]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "days"
+      },
+      "id": "n1000001-0006-0006-0006-000000000006",
+      "name": "Wait: 1 Day",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1200, 700],
+      "webhookId": "bylda-ops-wait-day1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <noreply@usebylda.com>\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"Day 1: How to get your first result with {{ $json.primary_tool.name }}\",\n  \"html\": \"<div style='font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a'><div style='background:#6366f1;padding:20px 32px;border-radius:12px 12px 0 0'><p style='color:rgba(255,255,255,0.7);margin:0;font-size:13px;text-transform:uppercase;letter-spacing:0.05em'>Day 1 of 3</p><h2 style='color:white;margin:4px 0 0;font-size:20px'>Your quick-start guide</h2></div><div style='background:#fff;padding:40px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px'><p>Hey {{ $json.business_name }},</p><p>Yesterday you set up your workspace. Today, let's get your first real result.</p><p>Based on your business profile, your highest-leverage tool right now is:</p><div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:24px;margin:20px 0'><p style='margin:0 0 4px;font-size:24px'>{{ $json.primary_tool.emoji }}</p><h3 style='margin:0 0 8px;color:#1e293b'>{{ $json.primary_tool.name }}</h3><p style='margin:0;color:#475569'>{{ $json.primary_tool.description }}</p></div><h3 style='color:#1e293b'>3-step quick start:</h3><ol style='padding-left:20px;line-height:1.8;color:#334155'><li>Open <strong>{{ $json.primary_tool.name }}</strong> from your Launchpad</li><li>Enter your target customer: <em>{{ $json.business_name }}'s ideal buyer</em></li><li>Review the output \u2014 save, edit, and deploy in under 10 minutes</li></ol><a href='{{ $json.dashboard_url }}' style='display:inline-block;margin-top:16px;padding:12px 32px;background:#6366f1;color:white;border-radius:8px;text-decoration:none;font-weight:600'>Open {{ $json.primary_tool.name }} \u2192</a>{{ $json.secondary_tool ? \\\"<div style='margin-top:32px;padding:20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px'><p style='margin:0 0 8px;font-size:13px;color:#166534;font-weight:600'>ALSO IN YOUR LAUNCHPAD</p><p style='margin:0'>\" + $json.secondary_tool.emoji + \" <strong>\" + $json.secondary_tool.name + \"</strong> \u2014 \" + $json.secondary_tool.description + \"</p></div>\\\" : '' }}<hr style='border:none;border-top:1px solid #e2e8f0;margin:32px 0'/><p style='font-size:13px;color:#64748b'>Tomorrow: How to connect your Bylda OS systems for end-to-end automation.</p><p style='font-size:12px;color:#94a3b8'>Bylda \u00b7 Tampa, FL \u00b7 <a href='https://usebylda.com' style='color:#94a3b8'>usebylda.com</a></p></div></div>\",\n  \"text\": \"Day 1 \u2014 {{ $json.business_name }}, here's how to get your first result.\\n\\nYour top tool: {{ $json.primary_tool.emoji }} {{ $json.primary_tool.name }}\\n{{ $json.primary_tool.description }}\\n\\n3 steps:\\n1. Open {{ $json.primary_tool.name }} from your Launchpad\\n2. Enter your target customer info\\n3. Deploy in under 10 minutes\\n\\nGo now: {{ $json.dashboard_url }}\\n\\nTomorrow: connecting your Bylda OS systems.\\n\\nBylda \u00b7 support@usebylda.com\"\n}",
+        "options": {}
+      },
+      "id": "n1000001-0007-0007-0007-000000000007",
+      "name": "Send Day 1: Tool Quick-Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailResult = $input.first().json;\nconst origin = $('Confirm Day 0 Sent').first().json;\n\nconst day1_email_id   = emailResult?.id || null;\nconst day1_email_sent = !!day1_email_id;\n\nif (!day1_email_sent) {\n  console.warn(`Day 1 email may have failed for ${origin.email}. Resend response: ${JSON.stringify(emailResult)}`);\n}\n\nreturn [{\n  json: {\n    ...origin,\n    day1_email_id,\n    day1_email_sent\n  }\n}];"
+      },
+      "id": "n1000001-0008-0008-0008-000000000008",
+      "name": "Confirm Day 1 Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 700]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "id": "n1000001-0009-0009-0009-000000000009",
+      "name": "Wait: 2 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1940, 700],
+      "webhookId": "bylda-ops-wait-day3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <noreply@usebylda.com>\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"Day 3: Want us to set this up for you?\",\n  \"html\": \"<div style='font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a'><div style='background:#0f172a;padding:20px 32px;border-radius:12px 12px 0 0'><p style='color:rgba(255,255,255,0.6);margin:0;font-size:13px;text-transform:uppercase;letter-spacing:0.05em'>Day 3 of 3</p><h2 style='color:white;margin:4px 0 0;font-size:20px'>Your setup call invitation</h2></div><div style='background:#fff;padding:40px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px'><p>Hey {{ $json.business_name }},</p><p>You've had 3 days to explore Bylda. Here's what's possible when you're fully set up:</p><ul style='line-height:2;color:#334155;padding-left:20px'><li>AI-automated lead generation running 24/7</li><li>Follow-up sequences that book calls while you sleep</li><li>A fully configured <strong>{{ $json.operator_name }}</strong> handling your workflows</li></ul><div style='background:#f8fafc;border:2px solid #6366f1;border-radius:10px;padding:28px;margin:28px 0;text-align:center'><h3 style='margin:0 0 8px;color:#6366f1'>Free 30-Minute Setup Call</h3><p style='margin:0 0 20px;color:#475569'>We'll configure your top 3 automations live on the call \u2014 no extra charge.</p><a href='https://cal.com/bylda-ops/setup' style='display:inline-block;padding:14px 36px;background:#6366f1;color:white;border-radius:8px;text-decoration:none;font-weight:700;font-size:16px'>Book Your Setup Call \u2192</a></div>{{ $json.upgrade_cta ? \\\"<div style='background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:20px;margin-bottom:24px'><h4 style='margin:0 0 8px;color:#92400e'>Ready to unlock more?</h4><p style='margin:0 0 16px;color:#78350f'>\" + $json.upgrade_cta + \"</p><a href='\" + $json.upgrade_link + \"' style='color:#6366f1;font-weight:600;text-decoration:none'>Upgrade your plan \u2192</a></div>\\\" : '' }}<hr style='border:none;border-top:1px solid #e2e8f0;margin:32px 0'/><p style='font-size:13px;color:#64748b'>Questions? Just reply to this email \u2014 our team in Tampa, FL responds within a few hours.</p><p style='font-size:12px;color:#94a3b8'>Bylda \u00b7 Tampa, FL \u00b7 <a href='https://usebylda.com' style='color:#94a3b8'>usebylda.com</a></p></div></div>\",\n  \"text\": \"Day 3 \u2014 {{ $json.business_name }}, want us to set this up for you?\\n\\nIn 30 minutes, we can configure your top 3 automations live.\\n\\nBook a free setup call: https://cal.com/bylda-ops/setup\\n\\nWhat's possible fully set up:\\n- AI lead generation running 24/7\\n- Follow-up sequences booking calls automatically\\n- {{ $json.operator_name }} handling your core workflows\\n{{ $json.upgrade_cta ? '\\\\nReady to unlock more? ' + $json.upgrade_cta + ': ' + $json.upgrade_link : '' }}\\n\\nReply any time \u2014 we read every email.\\n\\nBylda \u00b7 support@usebylda.com\"\n}",
+        "options": {}
+      },
+      "id": "n1000001-0010-0010-0010-000000000010",
+      "name": "Send Day 3: Setup Call CTA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2180, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailResult = $input.first().json;\nconst origin = $('Confirm Day 1 Sent').first().json;\n\nconst day3_email_id   = emailResult?.id || null;\nconst day3_email_sent = !!day3_email_id;\n\nif (!day3_email_sent) {\n  console.warn(`Day 3 email may have failed for ${origin.email}. Response: ${JSON.stringify(emailResult)}`);\n}\n\nreturn [{\n  json: {\n    user_id:          origin.user_id,\n    email:            origin.email,\n    business_name:    origin.business_name,\n    plan_tier:        origin.plan_tier,\n    now:              origin.now,\n    day0_email_sent:  origin.day0_email_sent,\n    day1_email_sent:  origin.day1_email_sent,\n    day3_email_sent,\n    day3_email_id,\n    all_sent:         origin.day0_email_sent && origin.day1_email_sent && day3_email_sent\n  }\n}];"
+      },
+      "id": "n1000001-0011-0011-0011-000000000011",
+      "name": "Confirm Day 3 Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/comms_log",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"comm_type\": \"welcome_sequence\",\n  \"trigger\": \"dashboard_created\",\n  \"plan_tier\": \"{{ $json.plan_tier }}\",\n  \"metadata\": {{ JSON.stringify({ day0_sent: $json.day0_email_sent, day1_sent: $json.day1_email_sent, day3_sent: $json.day3_email_sent, all_sent: $json.all_sent }) }},\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "n1000001-0012-0012-0012-000000000012",
+      "name": "INSERT comms_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2680, 700],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Build Email Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Build Email Context": {
+      "main": [
+        [
+          {
+            "node": "Return: Sequence Queued",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Day 0: Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Day 0: Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Confirm Day 0 Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Day 0 Sent": {
+      "main": [
+        [
+          {
+            "node": "Wait: 1 Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait: 1 Day": {
+      "main": [
+        [
+          {
+            "node": "Send Day 1: Tool Quick-Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Day 1: Tool Quick-Start": {
+      "main": [
+        [
+          {
+            "node": "Confirm Day 1 Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Day 1 Sent": {
+      "main": [
+        [
+          {
+            "node": "Wait: 2 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait: 2 Days": {
+      "main": [
+        [
+          {
+            "node": "Send Day 3: Setup Call CTA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Day 3: Setup Call CTA": {
+      "main": [
+        [
+          {
+            "node": "Confirm Day 3 Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Day 3 Sent": {
+      "main": [
+        [
+          {
+            "node": "INSERT comms_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "email"
+    },
+    {
+      "name": "welcome-sequence"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

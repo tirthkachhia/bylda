@@ -1,0 +1,20 @@
+{
+  // Secrets needed: SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_GATEWAY_ID, SENDGRID_API_KEY, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN
+  "name": "bylda-automation-consumer",
+  "compatibility_date": "2025-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "worker.ts",
+  "vars": {
+    "SUPABASE_URL": "https://ipidfqwlszuhjgjygbvx.supabase.co",
+  },
+  "queues": {
+    "consumers": [
+      {
+        "queue": "nova-automation-queue",
+        "max_batch_size": 10,
+        "max_retries": 3,
+        "dead_letter_queue": "bylda-automation-dlq",
+      },
+    ],
+  },
+}

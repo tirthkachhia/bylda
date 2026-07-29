@@ -1,0 +1,344 @@
+{
+  "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR",
+  "description": "AI | Writes operator memory to Supabase operator_memory. Prunes oldest 20 rows if user exceeds 100 total. Returns {saved, memory_id}. OWNER: Dhruv | p2:normal | ai-powered | ENV: STG",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "AIlhwkZmGYE9ipKl"
+  },
+  "tags": [
+    {
+      "name": "env:stg"
+    },
+    {
+      "name": "owner:dhruv"
+    },
+    {
+      "name": "cat:ai"
+    },
+    {
+      "name": "review:pending"
+    },
+    {
+      "name": "p2:normal"
+    },
+    {
+      "name": "ai-powered"
+    },
+    {
+      "name": "claude-generated"
+    }
+  ],
+  "meta": {
+    "aiBuilderAssisted": true
+  },
+  "nodes": [
+    {
+      "id": "e5000001-0000-0000-0000-000000000001",
+      "name": "Webhook - Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 380],
+      "parameters": {
+        "path": "operator-memory-write",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "bylda-memory-write-stg"
+    },
+    {
+      "id": "e5000002-0000-0000-0000-000000000002",
+      "name": "HTTP - Insert Memory Row",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 380],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.body.user_id, session_id: $json.body.session_id || null, memory_type: $json.body.memory_type || 'fact', content: $json.body.content || '', tags: Array.isArray($json.body.tags) ? $json.body.tags : [], created_at: new Date().toISOString() }) }}",
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "e5000003-0000-0000-0000-000000000003",
+      "name": "HTTP - Count User Memory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 380],
+      "parameters": {
+        "method": "GET",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $('Webhook - Receive Request').first().json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "id,created_at"
+            },
+            {
+              "name": "order",
+              "value": "created_at.asc"
+            },
+            {
+              "name": "limit",
+              "value": "120"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "e5000004-0000-0000-0000-000000000004",
+      "name": "Code - Check Limit and Build Prune List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 380],
+      "parameters": {
+        "jsCode": "// Supabase returns an array of {id, created_at} rows, already sorted asc.\\n// The INSERT already ran, so this count reflects the post-insert state.\\nconst raw  = $input.first().json;\\nconst rows = Array.isArray(raw) ? raw : (raw ? [raw] : []);\\nconst count = rows.length;\\n\\n// Fetch the inserted row to extract memory_id\\n// HTTP - Insert Memory Row returns [{id, ...}] with Prefer: return=representation\\nconst insertRaw = $('HTTP - Insert Memory Row').first().json;\\nconst insertedRow = Array.isArray(insertRaw) ? insertRaw[0] : insertRaw;\\nconst memory_id = insertedRow?.id || null;\\n\\nconst LIMIT = 100;\\nconst PRUNE = 20;\\nconst needsPruning = count > LIMIT;\\n\\n// Oldest rows are first (order=created_at.asc) \u2014 take the first PRUNE ids\\nconst pruneIds = needsPruning\\n  ? rows.slice(0, PRUNE).map(r => r.id).filter(Boolean)\\n  : [];\\n\\n// Supabase IN filter format: (uuid1,uuid2,...)\\nconst pruneParam = pruneIds.length > 0\\n  ? `(${pruneIds.join(',')})`\\n  : '(00000000-0000-0000-0000-000000000000)'; // safe no-op UUID if empty\\n\\nreturn [{\\n  json: {\\n    memory_id,\\n    user_id:      $('Webhook - Receive Request').first().json.body.user_id,\\n    needs_pruning: needsPruning,\\n    row_count:     count,\\n    prune_count:   pruneIds.length,\\n    prune_param:   pruneParam\\n  }\\n}];"
+      }
+    },
+    {
+      "id": "e5000005-0000-0000-0000-000000000005",
+      "name": "IF - Needs Pruning",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 380],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-prune",
+              "leftValue": "={{ $json.needs_pruning }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e5000006-0000-0000-0000-000000000006",
+      "name": "HTTP - Delete Oldest 20",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 220],
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory?id=in.{{ $json.prune_param }}&user_id=eq.{{ $json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "e5000007-0000-0000-0000-000000000007",
+      "name": "Respond - Return Saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 380],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ saved: true, memory_id: $('Code - Check Limit and Build Prune List').first().json.memory_id, row_count: $('Code - Check Limit and Build Prune List').first().json.row_count, pruned: $('Code - Check Limit and Build Prune List').first().json.needs_pruning, pruned_count: $('Code - Check Limit and Build Prune List').first().json.prune_count }) }}",
+        "options": {
+          "responseCode": 201
+        }
+      }
+    },
+    {
+      "id": "e5000008-0000-0000-0000-000000000008",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 660]
+    },
+    {
+      "id": "e5000009-0000-0000-0000-000000000009",
+      "name": "HTTP - Notify Error Router",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 660],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow_name: 'STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR', error_message: $json.error.message, error_node: $json.execution.lastNodeExecuted, execution_id: $execution.id, timestamp: new Date().toISOString() }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Insert Memory Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Insert Memory Row": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Count User Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Count User Memory": {
+      "main": [
+        [
+          {
+            "node": "Code - Check Limit and Build Prune List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Check Limit and Build Prune List": {
+      "main": [
+        [
+          {
+            "node": "IF - Needs Pruning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Needs Pruning": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Delete Oldest 20",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Return Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Delete Oldest 20": {
+      "main": [
+        [
+          {
+            "node": "Respond - Return Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Notify Error Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

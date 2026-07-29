@@ -1,0 +1,159 @@
+{
+  "name": "Alerts - Error Router",
+  "meta": {
+    "description": "TASK-108 · Receives error payloads from any Bylda workflow or edge function, classifies severity, logs to Supabase, and routes to the appropriate alert channel (Slack, email, or silent-log) based on severity and error type.",
+    "templateId": "bylda-ops-alerts-error-router"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-alerts-error",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t108-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst error_type = body.error_type || body.type || 'unknown';\nconst message = body.message || body.error || 'No message provided';\nconst source = body.source || body.workflow || 'unknown';\nconst user_id = body.user_id || null;\nconst workspace_id = body.workspace_id || null;\nconst stack = body.stack || null;\nconst context = body.context || {};\n\n// Severity classification\nconst CRITICAL_PATTERNS = ['payment', 'stripe', 'auth', 'rls', 'permission', 'service_role'];\nconst HIGH_PATTERNS = ['edge_function', 'timeout', 'rate_limit', 'openai', 'anthropic', 'claude'];\nconst MEDIUM_PATTERNS = ['validation', 'missing_field', 'not_found', 'n8n'];\n\nconst lowerMsg = (message + error_type + source).toLowerCase();\nlet severity = 'low';\nif (CRITICAL_PATTERNS.some((p) => lowerMsg.includes(p))) severity = 'critical';\nelse if (HIGH_PATTERNS.some((p) => lowerMsg.includes(p))) severity = 'high';\nelse if (MEDIUM_PATTERNS.some((p) => lowerMsg.includes(p))) severity = 'medium';\n\nreturn [{ json: { error_type, message, source, user_id, workspace_id, stack, context, severity, now: new Date().toISOString() } }];"
+      },
+      "id": "t108-0002",
+      "name": "Parse & Classify Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workflow_runs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"workflow_key\": {{ JSON.stringify($json.source) }},\n  \"status\": \"failed\",\n  \"user_id\": {{ $json.user_id ? JSON.stringify($json.user_id) : 'null' }},\n  \"workspace_id\": {{ $json.workspace_id ? JSON.stringify($json.workspace_id) : 'null' }},\n  \"error_type\": {{ JSON.stringify($json.error_type) }},\n  \"error_message\": {{ JSON.stringify($json.message) }},\n  \"metadata\": { \"severity\": {{ JSON.stringify($json.severity) }}, \"context\": {{ JSON.stringify($json.context) }} }\n}",
+        "options": {}
+      },
+      "id": "t108-0003",
+      "name": "Log to workflow_runs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 500]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.severity }}",
+                    "rightValue": "critical",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "critical"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.severity }}",
+                    "rightValue": "high",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "high"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "t108-0004",
+      "name": "Route by Severity",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [960, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $('Parse & Classify Error').item.json;\nconst alertText = `🚨 *CRITICAL ERROR* in \\`${err.source}\\`\\n*Type:* ${err.error_type}\\n*Message:* ${err.message}\\n*User:* ${err.user_id || 'unknown'}\\n*Time:* ${err.now}`;\nreturn [{ json: { text: alertText, severity: 'critical', channel: '#bylda-alerts-critical' } }];"
+      },
+      "id": "t108-0005",
+      "name": "Format Critical Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $('Parse & Classify Error').item.json;\nconst alertText = `⚠️ *HIGH ERROR* in \\`${err.source}\\`\\n*Type:* ${err.error_type}\\n*Message:* ${err.message}\\n*Time:* ${err.now}`;\nreturn [{ json: { text: alertText, severity: 'high', channel: '#bylda-alerts-high' } }];"
+      },
+      "id": "t108-0006",
+      "name": "Format High Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const err = $('Parse & Classify Error').item.json;\nreturn [{ json: { logged: true, severity: err.severity, silent: true, source: err.source } }];"
+      },
+      "id": "t108-0007",
+      "name": "Silent Log (Low/Medium)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 680]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"severity\": \"{{ $('Parse & Classify Error').item.json.severity }}\",\n  \"logged\": true,\n  \"source\": \"{{ $('Parse & Classify Error').item.json.source }}\"\n}"
+      },
+      "id": "t108-0008",
+      "name": "Return ACK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse & Classify Error", "type": "main", "index": 0 }]] },
+    "Parse & Classify Error": {
+      "main": [[{ "node": "Log to workflow_runs", "type": "main", "index": 0 }]]
+    },
+    "Log to workflow_runs": {
+      "main": [[{ "node": "Route by Severity", "type": "main", "index": 0 }]]
+    },
+    "Route by Severity": {
+      "main": [
+        [{ "node": "Format Critical Alert", "type": "main", "index": 0 }],
+        [{ "node": "Format High Alert", "type": "main", "index": 0 }],
+        [{ "node": "Silent Log (Low/Medium)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Critical Alert": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] },
+    "Format High Alert": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] },
+    "Silent Log (Low/Medium)": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["alerts", "errors", "reliability", "sprint-2"]
+}

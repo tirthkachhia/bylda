@@ -1,0 +1,98 @@
+{
+  "health_checks": {
+    "cols": ["error_message", "error_node", "execution_id", "timestamp", "workflow_name"],
+    "filters": []
+  },
+  "notifications": {
+    "cols": [
+      "created_at",
+      "formatted_output",
+      "message",
+      "notification",
+      "output_type",
+      "read",
+      "session_id",
+      "success",
+      "tool_id",
+      "type",
+      "user_id"
+    ],
+    "filters": []
+  },
+  "operator_memory": {
+    "cols": [
+      "content",
+      "created_at",
+      "error_message",
+      "error_node",
+      "execution_id",
+      "memory_id",
+      "memory_type",
+      "pruned",
+      "pruned_count",
+      "row_count",
+      "saved",
+      "session_id",
+      "tags",
+      "timestamp",
+      "user_id",
+      "workflow_name"
+    ],
+    "filters": ["user_id"]
+  },
+  "operator_prompts": {
+    "cols": [
+      "component",
+      "error_message",
+      "error_node",
+      "execution_id",
+      "is_known_component",
+      "system_prompt",
+      "timestamp",
+      "updated",
+      "updated_at",
+      "version",
+      "version_label",
+      "workflow_name"
+    ],
+    "filters": ["component"]
+  },
+  "operator_sessions": {
+    "cols": [
+      "clarification_sent",
+      "clarification_text",
+      "confidence",
+      "error_message",
+      "error_node",
+      "execution_id",
+      "last_confidence",
+      "message",
+      "session_id",
+      "timestamp",
+      "top_intents",
+      "type",
+      "updated_at",
+      "workflow_name"
+    ],
+    "filters": ["session_id"]
+  },
+  "support_tickets": {
+    "cols": ["created_at", "issue_summary", "session_id", "status", "user_id"],
+    "filters": []
+  },
+  "tool_outputs": {
+    "cols": [
+      "created_at",
+      "formatted_output",
+      "message",
+      "output_type",
+      "raw_output",
+      "read",
+      "session_id",
+      "tool_id",
+      "type",
+      "user_id"
+    ],
+    "filters": []
+  }
+}

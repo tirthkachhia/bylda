@@ -1,0 +1,207 @@
+{
+  "name": "Master Orchestrator",
+  "meta": {
+    "description": "TASK-109 · Top-level n8n orchestrator. Routes incoming webhook requests to the correct sub-workflow based on event_type. Acts as the single entry point for all Bylda automation triggers.",
+    "templateId": "bylda-ops-master-orchestrator"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-master",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t109-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event_type = body.event_type || body.type || 'unknown';\nconst user_id = body.user_id || null;\nconst workspace_id = body.workspace_id || null;\nconst payload = body.payload || body;\nconst ROUTABLE = [\n  'onboarding_complete', 'workspace_created', 'first_tool_run',\n  'first_mission_completed', 'plan_upgraded', 'subscription_cancelled',\n  'operator_message', 'workflow_run', 'stalled_user', 'weekly_review'\n];\nif (!ROUTABLE.includes(event_type)) {\n  return [{ json: { routed: false, reason: `Unknown event_type: ${event_type}` } }];\n}\nreturn [{ json: { event_type, user_id, workspace_id, payload, now: new Date().toISOString(), routed: true } }];"
+      },
+      "id": "t109-0002",
+      "name": "Parse & Validate Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 600]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "onboarding_complete",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "onboarding"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "first_mission_completed",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "mission_done"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "plan_upgraded",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "plan_upgrade"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "stalled_user",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "stalled"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "t109-0003",
+      "name": "Route by Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [720, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-onboarding-intake-save",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "t109-0004",
+      "name": "→ Onboarding Handler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-provision-workspace",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "t109-0005",
+      "name": "→ Mission Complete Handler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-billing-plan-unlock",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "t109-0006",
+      "name": "→ Plan Upgrade Handler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 660]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/bylda-ops-lifecycle-stalled-user",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "t109-0007",
+      "name": "→ Stalled User Handler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 840]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{ json: { ok: true, event_type: input.event_type, routed: input.routed, fallthrough: true } }];"
+      },
+      "id": "t109-0008",
+      "name": "Fallthrough Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 1020]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"event_type\": \"{{ $('Parse & Validate Event').item.json.event_type }}\",\n  \"routed\": true\n}"
+      },
+      "id": "t109-0009",
+      "name": "Return ACK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 600]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse & Validate Event", "type": "main", "index": 0 }]] },
+    "Parse & Validate Event": {
+      "main": [[{ "node": "Route by Event", "type": "main", "index": 0 }]]
+    },
+    "Route by Event": {
+      "main": [
+        [{ "node": "→ Onboarding Handler", "type": "main", "index": 0 }],
+        [{ "node": "→ Mission Complete Handler", "type": "main", "index": 0 }],
+        [{ "node": "→ Plan Upgrade Handler", "type": "main", "index": 0 }],
+        [{ "node": "→ Stalled User Handler", "type": "main", "index": 0 }],
+        [{ "node": "Fallthrough Log", "type": "main", "index": 0 }]
+      ]
+    },
+    "→ Onboarding Handler": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] },
+    "→ Mission Complete Handler": {
+      "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]]
+    },
+    "→ Plan Upgrade Handler": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] },
+    "→ Stalled User Handler": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] },
+    "Fallthrough Log": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["orchestrator", "routing", "sprint-2"]
+}

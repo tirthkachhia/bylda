@@ -1,0 +1,444 @@
+{
+  "name": "Stripe Trial Started",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-trial-started",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0001-0001-0001-000000000001",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "stripe-trial-started"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst event = body;\nconst eventType = event?.type || '';\nconst subscription = event?.data?.object || {};\n\nconst customerId = subscription.customer || '';\nconst subscriptionId = subscription.id || '';\nconst status = subscription.status || '';\nconst trialEnd = subscription.trial_end || null;\n\n// Accept both event types\nconst isTrialEvent =\n  eventType === 'customer.subscription.trial_will_end' ||\n  (eventType === 'customer.subscription.created' && status === 'trialing');\n\nif (!isTrialEvent || !trialEnd) {\n  return [{ json: { skip: true, reason: 'Not a trial event or no trial_end', eventType, status } }];\n}\n\nconst trialEndDate = new Date(trialEnd * 1000);\nconst now = new Date();\n\n// Calculate wait times in milliseconds\nconst msUntilTrialEnd = trialEndDate.getTime() - now.getTime();\nconst msUntil72hr = msUntilTrialEnd - (72 * 60 * 60 * 1000);\nconst msUntil24hr = msUntilTrialEnd - (24 * 60 * 60 * 1000);\n\n// Convert to seconds for n8n Wait node\nconst waitSeconds72hr = Math.max(Math.floor(msUntil72hr / 1000), 0);\nconst waitSeconds24hr = Math.max(Math.floor(msUntil24hr / 1000), 0);\n\nreturn [{ json: {\n  customerId,\n  subscriptionId,\n  status,\n  eventType,\n  isTrialEvent,\n  skip: false,\n  trialEnd,\n  trialEndIso: trialEndDate.toISOString(),\n  trialEndDisplay: trialEndDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),\n  waitSeconds72hr,\n  waitSeconds24hr,\n  msUntil72hr,\n  msUntil24hr,\n  rawPayload: JSON.stringify(body)\n} }];"
+      },
+      "id": "d4e5f6a7-0002-0002-0002-000000000002",
+      "name": "Parse Trial Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d4e5f6a7-0003-0003-0003-000000000003",
+      "name": "Should Skip?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK - Skipped",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000004",
+      "name": "Return 200 Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": false,
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $('Parse Trial Payload').first().json.customerId }}"
+            },
+            {
+              "name": "select",
+              "value": "email,first_name,stripe_customer_id"
+            }
+          ]
+        },
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "d4e5f6a7-0005-0005-0005-000000000005",
+      "name": "Get User from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const users = $input.first().json;\nconst user = Array.isArray(users) ? users[0] : users;\nconst parsed = $('Parse Trial Payload').first().json;\nreturn [{ json: {\n  ...parsed,\n  email: user?.email || '',\n  firstName: user?.first_name || 'there'\n} }];"
+      },
+      "id": "d4e5f6a7-0006-0006-0006-000000000006",
+      "name": "Merge User Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $json.customerId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan_status\": \"trialing\",\n  \"trial_ends_at\": \"{{ $json.trialEndIso }}\",\n  \"updated_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "d4e5f6a7-0007-0007-0007-000000000007",
+      "name": "Update User Trial Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <hello@usebylda.com>\",\n  \"to\": [\"{{ $('Merge User Data').first().json.email }}\"],\n  \"subject\": \"Your Bylda trial has started \ud83d\ude80\",\n  \"html\": \"<h1>Welcome to Bylda, {{ $('Merge User Data').first().json.firstName }}!</h1><p>Your free trial is now active and runs until <strong>{{ $('Merge User Data').first().json.trialEndDisplay }}</strong>.</p><h2>Here's what to explore during your trial:</h2><ul><li><strong>Launchpad</strong> \u2014 10 AI founder tools to build, validate and launch faster</li><li><strong>Bylda OS</strong> \u2014 6 business automation systems that run your ops on autopilot</li><li><strong>Lead Gen Automation</strong> \u2014 Set up your first automated pipeline</li><li><strong>Client Onboarding System</strong> \u2014 Deliver a world-class client experience from day one</li></ul><p><a href='https://usebylda.com/dashboard'>\ud83d\udc49 Log in and start exploring</a></p><p>Reply to this email anytime if you have questions \u2014 we respond fast.</p><p>\u2014 The Bylda Team</p>\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d4e5f6a7-0008-0008-0008-000000000008",
+      "name": "Send Trial Welcome Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "d4e5f6a7-0009-0009-0009-000000000009",
+      "name": "Return 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('Merge User Data').first().json.waitSeconds72hr }}",
+        "unit": "seconds"
+      },
+      "id": "d4e5f6a7-0010-0010-0010-000000000010",
+      "name": "Wait Until 72hr Before End",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1560, 520],
+      "webhookId": "wait-72hr"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIAL_WARNING_72HR_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Merge User Data').first().json.email }}\",\n  \"firstName\": \"{{ $('Merge User Data').first().json.firstName }}\",\n  \"customerId\": \"{{ $('Merge User Data').first().json.customerId }}\",\n  \"trialEndIso\": \"{{ $('Merge User Data').first().json.trialEndIso }}\",\n  \"trialEndDisplay\": \"{{ $('Merge User Data').first().json.trialEndDisplay }}\",\n  \"warningType\": \"72hr\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d4e5f6a7-0011-0011-0011-000000000011",
+      "name": "Trigger 72hr Warning Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1780, 520]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('Merge User Data').first().json.waitSeconds24hr - $('Merge User Data').first().json.waitSeconds72hr }}",
+        "unit": "seconds"
+      },
+      "id": "d4e5f6a7-0012-0012-0012-000000000012",
+      "name": "Wait Until 24hr Before End",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2000, 520],
+      "webhookId": "wait-24hr"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIAL_WARNING_24HR_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $('Merge User Data').first().json.email }}\",\n  \"firstName\": \"{{ $('Merge User Data').first().json.firstName }}\",\n  \"customerId\": \"{{ $('Merge User Data').first().json.customerId }}\",\n  \"trialEndIso\": \"{{ $('Merge User Data').first().json.trialEndIso }}\",\n  \"trialEndDisplay\": \"{{ $('Merge User Data').first().json.trialEndDisplay }}\",\n  \"warningType\": \"24hr\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d4e5f6a7-0013-0013-0013-000000000013",
+      "name": "Trigger 24hr Warning Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2220, 520]
+    }
+  ],
+  "connections": {
+    "Stripe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Trial Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Trial Payload": {
+      "main": [
+        [
+          {
+            "node": "Should Skip?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Skip?": {
+      "main": [
+        [
+          {
+            "node": "Return 200 Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get User from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Merge User Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge User Data": {
+      "main": [
+        [
+          {
+            "node": "Update User Trial Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait Until 72hr Before End",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Trial Status": {
+      "main": [
+        [
+          {
+            "node": "Send Trial Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Trial Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Return 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Until 72hr Before End": {
+      "main": [
+        [
+          {
+            "node": "Trigger 72hr Warning Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger 72hr Warning Webhook": {
+      "main": [
+        [
+          {
+            "node": "Wait Until 24hr Before End",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Until 24hr Before End": {
+      "main": [
+        [
+          {
+            "node": "Trigger 24hr Warning Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["bylda-ops", "stripe", "trial", "billing"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "bylda-ops-trial-v1"
+}

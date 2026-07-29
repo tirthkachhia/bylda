@@ -1,0 +1,245 @@
+{
+  "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR",
+  "description": "AI | Called by Main Router when intent confidence < 0.7. Generates a clarifying question via Claude, stores it in operator_sessions, returns {type: clarification, message}. OWNER: Dhruv | p1:high | ai-powered | ENV: STG",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "AIlhwkZmGYE9ipKl"
+  },
+  "tags": [
+    {
+      "name": "env:stg"
+    },
+    {
+      "name": "owner:dhruv"
+    },
+    {
+      "name": "cat:ai"
+    },
+    {
+      "name": "review:pending"
+    },
+    {
+      "name": "p1:high"
+    },
+    {
+      "name": "ai-powered"
+    },
+    {
+      "name": "claude-generated"
+    }
+  ],
+  "meta": {
+    "aiBuilderAssisted": true
+  },
+  "nodes": [
+    {
+      "id": "g7000001-0000-0000-0000-000000000001",
+      "name": "Webhook - Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 380],
+      "parameters": {
+        "path": "operator-confidence-fallback",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "bylda-confidence-fallback-stg"
+    },
+    {
+      "id": "g7000002-0000-0000-0000-000000000002",
+      "name": "HTTP - Claude Generate Clarification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 380],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $vars.GLOBAL_AI_MODEL_DEFAULT || 'claude-sonnet-4-6', max_tokens: 80, system: 'You are a concise assistant. Respond with a single clarifying question only \u2014 no preamble, no explanation, no quotes. The question must be under 20 words and end with a question mark.', messages: [{ role: 'user', content: 'The user sent this message: \"' + $json.body.original_message + '\"\\n\\nConfidence score: ' + ($json.body.confidence || 0) + '\\n\\nTop possible intents: ' + ($json.body.top_intents || []).map((t, i) => (i + 1) + '. ' + t).join(', ') + '\\n\\nGenerate one clarifying question to determine what the user needs. Under 20 words.' }] }) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PLACEHOLDER_ANTHROPIC_CRED_ID",
+          "name": "ANTHROPIC_PROD_API"
+        }
+      }
+    },
+    {
+      "id": "g7000003-0000-0000-0000-000000000003",
+      "name": "Code - Extract Clarification Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 380],
+      "parameters": {
+        "jsCode": "const content = $input.first().json.content;\\nconst raw = Array.isArray(content)\\n  ? (content.find(b => b.type === 'text')?.text || '')\\n  : String(content || '');\\n\\n// Strip wrapping quotes Claude sometimes adds, then normalise whitespace\\nlet question = raw\\n  .trim()\\n  .replace(/^[\"'\"\"'']|[\"'\"\"'']$/g, '')\\n  .trim();\\n\\n// Ensure it ends with a question mark\\nif (question && !question.endsWith('?')) {\\n  question = question + '?';\\n}\\n\\n// Hard fallback \u2014 should never be needed if Claude follows instructions\\nif (!question) {\\n  question = 'Could you tell me a bit more about what you need help with?';\\n}\\n\\n// Pull original request fields for the Supabase update\\nconst body = $('Webhook - Receive Request').first().json.body;\\n\\nreturn [{\\n  json: {\\n    clarification_text: question,\\n    session_id:         body.session_id  || null,\\n    user_id:            body.user_id     || null,\\n    original_message:   body.original_message || '',\\n    confidence:         body.confidence  || 0,\\n    top_intents:        body.top_intents || []\\n  }\\n}];"
+      }
+    },
+    {
+      "id": "g7000004-0000-0000-0000-000000000004",
+      "name": "HTTP - Update Operator Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 380],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_sessions?session_id=eq.{{ $json.session_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ clarification_sent: true, clarification_text: $json.clarification_text, last_confidence: $json.confidence, top_intents: $json.top_intents, updated_at: new Date().toISOString() }) }}",
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "g7000005-0000-0000-0000-000000000005",
+      "name": "Respond - Return Clarification",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 380],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ type: 'clarification', message: $('Code - Extract Clarification Text').first().json.clarification_text, session_id: $('Code - Extract Clarification Text').first().json.session_id, confidence: $('Code - Extract Clarification Text').first().json.confidence }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "g7000006-0000-0000-0000-000000000006",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 620]
+    },
+    {
+      "id": "g7000007-0000-0000-0000-000000000007",
+      "name": "HTTP - Notify Error Router",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 620],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow_name: 'STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR', error_message: $json.error.message, error_node: $json.execution.lastNodeExecuted, execution_id: $execution.id, timestamp: new Date().toISOString() }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Claude Generate Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Claude Generate Clarification": {
+      "main": [
+        [
+          {
+            "node": "Code - Extract Clarification Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Extract Clarification Text": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Update Operator Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Update Operator Session": {
+      "main": [
+        [
+          {
+            "node": "Respond - Return Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Notify Error Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

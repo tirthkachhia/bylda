@@ -1,0 +1,371 @@
+{
+  "name": "Stripe Payment Retry Succeeded",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-payment-retry-succeeded",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b8c9d0e1-0001-0001-0001-000000000001",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "stripe-payment-retry-succeeded"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = body;\nconst invoice = event?.data?.object || {};\n\nconst customerId = invoice.customer || '';\nconst subscriptionId = invoice.subscription || '';\nconst invoiceId = invoice.id || '';\nconst amountPaid = invoice.amount_paid || 0;\nconst currency = (invoice.currency || 'usd').toUpperCase();\nconst amountDisplay = `$${(amountPaid / 100).toFixed(2)} ${currency}`;\n\nreturn [{ json: {\n  customerId,\n  subscriptionId,\n  invoiceId,\n  amountPaid,\n  amountDisplay,\n  currency,\n  updatedAt: new Date().toISOString()\n} }];"
+      },
+      "id": "b8c9d0e1-0002-0002-0002-000000000002",
+      "name": "Parse Payment Succeeded Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": false,
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $json.customerId }}"
+            },
+            {
+              "name": "select",
+              "value": "email,first_name,stripe_customer_id,plan_tier,payment_status"
+            }
+          ]
+        },
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "b8c9d0e1-0003-0003-0003-000000000003",
+      "name": "Get User from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const users = $input.first().json;\nconst user = Array.isArray(users) ? users[0] : users;\nconst parsed = $('Parse Payment Succeeded Payload').first().json;\n\n// Only proceed if user was past_due\nconst wasPastDue = user?.payment_status === 'past_due';\nconst planTier = user?.plan_tier || 'starter';\n\nconst featureFlags = {\n  free: { launchpad_access: true, bylda_os_access: false, ai_tools_limit: 3, automation_systems: 0, priority_support: false, white_label: false },\n  starter: { launchpad_access: true, bylda_os_access: false, ai_tools_limit: 10, automation_systems: 2, priority_support: false, white_label: false },\n  pro: { launchpad_access: true, bylda_os_access: true, ai_tools_limit: 10, automation_systems: 6, priority_support: true, white_label: false },\n  scale: { launchpad_access: true, bylda_os_access: true, ai_tools_limit: 10, automation_systems: 6, priority_support: true, white_label: true }\n};\n\nconst flags = featureFlags[planTier] || featureFlags['starter'];\n\nconst planDisplayNames = { free: 'Free', starter: 'Starter ($49/mo)', pro: 'Pro ($149/mo)', scale: 'Scale ($299/mo)' };\nconst planDisplay = planDisplayNames[planTier] || planTier;\n\nconst planFeatureSummary = {\n  free: ['3 AI Tools via Launchpad', 'Basic access only'],\n  starter: ['All 10 Launchpad AI Tools', '2 Bylda OS Automation Systems', 'Standard support'],\n  pro: ['All 10 Launchpad AI Tools', 'All 6 Bylda OS Automation Systems', 'Priority Support', 'Bylda OS Access'],\n  scale: ['All 10 Launchpad AI Tools', 'All 6 Bylda OS Automation Systems', 'Priority Support', 'White Label', 'Bylda OS Access']\n};\n\nconst featureSummary = planFeatureSummary[planTier] || planFeatureSummary['starter'];\n\nreturn [{ json: {\n  ...parsed,\n  email: user?.email || '',\n  firstName: user?.first_name || 'there',\n  planTier,\n  planDisplay,\n  flags,\n  featureSummary,\n  wasPastDue\n} }];"
+      },
+      "id": "b8c9d0e1-0004-0004-0004-000000000004",
+      "name": "Merge User + Plan Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stripe_customer_id",
+              "value": "=eq.{{ $json.customerId }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"payment_status\": \"active\",\n  \"plan_status\": \"active\",\n  \"updated_at\": \"{{ $json.updatedAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "b8c9d0e1-0005-0005-0005-000000000005",
+      "name": "Restore User Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "=eq.{{ $('Merge User + Plan Data').first().json.email }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"plan_tier\": \"{{ $('Merge User + Plan Data').first().json.planTier }}\",\n  \"launchpad_access\": {{ $('Merge User + Plan Data').first().json.flags.launchpad_access }},\n  \"bylda_os_access\": {{ $('Merge User + Plan Data').first().json.flags.bylda_os_access }},\n  \"ai_tools_limit\": {{ $('Merge User + Plan Data').first().json.flags.ai_tools_limit }},\n  \"automation_systems\": {{ $('Merge User + Plan Data').first().json.flags.automation_systems }},\n  \"priority_support\": {{ $('Merge User + Plan Data').first().json.flags.priority_support }},\n  \"white_label\": {{ $('Merge User + Plan Data').first().json.flags.white_label }},\n  \"updated_at\": \"{{ $('Merge User + Plan Data').first().json.updatedAt }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "b8c9d0e1-0006-0006-0006-000000000006",
+      "name": "Re-enable Feature Flags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <hello@usebylda.com>\",\n  \"to\": [\"{{ $('Merge User + Plan Data').first().json.email }}\"],\n  \"subject\": \"\u2705 Your account is back \u2014 welcome back!\",\n  \"html\": \"<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;'><div style='background: #f0fdf4; border-left: 4px solid #22c55e; padding: 16px 20px; border-radius: 4px; margin-bottom: 28px;'><p style='margin: 0; font-size: 15px; color: #15803d; font-weight: 600;'>\u2705 Payment processed \u2014 your account is fully restored.</p></div><h1 style='font-size: 24px; margin-top: 0;'>Welcome back, {{ $('Merge User + Plan Data').first().json.firstName }}!</h1><p style='font-size: 16px; color: #444; line-height: 1.7;'>Your payment of <strong>{{ $('Merge User + Plan Data').first().json.amountDisplay }}</strong> was successfully processed. Everything is back online and running.</p><div style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px 24px; margin: 28px 0;'><p style='margin: 0 0 12px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;'>Your {{ $('Merge User + Plan Data').first().json.planDisplay }} plan includes:</p><ul style='margin: 0; padding-left: 20px; font-size: 15px; color: #334155; line-height: 2;'>{{ $('Merge User + Plan Data').first().json.featureSummary.map(f => '<li>' + f + '</li>').join('') }}</ul></div><div style='text-align: center; margin: 32px 0;'><a href='https://usebylda.com/dashboard' style='background: #22c55e; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 700; display: inline-block;'>Go to My Dashboard</a></div><p style='font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px;'>To avoid future interruptions, make sure your payment method is up to date in your <a href='{{ $env.STRIPE_CUSTOMER_PORTAL_URL }}' style='color:#6366f1;'>billing portal</a>.</p><p style='font-size: 14px; color: #555;'>\u2014 The Bylda Team</p></div>\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "b8c9d0e1-0007-0007-0007-000000000007",
+      "name": "Send Reactivation Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/billing_events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_email\": \"{{ $('Merge User + Plan Data').first().json.email }}\",\n  \"stripe_customer_id\": \"{{ $('Merge User + Plan Data').first().json.customerId }}\",\n  \"invoice_id\": \"{{ $('Merge User + Plan Data').first().json.invoiceId }}\",\n  \"event_type\": \"payment_retry_succeeded\",\n  \"amount_paid\": {{ $('Merge User + Plan Data').first().json.amountPaid }},\n  \"currency\": \"{{ $('Merge User + Plan Data').first().json.currency }}\",\n  \"plan_tier\": \"{{ $('Merge User + Plan Data').first().json.planTier }}\",\n  \"was_past_due\": {{ $('Merge User + Plan Data').first().json.wasPastDue }},\n  \"occurred_at\": \"{{ $('Merge User + Plan Data').first().json.updatedAt }}\"\n}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "b8c9d0e1-0008-0008-0008-000000000008",
+      "name": "Log to billing_events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1780, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "b8c9d0e1-0009-0009-0009-000000000009",
+      "name": "Return 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "Stripe Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Payment Succeeded Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Payment Succeeded Payload": {
+      "main": [
+        [
+          {
+            "node": "Get User from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Merge User + Plan Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge User + Plan Data": {
+      "main": [
+        [
+          {
+            "node": "Restore User Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore User Status": {
+      "main": [
+        [
+          {
+            "node": "Re-enable Feature Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-enable Feature Flags": {
+      "main": [
+        [
+          {
+            "node": "Send Reactivation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reactivation Email": {
+      "main": [
+        [
+          {
+            "node": "Log to billing_events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to billing_events": {
+      "main": [
+        [
+          {
+            "node": "Return 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["bylda-ops", "stripe", "billing", "reactivation"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "bylda-ops-payment-retry-v1"
+}

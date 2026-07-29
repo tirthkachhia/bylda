@@ -1,0 +1,421 @@
+{
+  "name": "Client Reporting Subagent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client-reporting-subagent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cr000001-0001-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "client-reporting-subagent-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body;\n\nconst required = ['user_id', 'client_id', 'period_start', 'period_end'];\nfor (const key of required) {\n  if (!body[key] || String(body[key]).trim().length === 0) {\n    throw new Error(`Missing required field: ${key}`);\n  }\n}\n\n// Validate date formats YYYY-MM-DD\nconst dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\nif (!dateRegex.test(body.period_start)) throw new Error('period_start must be in YYYY-MM-DD format');\nif (!dateRegex.test(body.period_end)) throw new Error('period_end must be in YYYY-MM-DD format');\n\nif (new Date(body.period_end) <= new Date(body.period_start)) {\n  throw new Error('period_end must be after period_start');\n}\n\nreturn [{\n  json: {\n    user_id: body.user_id.trim(),\n    client_id: body.client_id.trim(),\n    period_start: body.period_start.trim(),\n    period_end: body.period_end.trim()\n  }\n}];"
+      },
+      "id": "cr000001-0002-4000-8000-000000000002",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  COALESCE(SUM(CASE WHEN metric_key = 'leads' THEN metric_value ELSE 0 END), 0) AS leads,\n  COALESCE(SUM(CASE WHEN metric_key = 'calls_booked' THEN metric_value ELSE 0 END), 0) AS calls_booked,\n  COALESCE(SUM(CASE WHEN metric_key = 'deals_closed' THEN metric_value ELSE 0 END), 0) AS deals_closed,\n  COALESCE(SUM(CASE WHEN metric_key = 'revenue' THEN metric_value ELSE 0 END), 0) AS revenue,\n  COALESCE(SUM(CASE WHEN metric_key = 'content_shipped' THEN metric_value ELSE 0 END), 0) AS content_shipped\nFROM client_kpis\nWHERE\n  client_id = '{{ $json.client_id }}'\n  AND user_id = '{{ $json.user_id }}'\n  AND recorded_date BETWEEN '{{ $json.period_start }}' AND '{{ $json.period_end }}'",
+        "options": {}
+      },
+      "id": "cr000001-0003-4000-8000-000000000003",
+      "name": "Fetch Client KPIs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  logo_url,\n  primary_color,\n  brand_voice,\n  company_name,\n  niche\nFROM user_ai_config\nWHERE user_id = '{{ $('Validate Input').item.json.user_id }}'\nLIMIT 1",
+        "options": {}
+      },
+      "id": "cr000001-0004-4000-8000-000000000004",
+      "name": "Fetch User Branding",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [960, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT system_prompt FROM operator_prompts WHERE component = 'client_reporting_subagent' LIMIT 1",
+        "options": {}
+      },
+      "id": "cr000001-0005-4000-8000-000000000005",
+      "name": "Fetch System Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const validated = $('Validate Input').item.json;\nconst kpis = $('Fetch Client KPIs').item.json;\nconst branding = $('Fetch User Branding').item.json;\nconst systemPrompt = $input.item.json.system_prompt;\n\n// Safe defaults for branding\nconst logoUrl = branding.logo_url || '';\nconst primaryColor = branding.primary_color || '#1a1a2e';\nconst companyName = branding.company_name || 'Your Agency';\nconst brandVoice = branding.brand_voice\n  ? (typeof branding.brand_voice === 'object' ? branding.brand_voice.summary || JSON.stringify(branding.brand_voice) : branding.brand_voice)\n  : 'Professional, results-focused, direct';\n\n// Safe defaults for KPIs\nconst safeKpis = {\n  leads: Number(kpis.leads || 0),\n  calls_booked: Number(kpis.calls_booked || 0),\n  deals_closed: Number(kpis.deals_closed || 0),\n  revenue: Number(kpis.revenue || 0),\n  content_shipped: Number(kpis.content_shipped || 0)\n};\n\n// Derived metrics\nconst leadToCallRate = safeKpis.leads > 0\n  ? ((safeKpis.calls_booked / safeKpis.leads) * 100).toFixed(1) + '%'\n  : 'N/A';\nconst callToCloseRate = safeKpis.calls_booked > 0\n  ? ((safeKpis.deals_closed / safeKpis.calls_booked) * 100).toFixed(1) + '%'\n  : 'N/A';\nconst revenueFormatted = '$' + safeKpis.revenue.toLocaleString('en-US');\n\nreturn [{\n  json: {\n    user_id: validated.user_id,\n    client_id: validated.client_id,\n    period_start: validated.period_start,\n    period_end: validated.period_end,\n    kpis: safeKpis,\n    derived: {\n      lead_to_call_rate: leadToCallRate,\n      call_to_close_rate: callToCloseRate,\n      revenue_formatted: revenueFormatted\n    },\n    branding: {\n      logo_url: logoUrl,\n      primary_color: primaryColor,\n      company_name: companyName,\n      brand_voice: brandVoice\n    },\n    system_prompt: systemPrompt\n  }\n}];"
+      },
+      "id": "cr000001-0006-4000-8000-000000000006",
+      "name": "Assemble Report Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "model": "claude-sonnet-4-5",
+          "max_tokens": 4000,
+          "system": "={{ $json.system_prompt }}",
+          "messages": [
+            {
+              "role": "user",
+              "content": "=You are a senior client success manager writing a professional performance report on behalf of {{ $json.branding.company_name }}. Write in this brand voice: {{ $json.branding.brand_voice }}.\n\nREPORT PERIOD: {{ $json.period_start }} to {{ $json.period_end }}\nCLIENT ID: {{ $json.client_id }}\n\nKPI DATA:\n- Leads Generated: {{ $json.kpis.leads }}\n- Calls Booked: {{ $json.kpis.calls_booked }}\n- Deals Closed: {{ $json.kpis.deals_closed }}\n- Revenue Closed: {{ $json.derived.revenue_formatted }}\n- Content Shipped: {{ $json.kpis.content_shipped }} pieces\n- Lead-to-Call Rate: {{ $json.derived.lead_to_call_rate }}\n- Call-to-Close Rate: {{ $json.derived.call_to_close_rate }}\n\nBRANDING:\n- Agency Name: {{ $json.branding.company_name }}\n- Logo URL: {{ $json.branding.logo_url }}\n- Primary Color (hex): {{ $json.branding.primary_color }}\n\nOUTPUT REQUIREMENTS:\nProduce a complete client report in markdown format with the following sections:\n\n1. Header with logo (use HTML img tag with the logo_url if provided), agency name, report period\n2. Executive Summary (3-4 sentences, results-first, brand voice)\n3. Key Wins (3-5 bullet points, specific and quantified)\n4. KPI Performance Table (HTML table, styled with primary_color as header background, white header text, columns: Metric | Result | Benchmark | Status)\n5. Analysis & Insights (2-3 paragraphs interpreting the data, what worked, what the numbers mean)\n6. Recommendations for Next Period (numbered list, 3-5 specific action items)\n7. Next Period Priorities (top 3 focus areas as bold headers with one-line descriptions)\n8. Footer with agency name and a professional sign-off\n\nFor the KPI table benchmarks use these industry standards:\n- Leads: context-dependent (note if strong/moderate/weak based on absolute numbers)\n- Lead-to-Call Rate: >15% = Strong, 8-15% = Moderate, <8% = Needs Work\n- Call-to-Close Rate: >25% = Strong, 15-25% = Moderate, <15% = Needs Work\n- Revenue: celebrate any closed revenue as a win\n- Content Shipped: >8/mo = Strong, 4-8/mo = Moderate, <4/mo = Needs Work\n\nIMPORTANT: The KPI table MUST be valid HTML (not markdown table). All other content uses markdown. Make the report feel premium, data-driven, and worth $500+ in perceived value.\n\nRespond with ONLY the markdown/HTML report content. No JSON wrapper. No preamble. Start directly with the report header."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cr000001-0007-4000-8000-000000000007",
+      "name": "Call Claude API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ANTHROPIC_HEADER_AUTH_CRED_ID",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json;\nconst contextData = $('Assemble Report Context').item.json;\n\n// Extract text content from Claude response\nlet markdownContent = '';\nif (raw.content && Array.isArray(raw.content)) {\n  markdownContent = raw.content\n    .filter(block => block.type === 'text')\n    .map(block => block.text)\n    .join('');\n} else {\n  throw new Error('Unexpected Claude response shape: ' + JSON.stringify(raw).substring(0, 200));\n}\n\nif (!markdownContent || markdownContent.trim().length < 100) {\n  throw new Error('Claude returned empty or insufficient report content.');\n}\n\n// Build the full markdown payload with metadata header\nconst periodLabel = `${contextData.period_start} to ${contextData.period_end}`;\n\nconst fullMarkdown = markdownContent.trim();\n\nreturn [{\n  json: {\n    user_id: contextData.user_id,\n    client_id: contextData.client_id,\n    period_start: contextData.period_start,\n    period_end: contextData.period_end,\n    period_label: periodLabel,\n    markdown_payload: fullMarkdown,\n    char_count: fullMarkdown.length,\n    kpis: contextData.kpis,\n    branding: contextData.branding\n  }\n}];"
+      },
+      "id": "cr000001-0008-4000-8000-000000000008",
+      "name": "Parse Report Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO client_reports (\n  user_id,\n  client_id,\n  period_start,\n  period_end,\n  period_label,\n  markdown_payload,\n  pdf_url,\n  kpi_snapshot,\n  status,\n  created_at\n)\nVALUES (\n  '{{ $json.user_id }}',\n  '{{ $json.client_id }}',\n  '{{ $json.period_start }}',\n  '{{ $json.period_end }}',\n  '{{ $json.period_label }}',\n  '{{ $json.markdown_payload.replace(/'/g, \"''\") }}',\n  NULL,\n  '{{ JSON.stringify($json.kpis) }}'::jsonb,\n  'draft',\n  NOW()\n)\nRETURNING id, user_id, client_id, period_label, status, created_at",
+        "options": {}
+      },
+      "id": "cr000001-0009-4000-8000-000000000009",
+      "name": "Insert Client Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2160, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PDF_RENDER_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "report_id": "={{ $('Insert Client Report').item.json.id }}",
+          "user_id": "={{ $('Parse Report Content').item.json.user_id }}",
+          "client_id": "={{ $('Parse Report Content').item.json.client_id }}",
+          "period_label": "={{ $('Parse Report Content').item.json.period_label }}",
+          "logo_url": "={{ $('Parse Report Content').item.json.branding.logo_url }}",
+          "primary_color": "={{ $('Parse Report Content').item.json.branding.primary_color }}",
+          "markdown_payload": "={{ $('Parse Report Content').item.json.markdown_payload }}"
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "cr000001-0010-4000-8000-000000000010",
+      "name": "Trigger PDF Render",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CREDIT_DEDUCTION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "user_id": "={{ $('Parse Report Content').item.json.user_id }}",
+          "tool": "client_reporting_subagent",
+          "cost": 20,
+          "meta": {
+            "report_id": "={{ $('Insert Client Report').item.json.id }}",
+            "client_id": "={{ $('Parse Report Content').item.json.client_id }}",
+            "period": "={{ $('Parse Report Content').item.json.period_label }}"
+          }
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "cr000001-0011-4000-8000-000000000011",
+      "name": "Deduct Credits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"report_id\": \"{{ $('Insert Client Report').item.json.id }}\",\n  \"client_id\": \"{{ $('Parse Report Content').item.json.client_id }}\",\n  \"period\": \"{{ $('Parse Report Content').item.json.period_label }}\",\n  \"status\": \"draft\",\n  \"pdf_url\": null,\n  \"char_count\": {{ $('Parse Report Content').item.json.char_count }},\n  \"kpis\": {{ JSON.stringify($('Parse Report Content').item.json.kpis) }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "cr000001-0012-4000-8000-000000000012",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "errorWorkflow": ""
+      },
+      "id": "cr000001-0013-4000-8000-000000000013",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [1200, 520]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.message }}\",\n  \"stage\": \"workflow_error\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "cr000001-0014-4000-8000-000000000014",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 520]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Client KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Client KPIs": {
+      "main": [
+        [
+          {
+            "node": "Fetch User Branding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch User Branding": {
+      "main": [
+        [
+          {
+            "node": "Fetch System Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch System Prompt": {
+      "main": [
+        [
+          {
+            "node": "Assemble Report Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Report Context": {
+      "main": [
+        [
+          {
+            "node": "Call Claude API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude API": {
+      "main": [
+        [
+          {
+            "node": "Parse Report Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Report Content": {
+      "main": [
+        [
+          {
+            "node": "Insert Client Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Client Report": {
+      "main": [
+        [
+          {
+            "node": "Trigger PDF Render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger PDF Render": {
+      "main": [
+        [
+          {
+            "node": "Deduct Credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduct Credits": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "client-reporting-subagent",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-29T00:00:00.000Z",
+  "id": "bylda-ops-client-reporting-subagent-v1"
+}

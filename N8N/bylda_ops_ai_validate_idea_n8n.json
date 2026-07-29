@@ -1,0 +1,98 @@
+{
+  "name": "AI - Validate Idea (n8n)",
+  "meta": {
+    "description": "TASK-093 · n8n version of idea validation. Receives idea + context, calls validate-idea edge function, saves result, returns structured output.",
+    "templateId": "bylda-ops-ai-validate-idea"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-ai-validate-idea",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t093-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst idea = body.idea || body.message || '';\nconst user_id = body.user_id || null;\nconst workspace_id = body.workspace_id || null;\nconst target_customer = body.target_customer || 'General consumer';\nconst niche = body.niche || null;\nif (!idea.trim()) throw new Error('idea is required');\nif (!user_id) throw new Error('user_id is required');\nreturn [{ json: { idea, user_id, workspace_id, target_customer, niche, now: new Date().toISOString() } }];"
+      },
+      "id": "t093-0002",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/functions/v1/validate-idea",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"idea\": {{ JSON.stringify($json.idea) }},\n  \"target_customer\": {{ JSON.stringify($json.target_customer) }},\n  \"niche\": {{ $json.niche ? JSON.stringify($json.niche) : 'null' }},\n  \"user_id\": {{ JSON.stringify($json.user_id) }}\n}",
+        "options": {}
+      },
+      "id": "t093-0003",
+      "name": "Call Validate-Idea Edge Fn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/activation_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Parse Input').item.json.user_id }}\",\n  \"workspace_id\": {{ $('Parse Input').item.json.workspace_id ? JSON.stringify($('Parse Input').item.json.workspace_id) : 'null' }},\n  \"event_name\": \"first_tool_run\",\n  \"properties\": { \"tool_key\": \"idea-validator\", \"via\": \"n8n\" }\n}",
+        "options": {}
+      },
+      "id": "t093-0004",
+      "name": "Log first_tool_run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Call Validate-Idea Edge Fn').item.json }}"
+      },
+      "id": "t093-0005",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]] },
+    "Parse Input": {
+      "main": [[{ "node": "Call Validate-Idea Edge Fn", "type": "main", "index": 0 }]]
+    },
+    "Call Validate-Idea Edge Fn": {
+      "main": [[{ "node": "Log first_tool_run", "type": "main", "index": 0 }]]
+    },
+    "Log first_tool_run": { "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["ai", "validate-idea", "sprint-2"]
+}

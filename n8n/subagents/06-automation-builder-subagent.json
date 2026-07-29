@@ -1,0 +1,559 @@
+{
+  "name": "Automation Builder Subagent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "automation-builder-subagent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ff000001-0001-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "automation-builder-subagent-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT user_id, plan_tier, email FROM users WHERE user_id = '{{ $json.body.user_id }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "ff000001-0002-4000-8000-000000000002",
+      "name": "Fetch User Plan",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $input.item.json;\nconst webhookBody = $('Webhook').item.json.body;\n\n// Check user exists\nif (!user || !user.user_id) {\n  return [\n    {\n      json: {\n        _gate: 'BLOCK',\n        status: 404,\n        error: 'User not found.',\n        code: 'USER_NOT_FOUND'\n      }\n    }\n  ];\n}\n\nconst allowedTiers = ['149', '299'];\nconst tierStr = String(user.plan_tier || '').replace(/[^0-9]/g, '');\n\nif (!allowedTiers.includes(tierStr)) {\n  return [\n    {\n      json: {\n        _gate: 'BLOCK',\n        status: 403,\n        error: 'Automation Builder requires the Growth ($149) or Scale ($299) plan.',\n        code: 'PLAN_UPGRADE_REQUIRED',\n        current_tier: user.plan_tier || 'free',\n        upgrade_url: 'https://usebylda.com/upgrade',\n        upsell_message: 'Unlock Automation Builder + 5 more power tools starting at $149/mo. Upgrade now at usebylda.com/upgrade'\n      }\n    }\n  ];\n}\n\n// Validate required body fields\nconst { user_id, process_description, integrations } = webhookBody;\n\nif (!process_description || process_description.trim().length < 20) {\n  return [\n    {\n      json: {\n        _gate: 'BLOCK',\n        status: 400,\n        error: 'process_description must be at least 20 characters.',\n        code: 'INVALID_INPUT'\n      }\n    }\n  ];\n}\n\nconst integrationsArr = Array.isArray(integrations) ? integrations : (integrations ? [integrations] : []);\n\nreturn [\n  {\n    json: {\n      _gate: 'PASS',\n      user_id,\n      plan_tier: tierStr,\n      process_description: process_description.trim(),\n      integrations: integrationsArr\n    }\n  }\n];"
+      },
+      "id": "ff000001-0003-4000-8000-000000000003",
+      "name": "Plan Gate Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "gate-check-condition",
+              "leftValue": "={{ $json._gate }}",
+              "rightValue": "BLOCK",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ff000001-0004-4000-8000-000000000004",
+      "name": "Is Blocked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error, code: $json.code, upgrade_url: $json.upgrade_url || null, upsell_message: $json.upsell_message || null }) }}",
+        "options": {
+          "responseCode": "={{ $json.status || 403 }}"
+        }
+      },
+      "id": "ff000001-0005-4000-8000-000000000005",
+      "name": "Return Block Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 160]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT system_prompt FROM operator_prompts WHERE component = 'automation_builder_subagent' LIMIT 1",
+        "options": {}
+      },
+      "id": "ff000001-0006-4000-8000-000000000006",
+      "name": "Fetch System Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 420],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const gateData = $('Plan Gate Check').item.json;\nconst systemPrompt = $input.item.json.system_prompt;\n\nconst n8nNodeReference = `COMMON N8N NODE TYPES (use these exact type strings):\n- Webhook trigger: n8n-nodes-base.webhook\n- HTTP Request: n8n-nodes-base.httpRequest\n- Code (JS): n8n-nodes-base.code\n- IF condition: n8n-nodes-base.if\n- Switch: n8n-nodes-base.switch\n- Set fields: n8n-nodes-base.set\n- Merge: n8n-nodes-base.merge\n- Split In Batches: n8n-nodes-base.splitInBatches\n- Wait: n8n-nodes-base.wait\n- Schedule Trigger: n8n-nodes-base.scheduleTrigger\n- Respond to Webhook: n8n-nodes-base.respondToWebhook\n- Send Email: n8n-nodes-base.emailSend\n- Postgres (Supabase): n8n-nodes-base.postgres\n- Airtable: n8n-nodes-base.airtable\n- Google Sheets: n8n-nodes-base.googleSheets\n- Slack: n8n-nodes-base.slack\n- Gmail: n8n-nodes-base.gmail\n- OpenAI: @n8n/n8n-nodes-langchain.openAi\n- Anthropic (HTTP): use n8n-nodes-base.httpRequest to POST https://api.anthropic.com/v1/messages\n- Notion: n8n-nodes-base.notion\n- HubSpot: n8n-nodes-base.hubspot\n- Pipedrive: n8n-nodes-base.pipedrive\n- Stripe: n8n-nodes-base.stripe\n- Twilio: n8n-nodes-base.twilio\n- Make (Integromat): use n8n-nodes-base.httpRequest to call Make webhook URLs\n- Error Trigger: n8n-nodes-base.errorTrigger\n\nN8N WORKFLOW JSON RULES:\n1. Every node MUST have: parameters, id (uuid v4 format), name, type, typeVersion, position [x,y]\n2. connections object maps node names to their outputs\n3. Use position increments of 240px horizontally, 160px vertically\n4. typeVersion for most nodes: 2 or 2.5 for postgres, 4.2 for httpRequest, 2 for code/if\n5. credentials object uses placeholder IDs like CRED_ID_PLACEHOLDER\n6. The workflow must have: name, nodes[], connections{}, settings{}, tags[]`;\n\nreturn [\n  {\n    json: {\n      user_id: gateData.user_id,\n      process_description: gateData.process_description,\n      integrations: gateData.integrations,\n      system_prompt: systemPrompt,\n      n8n_reference: n8nNodeReference,\n      attempt: 1\n    }\n  }\n];"
+      },
+      "id": "ff000001-0007-4000-8000-000000000007",
+      "name": "Build Claude Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "model": "claude-sonnet-4-5",
+          "max_tokens": 4000,
+          "system": "={{ $json.system_prompt }}",
+          "messages": [
+            {
+              "role": "user",
+              "content": "=You are an expert n8n workflow architect. Build a complete, importable n8n workflow JSON for the following automation request.\n\nPROCESS TO AUTOMATE:\n{{ $json.process_description }}\n\nINTEGRATIONS REQUESTED:\n{{ $json.integrations.join(', ') || 'None specified — use best judgment' }}\n\nN8N NODE REFERENCE:\n{{ $json.n8n_reference }}\n\nREQUIREMENTS:\n- Output a single valid JSON object representing a complete n8n workflow\n- Include all necessary nodes to implement the described process end to end\n- Use realistic but placeholder credential IDs (e.g. CRED_SLACK_ID, CRED_POSTGRES_ID)\n- Include an Error Trigger node + error response path\n- Add a Schedule or Webhook trigger as appropriate for the process\n- Position nodes left to right with 240px horizontal spacing\n- Give each node a descriptive name that reflects what it does\n- Include at least one Code node for any data transformation logic\n- The workflow JSON must be directly importable into n8n with no modifications except swapping credential IDs\n\nCRITICAL: Respond with ONLY the raw JSON object. No markdown. No code fences. No explanation. No preamble. The first character of your response must be '{' and the last must be '}'."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ff000001-0008-4000-8000-000000000008",
+      "name": "Call Claude API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 420],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ANTHROPIC_HEADER_AUTH_CRED_ID",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json;\nconst contextData = $('Build Claude Context').item.json;\n\n// Extract text from Claude response\nlet contentText = '';\nif (raw.content && Array.isArray(raw.content)) {\n  contentText = raw.content\n    .filter(block => block.type === 'text')\n    .map(block => block.text)\n    .join('');\n} else {\n  throw new Error('Unexpected Claude response shape: ' + JSON.stringify(raw).substring(0, 200));\n}\n\n// Strip any accidental markdown fences\nconst cleaned = contentText\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet parsedWorkflow;\nlet parseError = null;\n\ntry {\n  parsedWorkflow = JSON.parse(cleaned);\n} catch (e) {\n  parseError = e.message;\n}\n\n// Validate it looks like an n8n workflow\nconst isValidWorkflow = (\n  parsedWorkflow &&\n  typeof parsedWorkflow === 'object' &&\n  Array.isArray(parsedWorkflow.nodes) &&\n  parsedWorkflow.nodes.length > 0 &&\n  typeof parsedWorkflow.connections === 'object'\n);\n\nif (!isValidWorkflow) {\n  // Signal retry needed\n  return [\n    {\n      json: {\n        _parse_status: 'FAILED',\n        parse_error: parseError || 'Missing nodes or connections',\n        raw_response: cleaned.substring(0, 800),\n        user_id: contextData.user_id,\n        process_description: contextData.process_description,\n        integrations: contextData.integrations,\n        system_prompt: contextData.system_prompt,\n        n8n_reference: contextData.n8n_reference,\n        attempt: contextData.attempt || 1\n      }\n    }\n  ];\n}\n\nreturn [\n  {\n    json: {\n      _parse_status: 'OK',\n      user_id: contextData.user_id,\n      process_description: contextData.process_description,\n      workflow_json: parsedWorkflow,\n      workflow_json_string: JSON.stringify(parsedWorkflow),\n      node_count: parsedWorkflow.nodes.length\n    }\n  }\n];"
+      },
+      "id": "ff000001-0009-4000-8000-000000000009",
+      "name": "Validate JSON Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "parse-check-condition",
+              "leftValue": "={{ $json._parse_status }}",
+              "rightValue": "FAILED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ff000001-0010-4000-8000-000000000010",
+      "name": "Parse Failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2160, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "model": "claude-sonnet-4-5",
+          "max_tokens": 4000,
+          "system": "={{ $json.system_prompt }}",
+          "messages": [
+            {
+              "role": "user",
+              "content": "=Your previous attempt to generate an n8n workflow JSON failed to parse correctly.\n\nError: {{ $json.parse_error }}\nFailed output snippet: {{ $json.raw_response }}\n\nPROCESS TO AUTOMATE:\n{{ $json.process_description }}\n\nINTEGRATIONS:\n{{ $json.integrations.join(', ') }}\n\nSTRICT RETRY RULES — YOU MUST FOLLOW THESE EXACTLY:\n1. Your ENTIRE response must be a single JSON object\n2. First character: '{' — Last character: '}'\n3. No markdown, no code blocks, no backticks, no explanation\n4. No text before or after the JSON\n5. The JSON must have: name (string), nodes (array), connections (object), settings (object)\n6. Every node must have: id, name, type, typeVersion, position, parameters\n7. Use double quotes for all strings — no single quotes\n8. Escape any quotes inside string values with backslash\n\nOutput ONLY the JSON object now. Nothing else."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ff000001-0011-4000-8000-000000000011",
+      "name": "Retry Claude Strict",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2400, 280],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ANTHROPIC_HEADER_AUTH_CRED_ID",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json;\nconst previousData = $('Parse Failed?').item.json;\n\nlet contentText = '';\nif (raw.content && Array.isArray(raw.content)) {\n  contentText = raw.content\n    .filter(block => block.type === 'text')\n    .map(block => block.text)\n    .join('');\n} else {\n  throw new Error('Retry: Unexpected Claude response shape.');\n}\n\nconst cleaned = contentText\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet parsedWorkflow;\ntry {\n  parsedWorkflow = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Retry attempt also failed to produce valid JSON. Parse error: ' + e.message + ' | Snippet: ' + cleaned.substring(0, 300));\n}\n\nconst isValidWorkflow = (\n  parsedWorkflow &&\n  typeof parsedWorkflow === 'object' &&\n  Array.isArray(parsedWorkflow.nodes) &&\n  parsedWorkflow.nodes.length > 0 &&\n  typeof parsedWorkflow.connections === 'object'\n);\n\nif (!isValidWorkflow) {\n  throw new Error('Retry produced JSON but it is missing required n8n workflow fields (nodes, connections).');\n}\n\nreturn [\n  {\n    json: {\n      _parse_status: 'OK',\n      user_id: previousData.user_id,\n      process_description: previousData.process_description,\n      workflow_json: parsedWorkflow,\n      workflow_json_string: JSON.stringify(parsedWorkflow),\n      node_count: parsedWorkflow.nodes.length,\n      was_retry: true\n    }\n  }\n];"
+      },
+      "id": "ff000001-0012-4000-8000-000000000012",
+      "name": "Parse Retry Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 280]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "output": "input1"
+      },
+      "id": "ff000001-0013-4000-8000-000000000013",
+      "name": "Merge Valid Workflow",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2880, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automation_drafts (user_id, description, workflow_json, status, created_at)\nVALUES (\n  '{{ $json.user_id }}',\n  '{{ $json.process_description.replace(/'/g, \"''\") }}',\n  '{{ $json.workflow_json_string.replace(/'/g, \"''\") }}'::jsonb,\n  'draft',\n  NOW()\n)\nRETURNING id, user_id, status, created_at",
+        "options": {}
+      },
+      "id": "ff000001-0014-4000-8000-000000000014",
+      "name": "Insert Automation Draft",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3120, 420],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CREDIT_DEDUCTION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "user_id": "={{ $('Merge Valid Workflow').item.json.user_id }}",
+          "tool": "automation_builder_subagent",
+          "cost": 25,
+          "meta": {
+            "node_count": "={{ $('Merge Valid Workflow').item.json.node_count }}",
+            "was_retry": "={{ $('Merge Valid Workflow').item.json.was_retry || false }}"
+          }
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "ff000001-0015-4000-8000-000000000015",
+      "name": "Deduct Credits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3360, 420]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"draft_id\": \"{{ $('Insert Automation Draft').item.json.id }}\",\n  \"node_count\": {{ $('Merge Valid Workflow').item.json.node_count }},\n  \"was_retry\": {{ $('Merge Valid Workflow').item.json.was_retry || false }},\n  \"workflow_json\": {{ $('Merge Valid Workflow').item.json.workflow_json_string }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ff000001-0016-4000-8000-000000000016",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3600, 420]
+    },
+    {
+      "parameters": {
+        "errorWorkflow": ""
+      },
+      "id": "ff000001-0017-4000-8000-000000000017",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [1440, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.message }}\",\n  \"stage\": \"workflow_error\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "ff000001-0018-4000-8000-000000000018",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1680, 600]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch User Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch User Plan": {
+      "main": [
+        [
+          {
+            "node": "Plan Gate Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Gate Check": {
+      "main": [
+        [
+          {
+            "node": "Is Blocked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Blocked?": {
+      "main": [
+        [
+          {
+            "node": "Return Block Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fetch System Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch System Prompt": {
+      "main": [
+        [
+          {
+            "node": "Build Claude Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Claude Context": {
+      "main": [
+        [
+          {
+            "node": "Call Claude API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude API": {
+      "main": [
+        [
+          {
+            "node": "Validate JSON Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate JSON Output": {
+      "main": [
+        [
+          {
+            "node": "Parse Failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Failed?": {
+      "main": [
+        [
+          {
+            "node": "Retry Claude Strict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Valid Workflow",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Retry Claude Strict": {
+      "main": [
+        [
+          {
+            "node": "Parse Retry Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Retry Response": {
+      "main": [
+        [
+          {
+            "node": "Merge Valid Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Valid Workflow": {
+      "main": [
+        [
+          {
+            "node": "Insert Automation Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Automation Draft": {
+      "main": [
+        [
+          {
+            "node": "Deduct Credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduct Credits": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "automation-builder-subagent",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-29T00:00:00.000Z",
+  "id": "bylda-ops-automation-builder-subagent-v1"
+}

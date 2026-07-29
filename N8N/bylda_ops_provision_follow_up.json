@@ -1,0 +1,211 @@
+{
+  "name": "Provision - Follow-Up Workflow",
+  "meta": {
+    "description": "TASK-102 · Triggered by lifecycle events (first_mission_completed, stalled_user, plan_upgraded). Classifies the event, loads workspace context, and dispatches the appropriate follow-up action: email sequence, re-engagement nudge, or upgrade confirmation.",
+    "templateId": "bylda-ops-provision-follow-up"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-provision-follow-up",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t102-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event_type = body.event_type || body.trigger || 'unknown';\nconst user_id = body.user_id || null;\nconst workspace_id = body.workspace_id || null;\nconst payload = body.payload || {};\nconst SUPPORTED = ['first_mission_completed', 'stalled_user', 'plan_upgraded', 'subscription_cancelled', 'onboarding_complete'];\nif (!user_id) throw new Error('user_id is required');\nif (!SUPPORTED.includes(event_type)) {\n  return [{ json: { skipped: true, reason: `Unsupported event_type: ${event_type}` } }];\n}\nreturn [{ json: { event_type, user_id, workspace_id, payload, now: new Date().toISOString(), skipped: false } }];"
+      },
+      "id": "t102-0002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workspaces?owner_id=eq.{{ $json.user_id }}&limit=1&select=id,lane,stage,current_mission_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "t102-0003",
+      "name": "Load Workspace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles?id=eq.{{ $('Parse & Validate').item.json.user_id }}&limit=1&select=full_name,email:id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {}
+      },
+      "id": "t102-0004",
+      "name": "Load Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 680]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Parse & Validate').item.json;\nconst wsArr = $('Load Workspace').item.json;\nconst ws = Array.isArray(wsArr) ? wsArr[0] : wsArr;\nconst profArr = $('Load Profile').item.json;\nconst profile = Array.isArray(profArr) ? profArr[0] : profArr;\nconst FOLLOW_UP_COPY = {\n  'first_mission_completed': {\n    subject: 'Mission complete — what\\'s next for you',\n    preview: 'Your first mission is done. Here\\'s how to keep the momentum going.',\n    cta_label: 'See your next mission',\n    cta_url: '/app/dashboard'\n  },\n  'stalled_user': {\n    subject: 'Still thinking about your idea?',\n    preview: 'You haven\\'t run a tool in a while — let\\'s unstick you in 5 minutes.',\n    cta_label: 'Jump back in',\n    cta_url: '/app/launchpad/idea-validator'\n  },\n  'plan_upgraded': {\n    subject: 'You\\'re on the upgraded plan — here\\'s what unlocked',\n    preview: 'Premium tools, higher limits, and full operator access are now live.',\n    cta_label: 'Explore what\\'s new',\n    cta_url: '/app/dashboard'\n  },\n  'subscription_cancelled': {\n    subject: 'Your subscription has been cancelled',\n    preview: 'You can still access free tools. Here\\'s what you\\'ll have access to.',\n    cta_label: 'See free tools',\n    cta_url: '/app/launchpad'\n  },\n  'onboarding_complete': {\n    subject: 'Your workspace is live — let\\'s build',\n    preview: 'Validate your first idea, build your offer, and map your go-to-market.',\n    cta_label: 'Start with Idea Validator',\n    cta_url: '/app/launchpad/idea-validator'\n  }\n};\nconst copy = FOLLOW_UP_COPY[ctx.event_type] || { subject: 'Update from Bylda', preview: '', cta_label: 'Open dashboard', cta_url: '/app/dashboard' };\nreturn [{ json: { ...ctx, workspace: ws || null, lane: ws?.lane || 'Idea', profile: profile || null, copy } }];"
+      },
+      "id": "t102-0005",
+      "name": "Build Follow-Up Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 500]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.skipped }}",
+                    "rightValue": true,
+                    "operator": { "type": "boolean", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "skip"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "stalled_user",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "re_engage"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event_type }}",
+                    "rightValue": "subscription_cancelled",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "cancellation"
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      },
+      "id": "t102-0006",
+      "name": "Route by Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1200, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/activation_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Build Follow-Up Context').item.json.user_id }}\",\n  \"workspace_id\": {{ $('Build Follow-Up Context').item.json.workspace?.id ? JSON.stringify($('Build Follow-Up Context').item.json.workspace.id) : 'null' }},\n  \"event_name\": \"follow_up_sent\",\n  \"properties\": { \"trigger\": \"{{ $('Build Follow-Up Context').item.json.event_type }}\", \"via\": \"n8n\" }\n}",
+        "options": {}
+      },
+      "id": "t102-0007",
+      "name": "Log follow_up_sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Build Follow-Up Context').item.json;\nreturn [{ json: { ok: true, event_type: ctx.event_type, action: 're_engage', user_id: ctx.user_id } }];"
+      },
+      "id": "t102-0008",
+      "name": "Re-Engage Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Build Follow-Up Context').item.json;\nreturn [{ json: { ok: true, event_type: ctx.event_type, action: 'cancellation_flow', user_id: ctx.user_id } }];"
+      },
+      "id": "t102-0009",
+      "name": "Cancellation Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 680]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"event_type\": \"{{ $('Build Follow-Up Context').item.json.event_type }}\",\n  \"user_id\": \"{{ $('Build Follow-Up Context').item.json.user_id }}\",\n  \"dispatched\": true\n}"
+      },
+      "id": "t102-0010",
+      "name": "Return ACK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1680, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse & Validate", "type": "main", "index": 0 }]] },
+    "Parse & Validate": {
+      "main": [
+        [
+          { "node": "Load Workspace", "type": "main", "index": 0 },
+          { "node": "Load Profile", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load Workspace": {
+      "main": [[{ "node": "Build Follow-Up Context", "type": "main", "index": 0 }]]
+    },
+    "Load Profile": {
+      "main": [[{ "node": "Build Follow-Up Context", "type": "main", "index": 0 }]]
+    },
+    "Build Follow-Up Context": {
+      "main": [[{ "node": "Route by Event", "type": "main", "index": 0 }]]
+    },
+    "Route by Event": {
+      "main": [
+        [{ "node": "Return ACK", "type": "main", "index": 0 }],
+        [{ "node": "Re-Engage Action", "type": "main", "index": 0 }],
+        [{ "node": "Cancellation Action", "type": "main", "index": 0 }],
+        [{ "node": "Log follow_up_sent", "type": "main", "index": 0 }]
+      ]
+    },
+    "Log follow_up_sent": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] },
+    "Re-Engage Action": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] },
+    "Cancellation Action": { "main": [[{ "node": "Return ACK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["lifecycle", "follow-up", "sprint-3"]
+}

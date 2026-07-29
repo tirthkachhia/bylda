@@ -1,0 +1,376 @@
+{
+  "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR",
+  "description": "AI | Sub-workflow. Parallel-fetches user context from Supabase (profile, operator config, sessions, onboarding). Returns merged context object for Claude calls. OWNER: Dhruv | p1:high | ai-powered | ENV: STG",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "AIlhwkZmGYE9ipKl"
+  },
+  "tags": [
+    {
+      "name": "env:stg"
+    },
+    {
+      "name": "owner:dhruv"
+    },
+    {
+      "name": "cat:ai"
+    },
+    {
+      "name": "review:pending"
+    },
+    {
+      "name": "p1:high"
+    },
+    {
+      "name": "ai-powered"
+    },
+    {
+      "name": "claude-generated"
+    }
+  ],
+  "meta": {
+    "aiBuilderAssisted": true
+  },
+  "nodes": [
+    {
+      "id": "b2000001-0000-0000-0000-000000000001",
+      "name": "Webhook - Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 380],
+      "parameters": {
+        "path": "ai-operator-context-loader",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "bylda-context-loader-stg"
+    },
+    {
+      "id": "b2000002-0000-0000-0000-000000000002",
+      "name": "HTTP - Get User Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 140],
+      "parameters": {
+        "method": "GET",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/profiles",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $('Webhook - Receive Request').first().json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "b2000003-0000-0000-0000-000000000003",
+      "name": "HTTP - Get Operator Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 280],
+      "parameters": {
+        "method": "GET",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/ai_operator_config",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $('Webhook - Receive Request').first().json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "b2000004-0000-0000-0000-000000000004",
+      "name": "HTTP - Get Session History",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 420],
+      "parameters": {
+        "method": "GET",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_sessions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $('Webhook - Receive Request').first().json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            },
+            {
+              "name": "order",
+              "value": "created_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "b2000005-0000-0000-0000-000000000005",
+      "name": "HTTP - Get Onboarding Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 560],
+      "parameters": {
+        "method": "GET",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/onboarding_responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $('Webhook - Receive Request').first().json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "b2000006-0000-0000-0000-000000000006",
+      "name": "Code - Build Context Object",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 380],
+      "parameters": {
+        "jsCode": "// Collect results from all 4 parallel HTTP calls by node name.\\n// Supabase REST returns JSON arrays; extract first element for single-row queries.\\nfunction first(raw) {\\n  if (!raw) return {};\\n  if (Array.isArray(raw)) return raw[0] || {};\\n  return raw;\\n}\\nfunction list(raw) {\\n  if (!raw) return [];\\n  if (Array.isArray(raw)) return raw;\\n  return [raw];\\n}\\n\\nconst userRaw      = $('HTTP - Get User Profile').first()?.json;\\nconst configRaw    = $('HTTP - Get Operator Config').first()?.json;\\nconst sessionRaw   = $('HTTP - Get Session History').first()?.json;\\nconst onboardRaw   = $('HTTP - Get Onboarding Response').first()?.json;\\n\\nconst user      = first(userRaw);\\nconst config    = first(configRaw);\\nconst sessions  = list(sessionRaw);\\nconst onboarding = first(onboardRaw);\\n\\nconst contextType = ($('Webhook - Receive Request').first().json.body.context_type || 'full').toLowerCase();\\n\\n// Extract topics from session history\\nconst allTopics = sessions\\n  .map(s => s.topic || s.intent || s.last_intent || s.title || null)\\n  .filter(Boolean);\\n\\n// If summary: only last topic; if full: all 5\\nconst recentTopics = contextType === 'summary' ? allTopics.slice(0, 1) : allTopics;\\n\\nreturn [{\\n  json: {\\n    user_id:              $('Webhook - Receive Request').first().json.body.user_id,\\n    context_type:         contextType,\\n    business_name:        user.business_name  || config.business_name  || '',\\n    niche:                user.niche          || config.niche          || '',\\n    operator_name:        config.operator_name  || user.full_name || '',\\n    operator_tone:        config.operator_tone  || 'professional',\\n    brand_voice_keywords: Array.isArray(config.brand_voice_keywords)\\n                            ? config.brand_voice_keywords\\n                            : (config.brand_voice_keywords\\n                                ? String(config.brand_voice_keywords).split(',')\\n                                : []),\\n    target_customer:      config.target_customer || '',\\n    recent_topics:        recentTopics,\\n    plan_tier:            onboarding.plan_tier || user.plan_tier || ''\\n  }\\n}];"
+      }
+    },
+    {
+      "id": "b2000007-0000-0000-0000-000000000007",
+      "name": "Respond - Return Context",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 380],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, context: $json }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "b2000008-0000-0000-0000-000000000008",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 660]
+    },
+    {
+      "id": "b2000009-0000-0000-0000-000000000009",
+      "name": "HTTP - Notify Error Router",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 660],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow_name: 'STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR', error_message: $json.error.message, error_node: $json.execution.lastNodeExecuted, execution_id: $execution.id, timestamp: new Date().toISOString() }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Get User Profile",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP - Get Operator Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP - Get Session History",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP - Get Onboarding Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Get User Profile": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Context Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Get Operator Config": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Context Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Get Session History": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Context Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Get Onboarding Response": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Context Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Context Object": {
+      "main": [
+        [
+          {
+            "node": "Respond - Return Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Notify Error Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

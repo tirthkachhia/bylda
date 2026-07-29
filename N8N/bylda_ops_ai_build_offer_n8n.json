@@ -1,0 +1,96 @@
+{
+  "name": "AI - Build Offer (n8n)",
+  "meta": {
+    "description": "TASK-096 · Calls generate-offer edge function via n8n, logs usage event, returns structured offer output.",
+    "templateId": "bylda-ops-ai-build-offer"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-ai-build-offer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t096-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst user_id = body.user_id || null;\nconst workspace_id = body.workspace_id || null;\nconst product = body.product || body.idea || '';\nconst target_customer = body.target_customer || 'Founders';\nconst price_range = body.price_range || null;\nconst unique_mechanism = body.unique_mechanism || null;\nif (!product.trim()) throw new Error('product/idea is required');\nif (!user_id) throw new Error('user_id is required');\nreturn [{ json: { user_id, workspace_id, product, target_customer, price_range, unique_mechanism, now: new Date().toISOString() } }];"
+      },
+      "id": "t096-0002",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/functions/v1/generate-offer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"product\": {{ JSON.stringify($json.product) }},\n  \"target_customer\": {{ JSON.stringify($json.target_customer) }},\n  \"price_range\": {{ $json.price_range ? JSON.stringify($json.price_range) : 'null' }},\n  \"unique_mechanism\": {{ $json.unique_mechanism ? JSON.stringify($json.unique_mechanism) : 'null' }}\n}",
+        "options": {}
+      },
+      "id": "t096-0003",
+      "name": "Call Generate-Offer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/activation_events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Parse Input').item.json.user_id }}\",\n  \"workspace_id\": {{ $('Parse Input').item.json.workspace_id ? JSON.stringify($('Parse Input').item.json.workspace_id) : 'null' }},\n  \"event_name\": \"first_tool_run\",\n  \"properties\": { \"tool_key\": \"offer-builder\", \"via\": \"n8n\" }\n}",
+        "options": {}
+      },
+      "id": "t096-0004",
+      "name": "Log Activation Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Call Generate-Offer').item.json }}"
+      },
+      "id": "t096-0005",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]] },
+    "Parse Input": { "main": [[{ "node": "Call Generate-Offer", "type": "main", "index": 0 }]] },
+    "Call Generate-Offer": {
+      "main": [[{ "node": "Log Activation Event", "type": "main", "index": 0 }]]
+    },
+    "Log Activation Event": { "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true },
+  "tags": ["ai", "offer", "sprint-2"]
+}

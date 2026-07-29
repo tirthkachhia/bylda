@@ -1,0 +1,196 @@
+{
+  "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Read \u00b7 DHR",
+  "description": "AI | Queries Supabase operator_memory for a user (with optional tag filter), formats rows as a context string for Claude. Returns {memories, count}. OWNER: Dhruv | p2:normal | ai-powered | ENV: STG",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "AIlhwkZmGYE9ipKl"
+  },
+  "tags": [
+    {
+      "name": "env:stg"
+    },
+    {
+      "name": "owner:dhruv"
+    },
+    {
+      "name": "cat:ai"
+    },
+    {
+      "name": "review:pending"
+    },
+    {
+      "name": "p2:normal"
+    },
+    {
+      "name": "ai-powered"
+    },
+    {
+      "name": "claude-generated"
+    }
+  ],
+  "meta": {
+    "aiBuilderAssisted": true
+  },
+  "nodes": [
+    {
+      "id": "f6000001-0000-0000-0000-000000000001",
+      "name": "Webhook - Receive Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 380],
+      "parameters": {
+        "path": "operator-memory-read",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "bylda-memory-read-stg"
+    },
+    {
+      "id": "f6000002-0000-0000-0000-000000000002",
+      "name": "Code - Build Supabase Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 380],
+      "parameters": {
+        "jsCode": "const body   = $input.first().json.body;\\nconst userId = (body.user_id || '').trim();\\nconst tags   = Array.isArray(body.tags) && body.tags.length > 0\\n  ? body.tags.map(t => String(t).trim()).filter(Boolean)\\n  : null;\\n\\nif (!userId) {\\n  throw new Error('user_id is required');\\n}\\n\\nconst base = 'https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory';\\n\\n// Build query string manually to control Supabase filter syntax precisely\\nconst parts = [\\n  `user_id=eq.${encodeURIComponent(userId)}`,\\n  `select=${encodeURIComponent('id,memory_type,content,tags,created_at')}`,\\n  `order=created_at.desc`,\\n  `limit=20`\\n];\\n\\nif (tags) {\\n  // Supabase array overlap operator: tags=ov.{tag1,tag2}\\n  // Uses PostgreSQL && (overlap) \u2014 matches rows where stored tags share any element\\n  parts.push(`tags=ov.%7B${tags.map(t => encodeURIComponent(t)).join(',')}%7D`);\\n}\\n\\nreturn [{\\n  json: {\\n    query_url: `${base}?${parts.join('&')}`,\\n    user_id:    userId,\\n    has_tags:   tags !== null,\\n    tags_filter: tags || []\\n  }\\n}];"
+      }
+    },
+    {
+      "id": "f6000003-0000-0000-0000-000000000003",
+      "name": "HTTP - Query Memory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 380],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.query_url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "id": "f6000004-0000-0000-0000-000000000004",
+      "name": "Code - Format Memory String",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 380],
+      "parameters": {
+        "jsCode": "const raw  = $input.first().json;\\nconst rows = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? [raw] : []);\\n\\nif (rows.length === 0) {\\n  return [{ json: { memories: '', count: 0, has_memories: false } }];\\n}\\n\\n// Format each row: [memory_type] \u2014 content\\n// Ordered newest-first (as returned by Supabase order=created_at.desc)\\nconst lines = rows.map(row => {\\n  const type    = (row.memory_type || 'fact').trim();\\n  const content = (row.content     || '').trim();\\n  const tagList = Array.isArray(row.tags) && row.tags.length > 0\\n    ? ` (tags: ${row.tags.join(', ')})`\\n    : '';\\n  return `[${type}] \u2014 ${content}${tagList}`;\\n});\\n\\nconst memories = `Past context:\\\\n${lines.join('\\\\n')}`;\\n\\nreturn [{\\n  json: {\\n    memories,\\n    count:        rows.length,\\n    has_memories: true,\\n    raw_rows:     rows\\n  }\\n}];"
+      }
+    },
+    {
+      "id": "f6000005-0000-0000-0000-000000000005",
+      "name": "Respond - Return Memories",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 380],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, memories: $json.memories, count: $json.count, has_memories: $json.has_memories }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "f6000006-0000-0000-0000-000000000006",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 620]
+    },
+    {
+      "id": "f6000007-0000-0000-0000-000000000007",
+      "name": "HTTP - Notify Error Router",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 620],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflow_name: 'STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Read \u00b7 DHR', error_message: $json.error.message, error_node: $json.execution.lastNodeExecuted, execution_id: $execution.id, timestamp: new Date().toISOString() }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Request": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Supabase Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Supabase Query": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Query Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Query Memory": {
+      "main": [
+        [
+          {
+            "node": "Code - Format Memory String",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format Memory String": {
+      "main": [
+        [
+          {
+            "node": "Respond - Return Memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Notify Error Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

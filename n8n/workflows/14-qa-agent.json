@@ -1,0 +1,159 @@
+{
+  "name": "QA Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qa-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "qa000001-0001-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "qa-agent-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body ?? $input.item.json;\nconst rawOutput = body.raw_output;\nconst outputType = body.output_type;\nconst brandVoice = body.brand_voice ?? {};\n\nconst validTypes = ['intake', 'strategy', 'content', 'automation'];\nif (!validTypes.includes(outputType)) {\n  throw new Error(`Invalid output_type '${outputType}'. Must be one of: ${validTypes.join(', ')}`);\n}\nif (!rawOutput) throw new Error('raw_output is required');\n\nconst schemaMap = {\n  intake: ['company_name', 'niche', 'icp_summary', 'core_offer', 'tone', 'profile_complete', 'fields_missing'],\n  strategy: ['gtm_summary', 'icp', 'offer', 'strategy_score', 'first_90_days', 'niche_validated'],\n  content: ['content_type'],\n  automation: ['draft_meta', 'workflow_json']\n};\n\nreturn [{ json: { raw_output: rawOutput, output_type: outputType, brand_voice: brandVoice, expected_schema: schemaMap[outputType] } }];"
+      },
+      "id": "qa000001-0002-4000-8000-000000000002",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT system_prompt FROM operator_prompts WHERE component = 'qa_agent' LIMIT 1",
+        "options": {}
+      },
+      "id": "qa000001-0003-4000-8000-000000000003",
+      "name": "Fetch System Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 300],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "model": "={{ $env.GLOBAL_AI_MODEL_DEFAULT ?? 'claude-sonnet-4-6' }}",
+          "max_tokens": 1000,
+          "system": "={{ $('Fetch System Prompt').item.json.system_prompt }}",
+          "messages": [
+            {
+              "role": "user",
+              "content": "=Validate this specialist output.\n\nOUTPUT TYPE: {{ $('Validate Input').item.json.output_type }}\nEXPECTED SCHEMA KEYS: {{ JSON.stringify($('Validate Input').item.json.expected_schema) }}\nBRAND VOICE: {{ JSON.stringify($('Validate Input').item.json.brand_voice) }}\n\nRAW OUTPUT:\n{{ $('Validate Input').item.json.raw_output }}\n\nReturn the QA result JSON object."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "qa000001-0004-4000-8000-000000000004",
+      "name": "Call Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300],
+      "credentials": {
+        "httpHeaderAuth": { "id": "ANTHROPIC_HEADER_AUTH_CRED_ID", "name": "Anthropic API Key" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json;\n\nlet text = '';\nif (raw.content && Array.isArray(raw.content)) {\n  text = raw.content.filter(b => b.type === 'text').map(b => b.text).join('');\n} else {\n  throw new Error('Unexpected Claude response shape');\n}\n\nconst cleaned = text.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/```\\s*$/i, '').trim();\n\nlet result;\ntry {\n  result = JSON.parse(cleaned);\n} catch (e) {\n  // QA itself failed to parse — treat as structural failure, approve with warning\n  result = {\n    passed: false,\n    score: 40,\n    issues: [{ field: 'structure', issue: 'QA agent could not parse its own response: ' + e.message, severity: 'block' }],\n    recommendation: 'retry',\n    block_reasons: ['QA parse failure'],\n    warnings: []\n  };\n}\n\nconst required = ['passed', 'score', 'recommendation'];\nfor (const k of required) {\n  if (!(k in result)) result[k] = k === 'score' ? 50 : k === 'recommendation' ? 'retry' : false;\n}\n\nreturn [{ json: result }];"
+      },
+      "id": "qa000001-0005-4000-8000-000000000005",
+      "name": "Parse QA Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "qa000001-0006-4000-8000-000000000006",
+      "name": "Return QA Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": { "errorWorkflow": "" },
+      "id": "qa000001-0099-4000-8000-000000000099",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 540]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO n8n_error_log (workflow_name, error_message, error_node, execution_id)\nVALUES ('QA Agent', '{{ $json.message }}', '{{ $json.node?.name ?? \"unknown\" }}', '{{ $json.execution?.id ?? \"\" }}')",
+        "options": {}
+      },
+      "id": "qa000001-0100-4000-8000-000000000100",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 540],
+      "credentials": {
+        "postgres": { "id": "SUPABASE_POSTGRES_CRED_ID", "name": "Supabase Postgres" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"passed\": false, \"score\": 0, \"recommendation\": \"retry\", \"issues\": [{ \"field\": \"qa_workflow\", \"issue\": \"{{ $('Error Trigger').item.json.message }}\", \"severity\": \"block\" }], \"block_reasons\": [\"QA workflow error\"], \"warnings\": [] }",
+        "options": { "responseCode": 200 }
+      },
+      "id": "qa000001-0101-4000-8000-000000000101",
+      "name": "Error Fallback Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 540]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
+    "Validate Input": { "main": [[{ "node": "Fetch System Prompt", "type": "main", "index": 0 }]] },
+    "Fetch System Prompt": { "main": [[{ "node": "Call Claude", "type": "main", "index": 0 }]] },
+    "Call Claude": { "main": [[{ "node": "Parse QA Result", "type": "main", "index": 0 }]] },
+    "Parse QA Result": { "main": [[{ "node": "Return QA Result", "type": "main", "index": 0 }]] },
+    "Error Trigger": { "main": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Log Error": { "main": [[{ "node": "Error Fallback Response", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [{ "name": "bylda-ops" }, { "name": "qa-agent" }],
+  "triggerCount": 1,
+  "updatedAt": "2026-05-14T00:00:00.000Z",
+  "id": "bylda-ops-qa-agent-v1"
+}

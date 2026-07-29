@@ -1,0 +1,89 @@
+/* ════════════════════════════════════════════════════════════════════════
+   ATELIER BLUEPRINT — Launchpad design tokens
+   Additive only: nothing here renames or overrides an existing token.
+   This repo uses Tailwind v4 (CSS-based config), so tokens live in an
+   @theme block instead of tailwind.config.js theme.extend.
+   Fonts (Fraunces / Chakra Petch / IBM Plex Mono) are loaded in
+   src/routes/__root.tsx head links.
+   Note: the spec's `mono`/`serif` font names collide with existing app
+   tokens (--font-mono = JetBrains Mono), so they are namespaced here as
+   bp-mono / bp-serif; `tech` is unclaimed and keeps its name.
+   ════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Colors */
+  --color-paper: #fafaf7;
+  --color-panel: #ffffff;
+  --color-ink: #0f2440;
+  --color-ink-dim: #4d6382;
+  --color-ink-faint: #9aaac2;
+  --color-line: #d7dfe9;
+  --color-blueprint-blue: #1b4b8f;
+  --color-blueprint-signal: #2563eb;
+  --color-blueprint-signal-soft: rgba(37, 99, 235, 0.07);
+  --color-blueprint-brass: #a9862f;
+  --color-blueprint-brass-soft: #f6efdd;
+  --color-blueprint-seal: #0e6e4c;
+  --color-blueprint-warn: #a8690a;
+  --color-grid: rgba(24, 58, 106, 0.045);
+  --color-grid-major: rgba(24, 58, 106, 0.09);
+
+  /* Fonts */
+  --font-bp-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-tech: "Chakra Petch", system-ui, sans-serif;
+  --font-bp-serif: "Fraunces", Georgia, serif;
+
+  /* Animations */
+  --animate-march: march 1.2s linear infinite;
+  --animate-draw: draw 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  --animate-sweep: sweep 1.4s cubic-bezier(0.22, 1, 0.36, 1) 1.8s forwards;
+  --animate-stamp: stamp 0.55s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes march {
+  to {
+    stroke-dashoffset: -11;
+  }
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sweep {
+  to {
+    transform: translateX(110%);
+  }
+}
+@keyframes stamp {
+  from {
+    transform: scale(1.8) rotate(16deg);
+    opacity: 0;
+  }
+}
+
+/* Blueprint drafting-grid sheet background (fine 26px grid + major 130px grid) */
+.bg-blueprint-grid {
+  background-color: var(--color-paper);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(24, 58, 106, 0.045) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(90deg, rgba(24, 58, 106, 0.045) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(0deg, rgba(24, 58, 106, 0.09) 0 1px, transparent 1px 130px),
+    repeating-linear-gradient(90deg, rgba(24, 58, 106, 0.09) 0 1px, transparent 1px 130px);
+}
+
+/* ── Reduced motion: kill every animation/transition this system adds ── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-march,
+  .animate-draw,
+  .animate-sweep,
+  .animate-stamp,
+  [class*="bp-"] {
+    animation: none !important;
+    transition: none !important;
+  }
+  /* Drawn SVG strokes must land fully visible, not stuck mid-draw */
+  .animate-draw {
+    stroke-dashoffset: 0 !important;
+  }
+}

@@ -1,0 +1,415 @@
+{
+  "name": "Launchpad Pitch Deck Outliner",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "v1/pitch-deck/outline",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "=eq.tool_pitch_deck"
+            },
+            {
+              "name": "select",
+              "value": "enabled"
+            }
+          ]
+        }
+      },
+      "id": "verify_entitlement",
+      "name": "Verify Pitch Deck Entitlement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json[0] }}",
+              "value2": null
+            }
+          ]
+        }
+      },
+      "id": "check_entitlement",
+      "name": "Entitlement Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Feature not enabled\",\n  \"upgrade_url\": \"https://usebylda.com/launchpad?tier=premium\"\n}"
+      },
+      "id": "upsell_not_entitled",
+      "name": "Return Upsell - Not Entitled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BYLDA_OPS_WEBHOOK_URL }}/credit-deduction",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "pitch_deck_outliner"
+            },
+            {
+              "name": "cost",
+              "value": "15"
+            }
+          ]
+        }
+      },
+      "id": "deduct_credits",
+      "name": "Deduct Credits (15)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json.insufficient_credits }}"
+            }
+          ]
+        }
+      },
+      "id": "check_credits",
+      "name": "Credits Sufficient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Insufficient credits\",\n  \"required\": 15,\n  \"current\": \"{{ $json.current_credits }}\",\n  \"upgrade_url\": \"https://usebylda.com/billing\"\n}"
+      },
+      "id": "upsell_insufficient_credits",
+      "name": "Return Upsell - Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_ai_config",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "brand_voice,tone,style"
+            }
+          ]
+        }
+      },
+      "id": "fetch_brand_voice",
+      "name": "Fetch Brand Voice Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ANTHROPIC_API_URL }}/v1/messages",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-opus-4-20250805"
+            },
+            {
+              "name": "max_tokens",
+              "value": "4000"
+            }
+          ]
+        },
+        "body": "{\n  \"model\": \"claude-opus-4-20250805\",\n  \"max_tokens\": 4000,\n  \"system\": \"You are an expert pitch deck strategist and presentation designer. Create compelling, investor-ready pitch deck outlines. Each slide must follow: title, 3 key bullets (concise, punchy), visual suggestion (specific image/graphic description for designer), speaker notes (what to say, 2-3 sentences). Adapt tone and focus for audience (investor=fundraising emphasis, sales=ROI focus, partnership=synergy focus). OUTPUT ONLY VALID JSON with no markdown. Format: { \\\"slides\\\": [{ \\\"slide_num\\\": 1, \\\"slide_name\\\": \\\"Title\\\", \\\"title\\\": \\\"\\\", \\\"bullets\\\": [\\\"bullet1\\\", \\\"bullet2\\\", \\\"bullet3\\\"], \\\"visual_suggestion\\\": \\\"\\\", \\\"speaker_notes\\\": \\\"\\\" }, ...] }\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Create a 10-slide pitch deck outline for: Company: {{ $json.body.company_name }}, Problem: {{ $json.body.problem }}, Solution: {{ $json.body.solution }}, Traction: {{ $json.body.traction }}, Ask: ${{ $json.body.ask_amount }}, Deck type: {{ $json.body.deck_type }}. Slides: 1) Title (company name, tagline, ask amount), 2) Problem (customer pain, market size, urgency), 3) Solution (what you do, why you're different, benefits), 4) Market (TAM/SAM/SOM, growth rate, timing), 5) Product (demo/screenshot, key features, competitive advantage), 6) Traction (metrics, customers, revenue, growth rate), 7) Business Model (pricing, unit economics, path to profitability), 8) Competition (landscape, your positioning, moat), 9) Team (founders, expertise, why you'll win), 10) Ask (specific use of funds, milestones, next steps). Tone: {% if $json.body.deck_type === 'investor' %}Focus on ROI, market size, and team expertise. Emphasize path to scale and investor returns.{% elsif $json.body.deck_type === 'sales' %}Focus on customer ROI, implementation timeline, and success stories. Emphasize immediate business value.{% else %}Focus on synergy, mutual benefits, and how partnership accelerates both parties. Emphasize win-win outcomes.{% endif %} For each slide: concise title (3-5 words), 3 bullets (max 10 words each), specific visual suggestion (e.g., 'Graph showing 40% YoY growth' or 'Screenshot of product dashboard'), speaker notes (exactly what to say, 2-3 sentences). Brand voice: {{ $json[0].brand_voice || 'professional and confident' }}. Return ONLY JSON array of 10 slides.\"\n    }\n  ]\n}"
+      },
+      "id": "call_claude_api",
+      "name": "Call Claude Pitch Deck Outliner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 300],
+      "onError": "continueErrorOutput",
+      "credentials": [
+        {
+          "name": "anthropicApi",
+          "type": "anthropicApi"
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude response from nested structure\nconst responseContent = $json.content[0].text;\n\n// Parse JSON from Claude\nlet deckData;\ntry {\n  deckData = JSON.parse(responseContent);\n} catch(e) {\n  // If Claude wrapped in markdown backticks, extract it\n  const jsonMatch = responseContent.match(/```json\\n?(.*?)\\n?```/s);\n  if (jsonMatch) {\n    deckData = JSON.parse(jsonMatch[1]);\n  } else if (responseContent.match(/^\\{/)) {\n    // Try raw object\n    deckData = JSON.parse(responseContent);\n  } else {\n    throw new Error('Invalid JSON from Claude: ' + responseContent.substring(0, 200));\n  }\n}\n\n// Validate slides array\nif (!deckData.slides || !Array.isArray(deckData.slides)) {\n  throw new Error('Response must have slides array');\n}\n\nif (deckData.slides.length !== 10) {\n  throw new Error(`Expected exactly 10 slides, got ${deckData.slides.length}`);\n}\n\n// Validate each slide\nfor (let i = 0; i < deckData.slides.length; i++) {\n  const slide = deckData.slides[i];\n  \n  const requiredFields = ['slide_num', 'slide_name', 'title', 'bullets', 'visual_suggestion', 'speaker_notes'];\n  for (const field of requiredFields) {\n    if (!slide[field] && slide[field] !== 0) {\n      throw new Error(`Slide ${i + 1} missing field: ${field}`);\n    }\n  }\n  \n  // Validate slide_num\n  if (slide.slide_num !== i + 1) {\n    console.warn(`Slide ${i + 1} has incorrect slide_num: ${slide.slide_num}. Correcting to ${i + 1}.`);\n    slide.slide_num = i + 1;\n  }\n  \n  // Validate title\n  if (slide.title.trim().length === 0) {\n    throw new Error(`Slide ${i + 1} title is empty`);\n  }\n  \n  // Validate bullets\n  if (!Array.isArray(slide.bullets) || slide.bullets.length !== 3) {\n    throw new Error(`Slide ${i + 1} must have exactly 3 bullets, got ${slide.bullets.length}`);\n  }\n  \n  for (let j = 0; j < slide.bullets.length; j++) {\n    if (!slide.bullets[j] || slide.bullets[j].trim().length === 0) {\n      throw new Error(`Slide ${i + 1}, Bullet ${j + 1} is empty`);\n    }\n  }\n  \n  // Validate visual_suggestion\n  if (slide.visual_suggestion.trim().length === 0) {\n    throw new Error(`Slide ${i + 1} visual_suggestion is empty`);\n  }\n  \n  // Validate speaker_notes\n  if (slide.speaker_notes.trim().length === 0) {\n    throw new Error(`Slide ${i + 1} speaker_notes is empty`);\n  }\n}\n\nreturn deckData;"
+      },
+      "id": "parse_claude_response",
+      "name": "Parse & Validate Pitch Deck",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_outputs",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "pitch_deck_outliner"
+            },
+            {
+              "name": "type",
+              "value": "pitch_deck"
+            },
+            {
+              "name": "created_at",
+              "value": "=now()"
+            }
+          ]
+        },
+        "body": "{\n  \"user_id\": \"{{ $json.body.user_id }}\",\n  \"tool\": \"pitch_deck_outliner\",\n  \"type\": \"pitch_deck\",\n  \"metadata\": {\n    \"company_name\": \"{{ $json.body.company_name }}\",\n    \"deck_type\": \"{{ $json.body.deck_type }}\",\n    \"ask_amount\": \"{{ $json.body.ask_amount }}\"\n  },\n  \"payload\": {\n    \"company_name\": \"{{ $json.body.company_name }}\",\n    \"problem\": \"{{ $json.body.problem }}\",\n    \"solution\": \"{{ $json.body.solution }}\",\n    \"traction\": \"{{ $json.body.traction }}\",\n    \"ask_amount\": \"{{ $json.body.ask_amount }}\",\n    \"deck_type\": \"{{ $json.body.deck_type }}\",\n    \"slides\": {{ JSON.stringify($json.slides) }}\n  },\n  \"created_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "insert_to_tool_outputs",
+      "name": "Insert to tool_outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"deck\": {\n    \"company_name\": \"{{ $json.body.company_name }}\",\n    \"deck_type\": \"{{ $json.body.deck_type }}\",\n    \"ask_amount\": \"{{ $json.body.ask_amount }}\",\n    \"slides\": {{ JSON.stringify($json.slides) }}\n  }\n}"
+      },
+      "id": "return_success",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.message || 'Unknown error generating pitch deck' }}\"\n}"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2050, 450]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "verify_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify_entitlement": {
+      "main": [
+        [
+          {
+            "node": "check_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_entitlement": {
+      "main": [
+        [
+          {
+            "node": "deduct_credits",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_not_entitled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduct_credits": {
+      "main": [
+        [
+          {
+            "node": "check_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_credits": {
+      "main": [
+        [
+          {
+            "node": "fetch_brand_voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_insufficient_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_brand_voice": {
+      "main": [
+        [
+          {
+            "node": "call_claude_api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_claude_api": {
+      "main": [
+        [
+          {
+            "node": "parse_claude_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_claude_response": {
+      "main": [
+        [
+          {
+            "node": "insert_to_tool_outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert_to_tool_outputs": {
+      "main": [
+        [
+          {
+            "node": "return_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null
+}

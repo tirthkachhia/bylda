@@ -1,0 +1,436 @@
+{
+  "name": "Launchpad Ad Creative Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "v1/ad-creative/generate",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.0,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "=eq.tool_ad_creative"
+            },
+            {
+              "name": "select",
+              "value": "enabled"
+            }
+          ]
+        }
+      },
+      "id": "verify_entitlement",
+      "name": "Verify Ad Creative Entitlement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json[0] }}",
+              "value2": null
+            }
+          ]
+        }
+      },
+      "id": "check_entitlement",
+      "name": "Entitlement Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Feature not enabled\",\n  \"upgrade_url\": \"https://usebylda.com/launchpad?tier=growth\"\n}"
+      },
+      "id": "upsell_not_entitled",
+      "name": "Return Upsell - Not Entitled",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.BYLDA_OPS_WEBHOOK_URL }}/credit-deduction",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "ad_creative_generator"
+            },
+            {
+              "name": "cost",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "id": "deduct_credits",
+      "name": "Deduct Credits (10)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "objectExists",
+              "value1": "={{ $json.insufficient_credits }}"
+            }
+          ]
+        }
+      },
+      "id": "check_credits",
+      "name": "Credits Sufficient?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1.0,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Insufficient credits\",\n  \"required\": 10,\n  \"current\": \"{{ $json.current_credits }}\",\n  \"upgrade_url\": \"https://usebylda.com/billing\"\n}"
+      },
+      "id": "upsell_insufficient_credits",
+      "name": "Return Upsell - Insufficient Credits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_ai_config",
+        "method": "GET",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              }
+            ]
+          }
+        },
+        "qs": {
+          "queryParameters": [
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $json.body.user_id }}"
+            },
+            {
+              "name": "select",
+              "value": "brand_voice,tone,style"
+            }
+          ]
+        }
+      },
+      "id": "fetch_brand_voice",
+      "name": "Fetch Brand Voice Config",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ensure count defaults to 5 and is between 1-5\nlet count = $json.body.count || 5;\nif (!Number.isInteger(count) || count < 1 || count > 5) {\n  count = Math.min(5, Math.max(1, parseInt(count) || 5));\n}\n\nreturn {\n  count: count,\n  platform: $json.body.platform || 'both'\n};"
+      },
+      "id": "normalize_request_params",
+      "name": "Normalize Request Parameters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ANTHROPIC_API_URL }}/v1/messages",
+        "method": "POST",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-opus-4-20250805"
+            },
+            {
+              "name": "max_tokens",
+              "value": "3500"
+            }
+          ]
+        },
+        "body": "{\n  \"model\": \"claude-opus-4-20250805\",\n  \"max_tokens\": 3500,\n  \"system\": \"You are an expert ad copywriter specializing in high-converting paid social ads. You understand platform-specific constraints, audience psychology, hook mechanics, and split testing best practices. Generate {{ $json.count }} distinct ad creative variations optimized for {{ $json.body.platform }} (Meta/Facebook/Instagram or Google Ads or both). Each variation must have: hook_angle (unique psychological angle), primary_text (Meta only: max 125 chars), meta_headline (Meta: max 27 chars), google_headline (Google: max 30 chars), google_description (Google: max 90 chars). Each variation should test a different hook angle: emotional, logical, curiosity, scarcity, social proof, urgency, benefit-focused. Label variations A-E for split testing. OUTPUT ONLY VALID JSON with no markdown. Format: [{ \\\"split_test_label\\\": \\\"A\\\", \\\"hook_angle\\\": \\\"\\\", \\\"primary_text\\\": \\\"\\\", \\\"meta_headline\\\": \\\"\\\", \\\"google_headline\\\": \\\"\\\", \\\"google_description\\\": \\\"\\\" }, ...]\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate {{ $json.count }} ad creative variations for: Offer: {{ $json.body.offer }}, Platform(s): {{ $json.body.platform }}, Audience Pain Point: {{ $json.body.audience_pain }}, Brand Voice: {{ $json[0].brand_voice || 'professional and direct' }}, Tone: {{ $json[0].tone || 'direct response' }}. Each variation must test a different psychological hook: 1-A: emotional outcome, 2-B: logical/ROI, 3-C: curiosity/secret, 4-D: scarcity/exclusivity, 5-E: social proof (show only {{ $json.count }} variations). Meta specs: primary_text ≤125 chars, headline ≤27 chars. Google specs: headline ≤30 chars, description ≤90 chars. Return ONLY JSON array.\"\n    }\n  ]\n}"
+      },
+      "id": "call_claude_api",
+      "name": "Call Claude Ad Creative Generator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 300],
+      "onError": "continueErrorOutput",
+      "credentials": [
+        {
+          "name": "anthropicApi",
+          "type": "anthropicApi"
+        }
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude response from nested structure\nconst responseContent = $json.content[0].text;\n\n// Parse JSON from Claude\nlet creatives;\ntry {\n  creatives = JSON.parse(responseContent);\n} catch(e) {\n  // If Claude wrapped in markdown backticks, extract it\n  const jsonMatch = responseContent.match(/```json\\n?(.*?)\\n?```/s);\n  if (jsonMatch) {\n    creatives = JSON.parse(jsonMatch[1]);\n  } else if (responseContent.match(/^\\[/)) {\n    // Try raw array\n    creatives = JSON.parse(responseContent);\n  } else {\n    throw new Error('Invalid JSON from Claude: ' + responseContent.substring(0, 200));\n  }\n}\n\n// Validate it's an array\nif (!Array.isArray(creatives)) {\n  throw new Error('Response must be an array of creatives');\n}\n\nif (creatives.length === 0) {\n  throw new Error('No creatives generated');\n}\n\n// Validate count matches request\nconst requestedCount = $items(1)[0].json.count;\nif (creatives.length !== requestedCount) {\n  console.warn(`Requested ${requestedCount} creatives, got ${creatives.length}`);\n}\n\n// Expected labels\nconst validLabels = ['A', 'B', 'C', 'D', 'E'];\n\n// Validate each creative\nfor (let i = 0; i < creatives.length; i++) {\n  const creative = creatives[i];\n  \n  // Check required fields\n  const requiredFields = ['split_test_label', 'hook_angle', 'primary_text', 'meta_headline', 'google_headline', 'google_description'];\n  for (const field of requiredFields) {\n    if (!creative[field]) {\n      throw new Error(`Creative ${i + 1} missing field: ${field}`);\n    }\n  }\n  \n  // Validate label\n  if (!validLabels.includes(creative.split_test_label)) {\n    throw new Error(`Creative ${i + 1} invalid label: ${creative.split_test_label}. Must be A-E.`);\n  }\n  \n  // Validate character limits\n  const primaryLen = creative.primary_text.length;\n  if (primaryLen > 125) {\n    throw new Error(`Creative ${i + 1} (${creative.split_test_label}) primary_text exceeds 125 chars: ${primaryLen}`);\n  }\n  \n  const metaHeadlineLen = creative.meta_headline.length;\n  if (metaHeadlineLen > 27) {\n    throw new Error(`Creative ${i + 1} (${creative.split_test_label}) meta_headline exceeds 27 chars: ${metaHeadlineLen}`);\n  }\n  \n  const googleHeadlineLen = creative.google_headline.length;\n  if (googleHeadlineLen > 30) {\n    throw new Error(`Creative ${i + 1} (${creative.split_test_label}) google_headline exceeds 30 chars: ${googleHeadlineLen}`);\n  }\n  \n  const googleDescLen = creative.google_description.length;\n  if (googleDescLen > 90) {\n    throw new Error(`Creative ${i + 1} (${creative.split_test_label}) google_description exceeds 90 chars: ${googleDescLen}`);\n  }\n  \n  // Validate no empty fields\n  for (const field of requiredFields) {\n    if (creative[field].toString().trim().length === 0) {\n      throw new Error(`Creative ${i + 1} (${creative.split_test_label}) ${field} is empty`);\n    }\n  }\n  \n  // Add character counts for UI\n  creative.char_counts = {\n    primary_text: primaryLen,\n    meta_headline: metaHeadlineLen,\n    google_headline: googleHeadlineLen,\n    google_description: googleDescLen\n  };\n}\n\nreturn creatives;"
+      },
+      "id": "parse_claude_response",
+      "name": "Parse & Validate Creatives",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2.0,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tool_outputs",
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.body.user_id }}"
+            },
+            {
+              "name": "tool",
+              "value": "ad_creative_generator"
+            },
+            {
+              "name": "type",
+              "value": "ad_creative"
+            },
+            {
+              "name": "created_at",
+              "value": "=now()"
+            }
+          ]
+        },
+        "body": "{\n  \"user_id\": \"{{ $json.body.user_id }}\",\n  \"tool\": \"ad_creative_generator\",\n  \"type\": \"ad_creative\",\n  \"metadata\": {\n    \"offer\": \"{{ $json.body.offer }}\",\n    \"platform\": \"{{ $json.body.platform }}\",\n    \"audience_pain\": \"{{ $json.body.audience_pain }}\",\n    \"count\": {{ $json.body.count || 5 }}\n  },\n  \"payload\": {{ JSON.stringify($json) }},\n  \"created_at\": \"now()\"\n}",
+        "options": {
+          "headers": {
+            "headers": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.SUPABASE_KEY }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "insert_to_supabase",
+      "name": "Insert to tool_outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2050, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"ads\": {{ JSON.stringify($json) }}\n}"
+      },
+      "id": "return_success",
+      "name": "Return Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.message || 'Unknown error generating ad creatives' }}\"\n}"
+      },
+      "id": "error_handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.0,
+      "position": [2250, 450]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "verify_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify_entitlement": {
+      "main": [
+        [
+          {
+            "node": "check_entitlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_entitlement": {
+      "main": [
+        [
+          {
+            "node": "deduct_credits",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_not_entitled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deduct_credits": {
+      "main": [
+        [
+          {
+            "node": "check_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_credits": {
+      "main": [
+        [
+          {
+            "node": "fetch_brand_voice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "upsell_insufficient_credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetch_brand_voice": {
+      "main": [
+        [
+          {
+            "node": "normalize_request_params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "normalize_request_params": {
+      "main": [
+        [
+          {
+            "node": "call_claude_api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_claude_api": {
+      "main": [
+        [
+          {
+            "node": "parse_claude_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_claude_response": {
+      "main": [
+        [
+          {
+            "node": "insert_to_supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "insert_to_supabase": {
+      "main": [
+        [
+          {
+            "node": "return_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null
+}

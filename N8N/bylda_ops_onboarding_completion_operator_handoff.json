@@ -1,0 +1,486 @@
+{
+  "name": "Onboarding Completion Operator Handoff",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-operator-handoff",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "r1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-operator-handoff"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id       = body.user_id       || null;\nconst triggered_by  = body.triggered_by  || 'system';   // 'system' | 'admin' | 'user'\nconst force_reactivate = body.force_reactivate === true; // allow re-activation from admin\n\nif (!user_id) throw new Error('Missing required field: user_id');\n\nreturn [{\n  json: {\n    user_id,\n    triggered_by,\n    force_reactivate,\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "r1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $json.user_id }}&select=user_id,email,onboarding_status,operator_active,plan_tier,plan_status",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "r1000001-0003-0003-0003-000000000003",
+      "name": "GET users: pre-flight check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fetchResult = $input.first().json;\nconst origin = $('Parse & Validate').first().json;\n\nconst record = Array.isArray(fetchResult) ? fetchResult[0] : fetchResult;\n\nif (!record?.user_id) {\n  throw new Error(`No users record found for user_id: ${origin.user_id}. Cannot activate operator.`);\n}\n\nconst plan_status    = (record.plan_status || 'active').toLowerCase();\nconst onboarding_status = record.onboarding_status || 'pending';\nconst operator_active   = record.operator_active === true;\nconst plan_tier         = (record.plan_tier || 'free').toLowerCase();\n\n// Block activation if account is suspended\nconst is_suspended = plan_status === 'suspended' || plan_status === 'deleted';\n\n// Already active \u2014 skip unless force_reactivate\nconst already_active = operator_active && !origin.force_reactivate;\n\nreturn [{\n  json: {\n    ...origin,\n    email:            record.email || '',\n    plan_tier,\n    plan_status,\n    onboarding_status,\n    operator_active,\n    is_suspended,\n    already_active,\n    can_activate:     !is_suspended && !already_active\n  }\n}];"
+      },
+      "id": "r1000001-0004-0004-0004-000000000004",
+      "name": "Pre-Flight Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "suspended-check",
+              "leftValue": "={{ $json.is_suspended }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "r1000001-0005-0005-0005-000000000005",
+      "name": "Account Suspended?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 260]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"operator_active\": false,\n  \"reason\": \"account_suspended\",\n  \"message\": \"Cannot activate operator \u2014 account is {{ $json.plan_status }}. Restore billing to reactivate.\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"plan_status\": \"{{ $json.plan_status }}\"\n}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "r1000001-0006-0006-0006-000000000006",
+      "name": "Return: 403 Suspended",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "already-active-check",
+              "leftValue": "={{ $json.already_active }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "r1000001-0007-0007-0007-000000000007",
+      "name": "Already Active?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 540]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"operator_active\": true,\n  \"action\": \"already_active\",\n  \"message\": \"Operator is already active for this user. Pass force_reactivate=true to reset.\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"plan_tier\": \"{{ $json.plan_tier }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "r1000001-0008-0008-0008-000000000008",
+      "name": "Return: Already Active (Early Exit)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 440]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/users?user_id=eq.{{ $json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"onboarding_status\": \"complete\",\n  \"operator_active\": true,\n  \"activated_at\": \"{{ $json.now }}\",\n  \"activation_count\": 1,\n  \"updated_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "r1000001-0009-0009-0009-000000000009",
+      "name": "PATCH users: activate operator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 700],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/operator_sessions",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Pre-Flight Validation').first().json.user_id }}\",\n  \"session_type\": \"initial_activation\",\n  \"context\": \"onboarding_complete\",\n  \"triggered_by\": \"{{ $('Pre-Flight Validation').first().json.triggered_by }}\",\n  \"plan_tier\": \"{{ $('Pre-Flight Validation').first().json.plan_tier }}\",\n  \"started_at\": \"{{ $('Pre-Flight Validation').first().json.now }}\",\n  \"ended_at\": null,\n  \"status\": \"active\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "r1000001-0010-0010-0010-000000000010",
+      "name": "INSERT operator_sessions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 880],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Pre-Flight Validation').first().json;\n\nif (!items || items.length < 2) {\n  throw new Error(`Expected 2 write results (users PATCH + operator_sessions INSERT), got ${items?.length || 0}`);\n}\n\nconst patchRaw  = items[0].json;\nconst sessionRaw = items[1].json;\n\nconst patchRecord   = Array.isArray(patchRaw)   ? patchRaw[0]   : patchRaw;\nconst sessionRecord = Array.isArray(sessionRaw) ? sessionRaw[0] : sessionRaw;\n\nconst users_patched    = patchRecord?.user_id   !== undefined;\nconst session_created  = sessionRecord?.id      !== undefined;\nconst session_id       = sessionRecord?.id      || null;\n\nif (!users_patched) {\n  throw new Error(`PATCH to users returned no record for user_id: ${origin.user_id}. Check Supabase RLS.`);\n}\nif (!session_created) {\n  console.warn(`operator_sessions INSERT may have failed for user ${origin.user_id}. Response: ${JSON.stringify(sessionRaw)}`);\n}\n\nreturn [{\n  json: {\n    ...origin,\n    users_patched,\n    session_created,\n    session_id\n  }\n}];"
+      },
+      "id": "r1000001-0011-0011-0011-000000000011",
+      "name": "Merge Write Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 790]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/notifications",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"type\": \"operator_active\",\n  \"title\": \"\u26a1 Your AI operator is live\",\n  \"message\": \"Your Bylda AI operator is now active and ready to work. Head to your Launchpad to run your first tool.\",\n  \"action_label\": \"Open Launchpad\",\n  \"action_url\": \"/dashboard/{{ $json.user_id }}/launchpad\",\n  \"metadata\": {{ JSON.stringify({ session_id: $json.session_id, plan_tier: $json.plan_tier, activated_at: $json.now, triggered_by: $json.triggered_by }) }},\n  \"read\": false,\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "r1000001-0012-0012-0012-000000000012",
+      "name": "INSERT notifications: operator_active",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1960, 790],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/admin_audit_log",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Merge Write Results').first().json.user_id }}\",\n  \"email\": \"{{ $('Merge Write Results').first().json.email }}\",\n  \"event_type\": \"operator_activated\",\n  \"metadata\": {{ JSON.stringify({ plan_tier: $('Merge Write Results').first().json.plan_tier, session_id: $('Merge Write Results').first().json.session_id, triggered_by: $('Merge Write Results').first().json.triggered_by, force_reactivate: $('Merge Write Results').first().json.force_reactivate }) }},\n  \"created_at\": \"{{ $('Merge Write Results').first().json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "r1000001-0013-0013-0013-000000000013",
+      "name": "INSERT admin_audit_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 790],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"operator_active\": true,\n  \"action\": \"operator_activated\",\n  \"user_id\": \"{{ $('Merge Write Results').first().json.user_id }}\",\n  \"plan_tier\": \"{{ $('Merge Write Results').first().json.plan_tier }}\",\n  \"session_id\": \"{{ $('Merge Write Results').first().json.session_id }}\",\n  \"onboarding_status\": \"complete\",\n  \"activated_at\": \"{{ $('Merge Write Results').first().json.now }}\",\n  \"notification_sent\": true\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "r1000001-0014-0014-0014-000000000014",
+      "name": "Return: Operator Active",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2480, 790]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "GET users: pre-flight check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET users: pre-flight check": {
+      "main": [
+        [
+          {
+            "node": "Pre-Flight Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pre-Flight Validation": {
+      "main": [
+        [
+          {
+            "node": "Account Suspended?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Already Active?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Account Suspended?": {
+      "main": [
+        [
+          {
+            "node": "Return: 403 Suspended",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Already Active?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Active?": {
+      "main": [
+        [
+          {
+            "node": "Return: Already Active (Early Exit)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PATCH users: activate operator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "INSERT operator_sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH users: activate operator": {
+      "main": [
+        [
+          {
+            "node": "Merge Write Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT operator_sessions": {
+      "main": [
+        [
+          {
+            "node": "Merge Write Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Write Results": {
+      "main": [
+        [
+          {
+            "node": "INSERT notifications: operator_active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT notifications: operator_active": {
+      "main": [
+        [
+          {
+            "node": "INSERT admin_audit_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT admin_audit_log": {
+      "main": [
+        [
+          {
+            "node": "Return: Operator Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "operator"
+    },
+    {
+      "name": "activation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

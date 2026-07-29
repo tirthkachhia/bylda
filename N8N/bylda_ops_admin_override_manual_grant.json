@@ -1,0 +1,342 @@
+{
+  "name": "Admin Override Manual Grant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-admin-override",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "j1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-admin-override"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst admin_token = body.admin_token || null;\nconst user_id     = body.user_id     || null;\nconst action      = (body.action || '').toLowerCase().trim();\nconst feature_key = (body.feature_key || '').toLowerCase().trim();\nconst reason      = body.reason      || 'No reason provided';\n\n// Fail fast on missing fields\nif (!admin_token)  throw new Error('Missing required field: admin_token');\nif (!user_id)      throw new Error('Missing required field: user_id');\nif (!action)       throw new Error('Missing required field: action');\nif (!feature_key)  throw new Error('Missing required field: feature_key');\n\n// Validate action values\nconst validActions = ['grant', 'revoke'];\nif (!validActions.includes(action)) {\n  throw new Error(`Invalid action '${action}' \u2014 must be 'grant' or 'revoke'`);\n}\n\n// Whitelist of all valid feature keys \u2014 prevents arbitrary column injection\nconst validFeatureKeys = [\n  'launchpad_tool_1',\n  'launchpad_tool_2',\n  'launchpad_tool_3',\n  'launchpad_tool_4',\n  'launchpad_tool_5',\n  'launchpad_tool_6',\n  'launchpad_tool_7',\n  'launchpad_tool_8',\n  'launchpad_tool_9',\n  'launchpad_tool_10',\n  'bylda_os_lead_capture',\n  'bylda_os_followup',\n  'bylda_os_booking',\n  'bylda_os_nurture',\n  'bylda_os_reporting',\n  'bylda_os_sales',\n  'ai_operator_access',\n  'subagent_access',\n  'credits_gated'\n];\n\nif (!validFeatureKeys.includes(feature_key)) {\n  throw new Error(`Invalid feature_key '${feature_key}' \u2014 not a recognised entitlement column`);\n}\n\n// Simple deterministic hash of the admin token for audit log (never store raw token)\nconst crypto = require('crypto');\nconst token_hash = crypto.createHash('sha256').update(admin_token).digest('hex').substring(0, 16);\n\nreturn [{\n  json: {\n    admin_token,\n    token_hash,\n    user_id,\n    action,\n    feature_key,\n    reason,\n    feature_value: action === 'grant',\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "j1000001-0002-0002-0002-000000000002",
+      "name": "Parse, Validate & Hash Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "token-match",
+              "leftValue": "={{ $json.admin_token }}",
+              "rightValue": "={{ $env.ADMIN_TOKEN }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "j1000001-0003-0003-0003-000000000003",
+      "name": "Validate Admin Token",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"unauthorized\",\n  \"message\": \"Invalid admin token. Access denied.\"\n}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "j1000001-0004-0004-0004-000000000004",
+      "name": "Return: 401 Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 600]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements?user_id=eq.{{ $json.user_id }}&select=*",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "j1000001-0005-0005-0005-000000000005",
+      "name": "GET user_entitlements (pre-check)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 280],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const fetchResult = $input.first().json;\nconst origin = $('Parse, Validate & Hash Token').first().json;\n\nconst record = Array.isArray(fetchResult) ? fetchResult[0] : fetchResult;\n\nif (!record || !record.user_id) {\n  throw new Error(`No user_entitlements record found for user_id: ${origin.user_id}. Cannot apply override.`);\n}\n\nconst current_value = record[origin.feature_key];\nconst no_change = current_value === origin.feature_value;\n\nreturn [{\n  json: {\n    ...origin,\n    entitlement_exists: true,\n    current_value,\n    no_change,\n    pre_state: record\n  }\n}];"
+      },
+      "id": "j1000001-0006-0006-0006-000000000006",
+      "name": "Verify Entitlement Row Exists",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a dynamic PATCH body with only the target feature key\nconst origin = $input.first().json;\n\nconst patch_body = {};\npatch_body[origin.feature_key] = origin.feature_value;\npatch_body['updated_at'] = origin.now;\n\nreturn [{\n  json: {\n    ...origin,\n    patch_body: JSON.stringify(patch_body)\n  }\n}];"
+      },
+      "id": "j1000001-0007-0007-0007-000000000007",
+      "name": "Build Dynamic PATCH Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 280]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_entitlements?user_id=eq.{{ $json.user_id }}",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.patch_body }}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "j1000001-0008-0008-0008-000000000008",
+      "name": "PATCH user_entitlements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 280],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const patchResult = $input.first().json;\nconst origin = $('Build Dynamic PATCH Body').first().json;\n\nconst record = Array.isArray(patchResult) ? patchResult[0] : patchResult;\n\nif (!record || !record.user_id) {\n  throw new Error(`PATCH to user_entitlements returned no data for user_id: ${origin.user_id}. Check Supabase RLS.`);\n}\n\nconst new_value = record[origin.feature_key];\nconst applied   = new_value === origin.feature_value;\n\nreturn [{\n  json: {\n    ...origin,\n    patch_confirmed: applied,\n    new_value,\n    updated_entitlements: record\n  }\n}];"
+      },
+      "id": "j1000001-0009-0009-0009-000000000009",
+      "name": "Confirm PATCH Applied",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/admin_audit_log",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"event_type\": \"admin_override\",\n  \"action\": \"{{ $json.action }}\",\n  \"feature_key\": \"{{ $json.feature_key }}\",\n  \"feature_value\": {{ $json.feature_value }},\n  \"previous_value\": {{ $json.current_value }},\n  \"patch_confirmed\": {{ $json.patch_confirmed }},\n  \"reason\": {{ JSON.stringify($json.reason) }},\n  \"admin_token_hash\": \"{{ $json.token_hash }}\",\n  \"no_change\": {{ $json.no_change }},\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "j1000001-0010-0010-0010-000000000010",
+      "name": "INSERT admin_audit_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2180, 280],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"{{ $('Confirm PATCH Applied').first().json.action }}\",\n  \"feature_key\": \"{{ $('Confirm PATCH Applied').first().json.feature_key }}\",\n  \"feature_value\": {{ $('Confirm PATCH Applied').first().json.feature_value }},\n  \"previous_value\": {{ $('Confirm PATCH Applied').first().json.current_value }},\n  \"patch_confirmed\": {{ $('Confirm PATCH Applied').first().json.patch_confirmed }},\n  \"no_change\": {{ $('Confirm PATCH Applied').first().json.no_change }},\n  \"user_id\": \"{{ $('Confirm PATCH Applied').first().json.user_id }}\",\n  \"reason\": {{ JSON.stringify($('Confirm PATCH Applied').first().json.reason) }},\n  \"updated_at\": \"{{ $('Confirm PATCH Applied').first().json.now }}\",\n  \"entitlements\": {{ JSON.stringify($('Confirm PATCH Applied').first().json.updated_entitlements) }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "j1000001-0011-0011-0011-000000000011",
+      "name": "Return: 200 Override Applied",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2420, 280]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse, Validate & Hash Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse, Validate & Hash Token": {
+      "main": [
+        [
+          {
+            "node": "Validate Admin Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Admin Token": {
+      "main": [
+        [
+          {
+            "node": "GET user_entitlements (pre-check)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return: 401 Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET user_entitlements (pre-check)": {
+      "main": [
+        [
+          {
+            "node": "Verify Entitlement Row Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Entitlement Row Exists": {
+      "main": [
+        [
+          {
+            "node": "Build Dynamic PATCH Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Dynamic PATCH Body": {
+      "main": [
+        [
+          {
+            "node": "PATCH user_entitlements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PATCH user_entitlements": {
+      "main": [
+        [
+          {
+            "node": "Confirm PATCH Applied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm PATCH Applied": {
+      "main": [
+        [
+          {
+            "node": "INSERT admin_audit_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT admin_audit_log": {
+      "main": [
+        [
+          {
+            "node": "Return: 200 Override Applied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "admin"
+    },
+    {
+      "name": "security"
+    },
+    {
+      "name": "entitlements"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

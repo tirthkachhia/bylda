@@ -1,0 +1,13 @@
+-- ── Advisor triage: prompt_feedback insert policy ────────────────────────────
+-- prompt_feedback is written only by the feedback-loop edge function using the
+-- service role (SUPABASE_SERVICE_ROLE_KEY), which bypasses RLS. The
+-- prompt_feedback_insert_service policy (WITH CHECK (true), applied to the public
+-- role) was added purely to "document" that insert, but it actually let any
+-- authenticated/anon client insert arbitrary feedback rows — flagged by the
+-- advisor as rls_policy_always_true.
+--
+-- Drop it: the service-role insert still works (RLS bypass), and with no INSERT
+-- policy present no client role can insert. Reads (org-scoped + admin) and the
+-- admin update policy are unchanged. Verified the only writer is feedback-loop
+-- and the admin UI only performs UPDATE.
+drop policy if exists "prompt_feedback_insert_service" on public.prompt_feedback;

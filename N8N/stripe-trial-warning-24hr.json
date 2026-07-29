@@ -1,0 +1,179 @@
+{
+  "name": "Stripe Trial Ending 24hr Warning",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stripe-trial-warning-24hr",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f6a7b8c9-0001-0001-0001-000000000001",
+      "name": "Trial Warning Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "stripe-trial-warning-24hr"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst email = body.email || body.user_email || '';\nconst firstName = body.firstName || body.user_first_name || 'there';\nconst trialEndIso = body.trialEndIso || body.trial_end_date || '';\nconst upgradeLink = body.upgradeLink || body.upgrade_link || 'https://usebylda.com/upgrade';\n\nconst trialEndDisplay = trialEndIso\n  ? new Date(trialEndIso).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })\n  : 'today';\n\nreturn [{ json: {\n  email,\n  firstName,\n  trialEndIso,\n  trialEndDisplay,\n  upgradeLink,\n  sentAt: new Date().toISOString()\n} }];"
+      },
+      "id": "f6a7b8c9-0002-0002-0002-000000000002",
+      "name": "Parse Incoming Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <hello@usebylda.com>\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": \"\ud83d\udd34 Last 24 hours \u2014 upgrade now to keep access\",\n  \"html\": \"<div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;'><div style='background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px 20px; border-radius: 4px; margin-bottom: 28px;'><p style='margin: 0; font-size: 15px; color: #b91c1c; font-weight: 600;'>\u26a0\ufe0f Your trial expires {{ $json.trialEndDisplay }}. This is your final notice.</p></div><h1 style='font-size: 24px; margin-top: 0;'>{{ $json.firstName }}, your access ends in 24 hours.</h1><p style='font-size: 16px; color: #444; line-height: 1.7;'>Everything you've set up \u2014 your automations, your AI tools, your systems \u2014 goes offline when your trial ends.</p><p style='font-size: 16px; color: #444; line-height: 1.7;'>One click keeps it all running.</p><div style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px 24px; margin: 28px 0;'><p style='margin: 0 0 12px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;'>What you keep when you upgrade:</p><ul style='margin: 0; padding-left: 20px; font-size: 15px; color: #334155; line-height: 2;'><li>\u2705 All 6 Bylda OS automation systems \u2014 running 24/7</li><li>\u2705 Full Launchpad \u2014 all 10 AI founder tools</li><li>\u2705 Priority support \u2014 direct line to our team</li><li>\u2705 Everything you've already built stays live</li></ul></div><div style='text-align: center; margin: 36px 0;'><a href='{{ $json.upgradeLink }}' style='background: #ef4444; color: white; padding: 16px 36px; border-radius: 8px; text-decoration: none; font-size: 17px; font-weight: 700; display: inline-block;'>\ud83d\udd12 Upgrade Now \u2014 Keep My Access</a><p style='font-size: 12px; color: #94a3b8; margin-top: 12px;'>Takes 60 seconds. Cancel anytime.</p></div><p style='font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 20px;'>If you have any questions before upgrading, just reply to this email. We'll get back to you immediately.</p><p style='font-size: 14px; color: #555;'>\u2014 The Bylda Team</p></div>\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "f6a7b8c9-0003-0003-0003-000000000003",
+      "name": "Send 24hr Warning Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/comms_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_email\": \"{{ $('Parse Incoming Body').first().json.email }}\",\n  \"type\": \"trial_warning_24hr\",\n  \"subject\": \"Last 24 hours \u2014 upgrade now to keep access\",\n  \"trial_end_date\": \"{{ $('Parse Incoming Body').first().json.trialEndIso }}\",\n  \"sent_at\": \"{{ $('Parse Incoming Body').first().json.sentAt }}\"\n}",
+        "options": {},
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "f6a7b8c9-0004-0004-0004-000000000004",
+      "name": "Log to Supabase comms_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain"
+              }
+            ]
+          }
+        }
+      },
+      "id": "f6a7b8c9-0005-0005-0005-000000000005",
+      "name": "Return 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Trial Warning Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Incoming Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Incoming Body": {
+      "main": [
+        [
+          {
+            "node": "Send 24hr Warning Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send 24hr Warning Email": {
+      "main": [
+        [
+          {
+            "node": "Log to Supabase comms_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Supabase comms_log": {
+      "main": [
+        [
+          {
+            "node": "Return 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["bylda-ops", "stripe", "trial", "email", "warning"],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "bylda-ops-trial-24hr-v1"
+}

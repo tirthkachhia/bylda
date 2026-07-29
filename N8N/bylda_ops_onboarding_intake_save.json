@@ -1,0 +1,124 @@
+{
+  "name": "Onboarding - Intake Save",
+  "meta": {
+    "description": "TASK-091 · Receives onboarding wizard answers, classifies lane, upserts workspace_intake, and triggers workspace provisioning.",
+    "templateId": "bylda-ops-onboarding-intake-save"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-onboarding-intake-save",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "t091-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "bylda-ops-onboarding-intake-save"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id      = body.user_id      || null;\nconst workspace_id = body.workspace_id || null;\nconst full_name    = body.full_name    || body.name || null;\nconst idea         = body.idea         || null;\nconst stage        = body.stage        || 'Idea';\nconst challenge    = body.challenge    || null;\nconst lane         = body.lane         || 'Idea';\n\nif (!user_id)      throw new Error('Missing: user_id');\nif (!workspace_id) throw new Error('Missing: workspace_id');\nif (!idea)         throw new Error('Missing: idea');\nif (!challenge)    throw new Error('Missing: challenge');\n\nconst ALLOWED_LANES = ['Idea', 'Offer', 'Customer', 'Systems'];\nconst safe_lane = ALLOWED_LANES.includes(lane) ? lane : 'Idea';\n\nreturn [{\n  json: {\n    user_id,\n    workspace_id,\n    full_name,\n    idea,\n    stage,\n    challenge,\n    lane: safe_lane,\n    raw_answers: { full_name, idea, stage, challenge },\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "t091-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/workspace_intake",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"workspace_id\": \"{{ $json.workspace_id }}\",\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"full_name\": {{ $json.full_name ? JSON.stringify($json.full_name) : 'null' }},\n  \"idea\": {{ JSON.stringify($json.idea) }},\n  \"stage\": {{ JSON.stringify($json.stage) }},\n  \"challenge\": {{ JSON.stringify($json.challenge) }},\n  \"lane\": {{ JSON.stringify($json.lane) }},\n  \"raw_answers\": {{ JSON.stringify($json.raw_answers) }},\n  \"completed\": true,\n  \"completed_at\": \"{{ $json.now }}\"\n}",
+        "options": {}
+      },
+      "id": "t091-0003-0003-0003-000000000003",
+      "name": "Upsert workspace_intake",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/functions/v1/log-activation-event",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event_name\": \"onboarding_complete\",\n  \"workspace_id\": \"{{ $('Parse & Validate').item.json.workspace_id }}\",\n  \"properties\": {\n    \"lane\": \"{{ $('Parse & Validate').item.json.lane }}\",\n    \"stage\": \"{{ $('Parse & Validate').item.json.stage }}\",\n    \"challenge\": \"{{ $('Parse & Validate').item.json.challenge }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "t091-0004-0004-0004-000000000004",
+      "name": "Log Activation Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const upsertResult = $('Upsert workspace_intake').item.json;\nreturn [{\n  json: {\n    ok: true,\n    workspace_id: $('Parse & Validate').item.json.workspace_id,\n    lane: $('Parse & Validate').item.json.lane,\n    intake_saved: true\n  }\n}];"
+      },
+      "id": "t091-0005-0005-0005-000000000005",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "t091-0006-0006-0006-000000000006",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Parse & Validate", "type": "main", "index": 0 }]]
+    },
+    "Parse & Validate": {
+      "main": [[{ "node": "Upsert workspace_intake", "type": "main", "index": 0 }]]
+    },
+    "Upsert workspace_intake": {
+      "main": [[{ "node": "Log Activation Event", "type": "main", "index": 0 }]]
+    },
+    "Log Activation Event": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Build Response": {
+      "main": [[{ "node": "Return Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": ["onboarding", "intake", "sprint-1"]
+}

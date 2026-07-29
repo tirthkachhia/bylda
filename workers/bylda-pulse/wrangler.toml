@@ -1,0 +1,19 @@
+name = "bylda-pulse"
+main = "index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[routes]]
+pattern = "api.usebylda.com/pulse/*"
+zone_name = "usebylda.com"
+
+[triggers]
+crons = ["0 8 * * *"]
+
+[vars]
+SUPABASE_URL = "https://ipidfqwlszuhjgjygbvx.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwaWRmcXdsc3p1aGpnanlnYnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzU4OTUsImV4cCI6MjA5MjQxMTg5NX0.4F3q4epd_H8xn2JB5-RtSSy81U9zJBS7HO2KahD4HIc"
+SLACK_WEBHOOK_URL = "REPLACE_WITH_SLACK_WEBHOOK_URL"
+CONTEXT_API_URL = "https://api.usebylda.com"
+# Secrets (set via wrangler secret put):
+#   SUPABASE_SERVICE_ROLE_KEY

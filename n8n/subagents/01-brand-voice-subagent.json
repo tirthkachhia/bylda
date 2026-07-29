@@ -1,0 +1,297 @@
+{
+  "name": "Brand Voice Subagent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "brand-voice-subagent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ee000001-0001-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "brand-voice-subagent-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body;\nconst userId = body.user_id;\nconst samples = Array.isArray(body.sample_texts) ? body.sample_texts : [body.sample_texts];\n\nif (!userId || userId.trim().length === 0) {\n  throw new Error('user_id is required and cannot be empty.');\n}\n\nif (!samples || samples.length < 3) {\n  throw new Error('Minimum 3 sample texts required. Received: ' + (samples ? samples.length : 0));\n}\n\nconst validated = samples\n  .filter(s => typeof s === 'string' && s.trim().length > 20)\n  .map(s => s.trim());\n\nif (validated.length < 3) {\n  throw new Error('Minimum 3 non-empty sample texts (>20 chars each) required. Valid received: ' + validated.length);\n}\n\nconst concatenated = validated\n  .map((text, i) => `--- SAMPLE ${i + 1} (${text.length} chars) ---\\n${text}`)\n  .join('\\n\\n');\n\nreturn [\n  {\n    json: {\n      user_id: userId,\n      concatenated_samples: concatenated,\n      sample_count: validated.length,\n      total_chars: concatenated.length\n    }\n  }\n];"
+      },
+      "id": "ee000001-0002-4000-8000-000000000002",
+      "name": "Validate and Concatenate Samples",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT system_prompt FROM operator_prompts WHERE component = 'brand_voice_subagent' LIMIT 1",
+        "options": {}
+      },
+      "id": "ee000001-0003-4000-8000-000000000003",
+      "name": "Fetch System Prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [720, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "model": "claude-sonnet-4-5",
+          "max_tokens": 4000,
+          "system": "={{ $('Fetch System Prompt').item.json.system_prompt }}",
+          "messages": [
+            {
+              "role": "user",
+              "content": "=You are an expert Brand Voice Analyst. Your job is to read writing samples and extract a precise, structured, reusable brand voice profile. This profile will be injected into AI prompts to make future outputs match this voice exactly.\n\nAnalyze ALL {{ $('Validate and Concatenate Samples').item.json.sample_count }} writing samples below. Look for CROSS-SAMPLE patterns — not just what appears once.\n\n==========\n{{ $('Validate and Concatenate Samples').item.json.concatenated_samples }}\n==========\n\nEXTRACT THE FOLLOWING with precision:\n\n1. TONE — 4 to 7 adjectives describing the emotional register and attitude\n2. VOCABULARY — complexity level, industry-specific jargon, preferred action verbs, power words, word length tendency\n3. RHYTHM — sentence structure, paragraph length, use of fragments, list vs prose, notable structural patterns\n4. TABOO — words, phrases, tones, formats this writer clearly avoids\n5. SIGNATURES — recurring phrases, unique expressions, structural fingerprints\n6. POV — dominant point of view and how it is used\n7. SUMMARY — a single tight paragraph (4-6 sentences) a copywriter or AI could read to immediately write in this voice\n\nYou MUST respond with ONLY a valid JSON object. No markdown. No code fences. No preamble. Exactly this schema:\n{\n  \"tone\": [\"string\"],\n  \"vocabulary\": {\n    \"complexity\": \"string\",\n    \"jargon\": [\"string\"],\n    \"preferred_verbs\": [\"string\"],\n    \"power_words\": [\"string\"],\n    \"word_length_tendency\": \"string\"\n  },\n  \"rhythm\": {\n    \"sentence_style\": \"string\",\n    \"paragraph_length\": \"string\",\n    \"use_of_fragments\": true,\n    \"list_vs_prose\": \"string\",\n    \"notable_patterns\": [\"string\"]\n  },\n  \"taboo\": [\"string\"],\n  \"signatures\": [\"string\"],\n  \"pov\": {\n    \"dominant\": \"string\",\n    \"usage_notes\": \"string\"\n  },\n  \"summary\": \"string\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ee000001-0004-4000-8000-000000000004",
+      "name": "Call Claude API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ANTHROPIC_HEADER_AUTH_CRED_ID",
+          "name": "Anthropic API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json;\nconst userId = $('Validate and Concatenate Samples').item.json.user_id;\n\nlet contentText = '';\nif (raw.content && Array.isArray(raw.content)) {\n  contentText = raw.content\n    .filter(block => block.type === 'text')\n    .map(block => block.text)\n    .join('');\n} else {\n  throw new Error('Unexpected Claude response shape: ' + JSON.stringify(raw).substring(0, 200));\n}\n\nconst cleaned = contentText\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Failed to parse Claude JSON: ' + e.message + '\\nRaw snippet: ' + cleaned.substring(0, 400));\n}\n\nconst required = ['tone', 'vocabulary', 'rhythm', 'taboo', 'signatures', 'pov', 'summary'];\nfor (const key of required) {\n  if (!(key in parsed)) {\n    throw new Error('Missing required key in Claude response: ' + key);\n  }\n}\n\nif (!Array.isArray(parsed.tone)) parsed.tone = [];\nif (!Array.isArray(parsed.taboo)) parsed.taboo = [];\nif (!Array.isArray(parsed.signatures)) parsed.signatures = [];\n\nif (!parsed.vocabulary || typeof parsed.vocabulary !== 'object') parsed.vocabulary = {};\nif (!Array.isArray(parsed.vocabulary.jargon)) parsed.vocabulary.jargon = [];\nif (!Array.isArray(parsed.vocabulary.preferred_verbs)) parsed.vocabulary.preferred_verbs = [];\nif (!Array.isArray(parsed.vocabulary.power_words)) parsed.vocabulary.power_words = [];\n\nif (!parsed.rhythm || typeof parsed.rhythm !== 'object') parsed.rhythm = {};\nif (!Array.isArray(parsed.rhythm.notable_patterns)) parsed.rhythm.notable_patterns = [];\n\nif (typeof parsed.rhythm.use_of_fragments === 'string') {\n  parsed.rhythm.use_of_fragments = parsed.rhythm.use_of_fragments.toLowerCase() === 'true';\n}\n\nif (!parsed.pov || typeof parsed.pov !== 'object') parsed.pov = { dominant: 'unknown', usage_notes: '' };\nif (typeof parsed.summary !== 'string') parsed.summary = '';\n\nreturn {\n  json: {\n    user_id: userId,\n    brand_voice: parsed\n  }\n};"
+      },
+      "id": "ee000001-0005-4000-8000-000000000005",
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO user_ai_config (user_id, brand_voice, updated_at)\nVALUES (\n  '{{ $json.user_id }}',\n  '{{ JSON.stringify($json.brand_voice) }}'::jsonb,\n  NOW()\n)\nON CONFLICT (user_id)\nDO UPDATE SET\n  brand_voice = EXCLUDED.brand_voice,\n  updated_at = NOW()\nRETURNING user_id, updated_at",
+        "options": {}
+      },
+      "id": "ee000001-0006-4000-8000-000000000006",
+      "name": "Upsert Brand Voice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1440, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_POSTGRES_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CREDIT_DEDUCTION_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "user_id": "={{ $('Parse Claude Response').item.json.user_id }}",
+          "tool": "brand_voice_subagent",
+          "cost": 15
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "ee000001-0007-4000-8000-000000000007",
+      "name": "Deduct Credits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"user_id\": {{ JSON.stringify($('Parse Claude Response').item.json.user_id) }},\n  \"brand_voice\": {{ JSON.stringify($('Parse Claude Response').item.json.brand_voice) }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ee000001-0008-4000-8000-000000000008",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1920, 300]
+    },
+    {
+      "parameters": {
+        "errorWorkflow": ""
+      },
+      "id": "ee000001-0009-4000-8000-000000000009",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [720, 540]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.message }}\",\n  \"stage\": \"workflow_error\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "ee000001-0010-4000-8000-000000000010",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, 540]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate and Concatenate Samples",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate and Concatenate Samples": {
+      "main": [
+        [
+          {
+            "node": "Fetch System Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch System Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Claude API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude API": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude Response": {
+      "main": [
+        [
+          {
+            "node": "Upsert Brand Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Brand Voice": {
+      "main": [
+        [
+          {
+            "node": "Deduct Credits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduct Credits": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "brand-voice-subagent",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-29T00:00:00.000Z",
+  "id": "bylda-ops-brand-voice-subagent-v2"
+}

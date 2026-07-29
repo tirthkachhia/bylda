@@ -1,0 +1,364 @@
+{
+  "name": "Welcome Sequence Email and In-App",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bylda-ops-welcome-sequence",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "p1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 500],
+      "webhookId": "bylda-ops-welcome-sequence"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst user_id = body.user_id || null;\nif (!user_id) throw new Error('Missing required field: user_id');\n\n// Accept optional pre-passed fields to avoid extra DB calls\nconst email         = body.email         || null;\nconst business_name = body.business_name || null;\nconst operator_name = body.operator_name || null;\nconst plan_tier     = body.plan_tier     || null;\nconst active_tools  = Array.isArray(body.active_tools) ? body.active_tools : null;\nconst dashboard_url = body.dashboard_url || null;\n\nconst has_context = !!(email && operator_name);\n\nreturn [{\n  json: {\n    user_id,\n    has_context,\n    prefilled: { email, business_name, operator_name, plan_tier, active_tools, dashboard_url },\n    now: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "p1000001-0002-0002-0002-000000000002",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/user_profiles?user_id=eq.{{ $json.user_id }}&select=user_id,email,first_name,last_name,business_name,plan_tier",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "p1000001-0003-0003-0003-000000000003",
+      "name": "GET user_profiles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 320],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/ai_operator_configs?user_id=eq.{{ $('Parse & Validate').first().json.user_id }}&select=operator_name,operator_tone,primary_niche,recommended_tools,gtm_strategy_summary,brand_voice_keywords,top_3_pain_points",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": false,
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "p1000001-0004-0004-0004-000000000004",
+      "name": "GET ai_operator_configs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 680],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Parse & Validate').first().json;\n\nif (!items || items.length < 2) {\n  throw new Error(`Expected 2 fetch results, got ${items?.length || 0}`);\n}\n\nconst profileRaw = items[0].json;\nconst aiRaw      = items[1].json;\n\nconst profile  = Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;\nconst aiConfig = Array.isArray(aiRaw)      ? aiRaw[0]      : aiRaw;\n\nif (!profile?.user_id) throw new Error(`No user_profiles record for user_id: ${origin.user_id}`);\n\n// Tool metadata\nconst toolMeta = {\n  launchpad_tool_1:  { name: 'AI Lead Finder',       emoji: '\ud83c\udfaf', action: 'Find your first 50 qualified prospects' },\n  launchpad_tool_2:  { name: 'Copy Generator',        emoji: '\u270d\ufe0f', action: 'Generate homepage and offer copy'       },\n  launchpad_tool_3:  { name: 'Offer Builder',         emoji: '\ud83d\udd25', action: 'Structure your core offer'              },\n  launchpad_tool_4:  { name: 'Email Sequencer',       emoji: '\ud83d\udce7', action: 'Build a 5-step nurture sequence'        },\n  launchpad_tool_5:  { name: 'Funnel Mapper',         emoji: '\ud83d\uddfa\ufe0f', action: 'Map your end-to-end sales funnel'       },\n  launchpad_tool_6:  { name: 'Competitor Analyst',    emoji: '\ud83d\udd0d', action: 'Analyse your top 3 competitors'         },\n  launchpad_tool_7:  { name: 'Ad Creative Studio',    emoji: '\ud83c\udfa8', action: 'Create 5 ad concepts in 10 minutes'     },\n  launchpad_tool_8:  { name: 'VSL Script Writer',     emoji: '\ud83c\udfac', action: 'Write a 5-minute video sales letter'    },\n  launchpad_tool_9:  { name: 'AI Sales Closer',       emoji: '\ud83d\udcb0', action: 'Script your close and handle objections'},\n  launchpad_tool_10: { name: 'Business Automator',    emoji: '\u26a1', action: 'Automate your top 3 manual tasks'       }\n};\n\nconst recommended = Array.isArray(aiConfig?.recommended_tools) ? aiConfig.recommended_tools : ['launchpad_tool_2', 'launchpad_tool_1'];\nconst top3        = recommended.slice(0, 3);\nconst top3Meta    = top3.map(id => ({ id, ...(toolMeta[id] || { name: id, emoji: '\ud83d\udee0', action: 'Get started' }) }));\nconst primaryTool = top3Meta[0];\n\n// Name resolution\nconst first_name    = profile.first_name || (profile.business_name || 'there').split(' ')[0];\nconst business_name = profile.business_name || origin.prefilled.business_name || 'Your Business';\nconst email         = profile.email || origin.prefilled.email;\nconst plan_tier     = (profile.plan_tier || origin.prefilled.plan_tier || 'free').toLowerCase();\nconst operator_name = aiConfig?.operator_name || origin.prefilled.operator_name || `${business_name} AI Operator`;\nconst operator_tone = aiConfig?.operator_tone || 'professional';\nconst primary_niche = aiConfig?.primary_niche || 'Business Automation';\nconst gtm_summary   = aiConfig?.gtm_strategy_summary || null;\n\nif (!email) throw new Error(`No email found for user_id: ${origin.user_id}`);\n\nconst planLabels = { free: 'Free', starter: 'Starter', pro: 'Pro', scale: 'Scale' };\nconst app_base   = process.env.APP_BASE_URL || 'https://app.usebylda.com';\nconst dashboard_url = origin.prefilled.dashboard_url || `${app_base}/dashboard/${origin.user_id}`;\n\nconst upgradeCTAs = {\n  free:    { cta: 'Upgrade to Starter for 100 credits and 5 Launchpad tools', link: 'https://usebylda.com/upgrade/starter' },\n  starter: { cta: 'Upgrade to Pro for 500 credits and full Bylda OS',           link: 'https://usebylda.com/upgrade/pro'     },\n  pro:     { cta: 'Upgrade to Scale for unlimited credits and team seats',      link: 'https://usebylda.com/upgrade/scale'   },\n  scale:   { cta: null, link: null }\n};\nconst upgrade = upgradeCTAs[plan_tier] || upgradeCTAs['free'];\n\nreturn [{\n  json: {\n    user_id:      origin.user_id,\n    now:          origin.now,\n    email,\n    first_name,\n    business_name,\n    plan_tier,\n    plan_label:   planLabels[plan_tier] || 'Free',\n    operator_name,\n    operator_tone,\n    primary_niche,\n    gtm_summary,\n    top3_tools:   top3Meta,\n    primary_tool: primaryTool,\n    dashboard_url,\n    upgrade_cta:  upgrade.cta,\n    upgrade_link: upgrade.link\n  }\n}];"
+      },
+      "id": "p1000001-0005-0005-0005-000000000005",
+      "name": "Merge + Build Message Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst tool1 = d.top3_tools[0] || { emoji: '\ud83d\udee0', name: 'Launchpad Tool', action: 'Get started' };\nconst tool2 = d.top3_tools[1] || null;\nconst tool3 = d.top3_tools[2] || null;\n\nconst toolListHtml = d.top3_tools.map((t, i) => `\n  <div style=\"display:flex;align-items:flex-start;gap:12px;padding:14px;background:#f8fafc;border-radius:8px;margin-bottom:8px\">\n    <span style=\"font-size:24px;line-height:1\">${t.emoji}</span>\n    <div>\n      <p style=\"margin:0;font-weight:600;color:#1e293b\">${t.name}</p>\n      <p style=\"margin:4px 0 0;font-size:13px;color:#64748b\">${t.action}</p>\n    </div>\n  </div>`).join('');\n\nconst gtmBlock = d.gtm_summary ? `\n  <div style=\"background:#f0fdf4;border-left:4px solid #22c55e;padding:16px;border-radius:0 8px 8px 0;margin:20px 0\">\n    <p style=\"margin:0 0 4px;font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.05em\">Your GTM Strategy</p>\n    <p style=\"margin:0;color:#15803d;font-size:14px\">${d.gtm_summary}</p>\n  </div>` : '';\n\nconst upgradeBlock = d.upgrade_cta ? `\n  <div style=\"background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:16px;margin-top:24px\">\n    <p style=\"margin:0;font-size:14px;color:#92400e\">\ud83d\udca1 <strong>Ready to unlock more?</strong> ${d.upgrade_cta} \u2014 <a href=\"${d.upgrade_link}\" style=\"color:#6366f1;font-weight:600\">Upgrade now \u2192</a></p>\n  </div>` : '';\n\nconst emailHtml = `\n<div style=\"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1a1a1a\">\n  <div style=\"background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);padding:36px 40px;border-radius:16px 16px 0 0\">\n    <p style=\"color:rgba(255,255,255,0.7);margin:0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase\">Bylda</p>\n    <h1 style=\"color:white;margin:8px 0 0;font-size:26px;font-weight:700;line-height:1.3\">Welcome, ${d.first_name} \u2014<br>your workspace is live.</h1>\n  </div>\n\n  <div style=\"background:#ffffff;padding:40px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px\">\n\n    <p style=\"font-size:16px;color:#334155;line-height:1.7\">Your AI operator, <strong>${d.operator_name}</strong>, has been configured for <strong>${d.business_name}</strong> in the <strong>${d.primary_niche}</strong> space.</p>\n\n    ${gtmBlock}\n\n    <h2 style=\"font-size:16px;font-weight:700;color:#0f172a;margin:28px 0 12px\">Your top 3 Launchpad tools:</h2>\n    ${toolListHtml}\n\n    <div style=\"background:#6366f1;border-radius:10px;padding:24px;margin:28px 0;text-align:center\">\n      <p style=\"color:rgba(255,255,255,0.8);margin:0 0 6px;font-size:13px\">Start here \u2192</p>\n      <p style=\"color:white;font-size:18px;font-weight:700;margin:0 0 20px\">${tool1.emoji} ${tool1.name}</p>\n      <a href=\"${d.dashboard_url}\" style=\"display:inline-block;padding:12px 32px;background:white;color:#6366f1;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px\">Open Your Workspace \u2192</a>\n    </div>\n\n    ${upgradeBlock}\n\n    <hr style=\"border:none;border-top:1px solid #e2e8f0;margin:32px 0\">\n    <p style=\"font-size:13px;color:#64748b;line-height:1.6\">You're on the <strong>${d.plan_label}</strong> plan. Questions? Just reply to this email \u2014 our team in Tampa, FL responds fast.</p>\n    <p style=\"font-size:12px;color:#94a3b8\">Bylda \u00b7 Tampa, FL \u00b7 <a href=\"https://usebylda.com\" style=\"color:#94a3b8\">usebylda.com</a></p>\n  </div>\n</div>`.trim();\n\nconst toolListText = d.top3_tools.map(t => `${t.emoji} ${t.name} \u2014 ${t.action}`).join('\\n');\n\nconst emailText = `Welcome to Bylda, ${d.first_name}!\n\nYour AI operator \"${d.operator_name}\" is live for ${d.business_name}.\n${d.gtm_summary ? `\\nYour GTM strategy: ${d.gtm_summary}` : ''}\n\nYour top 3 Launchpad tools:\n${toolListText}\n\nStart with ${tool1.emoji} ${tool1.name}: ${tool1.action}\n\nOpen your workspace: ${d.dashboard_url}\n${d.upgrade_cta ? `\\nReady for more? ${d.upgrade_cta}: ${d.upgrade_link}` : ''}\n\nQuestions? Reply to this email.\nBylda \u00b7 support@usebylda.com`;\n\nreturn [{\n  json: {\n    ...d,\n    email_subject: `Welcome to Bylda, ${d.first_name} \u2014 your ${d.operator_name} is ready`,\n    email_html:    emailHtml,\n    email_text:    emailText,\n    notification_message: `Your AI operator ${d.operator_name} is configured and ready. Start with ${tool1.emoji} ${tool1.name}: ${tool1.action}.`\n  }\n}];"
+      },
+      "id": "p1000001-0006-0006-0006-000000000006",
+      "name": "Build Email + Notification Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.RESEND_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from\": \"Bylda <noreply@usebylda.com>\",\n  \"to\": [\"{{ $json.email }}\"],\n  \"subject\": {{ JSON.stringify($json.email_subject) }},\n  \"html\": {{ JSON.stringify($json.email_html) }},\n  \"text\": {{ JSON.stringify($json.email_text) }}\n}",
+        "options": {}
+      },
+      "id": "p1000001-0007-0007-0007-000000000007",
+      "name": "Send Welcome Email (Resend)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/notifications",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $('Build Email + Notification Content').first().json.user_id }}\",\n  \"type\": \"welcome\",\n  \"title\": \"Your AI operator is ready\",\n  \"message\": {{ JSON.stringify($('Build Email + Notification Content').first().json.notification_message) }},\n  \"action_label\": \"Open Workspace\",\n  \"action_url\": {{ JSON.stringify($('Build Email + Notification Content').first().json.dashboard_url) }},\n  \"read\": false,\n  \"created_at\": \"{{ $('Build Email + Notification Content').first().json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "p1000001-0008-0008-0008-000000000008",
+      "name": "INSERT notifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 680],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst origin = $('Build Email + Notification Content').first().json;\n\nif (!items || items.length < 2) {\n  throw new Error(`Expected 2 results (email send + notification insert), got ${items?.length || 0}`);\n}\n\nconst emailResult = items[0].json;\nconst notifResult = items[1].json;\n\nconst email_id      = emailResult?.id   || null;\nconst email_sent    = !!email_id;\nconst notif_record  = Array.isArray(notifResult) ? notifResult[0] : notifResult;\nconst notif_id      = notif_record?.id  || null;\nconst notif_created = !!notif_id;\n\nif (!email_sent)    console.warn(`Welcome email may have failed for ${origin.email}. Response: ${JSON.stringify(emailResult)}`);\nif (!notif_created) console.warn(`Notification insert may have failed for user ${origin.user_id}. Response: ${JSON.stringify(notifResult)}`);\n\nreturn [{\n  json: {\n    ...origin,\n    email_sent,\n    email_id,\n    notif_created,\n    notif_id\n  }\n}];"
+      },
+      "id": "p1000001-0009-0009-0009-000000000009",
+      "name": "Merge Send Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/comms_log",
+        "authentication": "predefinedCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"user_id\": \"{{ $json.user_id }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"comm_type\": \"welcome\",\n  \"trigger\": \"dashboard_created\",\n  \"plan_tier\": \"{{ $json.plan_tier }}\",\n  \"email_sent\": {{ $json.email_sent }},\n  \"email_provider_id\": \"{{ $json.email_id }}\",\n  \"notification_created\": {{ $json.notif_created }},\n  \"notification_id\": \"{{ $json.notif_id }}\",\n  \"metadata\": {{ JSON.stringify({ operator_name: $json.operator_name, primary_niche: $json.primary_niche, top3_tools: $json.top3_tools.map(t => t.name) }) }},\n  \"created_at\": \"{{ $json.now }}\"\n}",
+        "options": {},
+        "nodeCredentialType": "supabaseApi"
+      },
+      "id": "p1000001-0010-0010-0010-000000000010",
+      "name": "INSERT comms_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1940, 500],
+      "credentials": {
+        "supabaseApi": {
+          "id": "xbPYfxBm7UismiBl",
+          "name": "SUPABASE_PROD_SERVICE_ROLE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"action\": \"welcome_sequence_sent\",\n  \"user_id\": \"{{ $('Merge Send Results').first().json.user_id }}\",\n  \"email\": \"{{ $('Merge Send Results').first().json.email }}\",\n  \"email_sent\": {{ $('Merge Send Results').first().json.email_sent }},\n  \"in_app_notification_created\": {{ $('Merge Send Results').first().json.notif_created }},\n  \"operator_name\": {{ JSON.stringify($('Merge Send Results').first().json.operator_name) }},\n  \"sent_at\": \"{{ $('Merge Send Results').first().json.now }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "p1000001-0011-0011-0011-000000000011",
+      "name": "Return: Welcome Sent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2180, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "GET user_profiles",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GET ai_operator_configs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET user_profiles": {
+      "main": [
+        [
+          {
+            "node": "Merge + Build Message Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET ai_operator_configs": {
+      "main": [
+        [
+          {
+            "node": "Merge + Build Message Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge + Build Message Context": {
+      "main": [
+        [
+          {
+            "node": "Build Email + Notification Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email + Notification Content": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email (Resend)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "INSERT notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email (Resend)": {
+      "main": [
+        [
+          {
+            "node": "Merge Send Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT notifications": {
+      "main": [
+        [
+          {
+            "node": "Merge Send Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Send Results": {
+      "main": [
+        [
+          {
+            "node": "INSERT comms_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INSERT comms_log": {
+      "main": [
+        [
+          {
+            "node": "Return: Welcome Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "bylda-ops"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "email"
+    },
+    {
+      "name": "notifications"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-28T00:00:00.000Z",
+  "versionId": "bylda-ops-v1"
+}

@@ -1,0 +1,566 @@
+{
+  "supabase_tables": {
+    "ai_operator_config": ["op:getAll", "op:rest"],
+    "plan_entitlements": ["op:getAll", "op:rest"],
+    "tool_runs": ["op:getAll"],
+    "profiles": ["op:rest"],
+    "operator_sessions": ["op:rest"],
+    "onboarding_responses": ["op:rest"],
+    "tool_outputs": ["op:rest"],
+    "notifications": ["op:rest"],
+    "operator_memory": ["op:rest"],
+    "support_tickets": ["op:rest"],
+    "health_checks": ["op:rest"],
+    "operator_prompts": ["op:rest"]
+  },
+  "env_vars": [
+    "GLOBAL_AI_MODEL_DEFAULT",
+    "GLOBAL_APP_URL_PROD",
+    "GLOBAL_APP_URL_STG",
+    "GLOBAL_ERROR_WEBHOOK_URL",
+    "GLOBAL_SLACK_ALERT_CHANNEL",
+    "N8N_WEBHOOK_BASE_URL",
+    "BYLDA_OPS_ADMIN_TOKEN",
+    "STRIPE_UPGRADE_URL"
+  ],
+  "credentials": {
+    "supabaseApi": ["SUPABASE_PROD_SERVICE_ROLE"],
+    "httpHeaderAuth": ["ANTHROPIC_PROD_API"],
+    "slackApi": ["SLACK_PROD_INTERNAL_ALERTS"],
+    "gmailOAuth2": ["GMAIL_PROD_TRANSACTIONAL"]
+  },
+  "webhook_paths": {
+    "ai-operator-router": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Main Router \u00b7 DHR",
+    "ai-operator-context-loader": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR",
+    "ai-operator-tool-dispatcher": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Tool Dispatcher \u00b7 DHR",
+    "ai-operator-response-formatter": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Response Formatter \u00b7 DHR",
+    "operator-memory-write": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR",
+    "operator-memory-read": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Read \u00b7 DHR",
+    "operator-confidence-fallback": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR",
+    "operator-escalation": "STG \u00b7 OPS \u00b7 Webhook \u2192 Operator Escalation to Human Admin \u00b7 ANS",
+    "operator-prompt-swap": "STG \u00b7 INFRA \u00b7 Webhook \u2192 Operator Version Update Prompt Swap \u00b7 ANS"
+  },
+  "schedule_triggers": [
+    {
+      "workflow": "STG \u00b7 INFRA \u00b7 Schedule \u2192 Operator Health Check Self Test Ping \u00b7 ANS",
+      "params": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "http_urls": {
+    "={var}/api/webhooks/credit-deduct": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Main Router \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Tool Dispatcher \u00b7 DHR"
+    ],
+    "https://api.anthropic.com/v1/messages": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Main Router \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR"
+    ],
+    "={var}": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Main Router \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Response Formatter \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Tool Dispatcher \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Read \u00b7 DHR",
+      "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR",
+      "STG \u00b7 INFRA \u00b7 Schedule \u2192 Operator Health Check Self Test Ping \u00b7 ANS",
+      "STG \u00b7 INFRA \u00b7 Webhook \u2192 Operator Version Update Prompt Swap \u00b7 ANS",
+      "STG \u00b7 OPS \u00b7 Webhook \u2192 Operator Escalation to Human Admin \u00b7 ANS"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/profiles": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR",
+      "STG \u00b7 OPS \u00b7 Webhook \u2192 Operator Escalation to Human Admin \u00b7 ANS"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/ai_operator_config": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_sessions": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/onboarding_responses": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/plan_entitlements": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Tool Dispatcher \u00b7 DHR"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/tool_outputs": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Response Formatter \u00b7 DHR"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/notifications": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Response Formatter \u00b7 DHR"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR"
+    ],
+    "=https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory?id=in.{var}&user_id=eq.{var}": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR"
+    ],
+    "=https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_sessions?session_id=eq.{var}": [
+      "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/support_tickets": [
+      "STG \u00b7 OPS \u00b7 Webhook \u2192 Operator Escalation to Human Admin \u00b7 ANS"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/health_checks": [
+      "STG \u00b7 INFRA \u00b7 Schedule \u2192 Operator Health Check Self Test Ping \u00b7 ANS"
+    ],
+    "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_prompts": [
+      "STG \u00b7 INFRA \u00b7 Webhook \u2192 Operator Version Update Prompt Swap \u00b7 ANS"
+    ]
+  },
+  "subagent_endpoints": [],
+  "by_workflow": {
+    "01-stg-ai-webhook-to-ai-operator-main-router-dhr.json": {
+      "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Main Router \u00b7 DHR",
+      "supabase_tables": {
+        "ai_operator_config": ["op:getAll"],
+        "plan_entitlements": ["op:getAll"],
+        "tool_runs": ["op:getAll"]
+      },
+      "env_vars": ["GLOBAL_AI_MODEL_DEFAULT", "GLOBAL_APP_URL_STG", "GLOBAL_ERROR_WEBHOOK_URL"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "httpHeaderAuth",
+          "name": "ANTHROPIC_PROD_API",
+          "id": "PLACEHOLDER_ANTHROPIC_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "ai-operator-router",
+          "method": "POST",
+          "webhookId": "bylda-ai-operator-router-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "={{ $json.subagent_url }}",
+        "https://stg.usebylda.com/api/webhooks/credit-deduct",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://api.anthropic.com/v1/messages"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.httpRequest": 4,
+        "n8n-nodes-base.if": 1,
+        "n8n-nodes-base.respondToWebhook": 2,
+        "n8n-nodes-base.supabase": 3,
+        "n8n-nodes-base.set": 1,
+        "n8n-nodes-base.code": 1,
+        "n8n-nodes-base.switch": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "02-stg-ai-webhook-to-ai-operator-context-loader-dhr.json": {
+      "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Context Loader \u00b7 DHR",
+      "supabase_tables": {
+        "profiles": ["op:rest"],
+        "ai_operator_config": ["op:rest"],
+        "operator_sessions": ["op:rest"],
+        "onboarding_responses": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_ERROR_WEBHOOK_URL"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "ai-operator-context-loader",
+          "method": "POST",
+          "webhookId": "bylda-context-loader-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/ai_operator_config",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/onboarding_responses",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_sessions",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/profiles"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.httpRequest": 5,
+        "n8n-nodes-base.code": 1,
+        "n8n-nodes-base.respondToWebhook": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "03-stg-ai-webhook-to-ai-operator-tool-dispatcher-dhr.json": {
+      "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Tool Dispatcher \u00b7 DHR",
+      "supabase_tables": {
+        "plan_entitlements": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_APP_URL_STG", "GLOBAL_ERROR_WEBHOOK_URL", "STRIPE_UPGRADE_URL"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "ai-operator-tool-dispatcher",
+          "method": "POST",
+          "webhookId": "bylda-tool-dispatcher-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "={{ $json.tool_url }}",
+        "https://stg.usebylda.com/api/webhooks/credit-deduct",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/plan_entitlements"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.httpRequest": 4,
+        "n8n-nodes-base.code": 2,
+        "n8n-nodes-base.if": 1,
+        "n8n-nodes-base.respondToWebhook": 2,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "04-stg-ai-webhook-to-ai-operator-response-formatter-dhr.json": {
+      "name": "STG \u00b7 AI \u00b7 Webhook \u2192 AI Operator Response Formatter \u00b7 DHR",
+      "supabase_tables": {
+        "tool_outputs": ["op:rest"],
+        "notifications": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_ERROR_WEBHOOK_URL"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "ai-operator-response-formatter",
+          "method": "POST",
+          "webhookId": "bylda-response-formatter-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/notifications",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/tool_outputs"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.code": 1,
+        "n8n-nodes-base.httpRequest": 3,
+        "n8n-nodes-base.merge": 1,
+        "n8n-nodes-base.respondToWebhook": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "05-stg-ai-webhook-to-operator-memory-write-dhr.json": {
+      "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Write \u00b7 DHR",
+      "supabase_tables": {
+        "operator_memory": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_ERROR_WEBHOOK_URL"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "operator-memory-write",
+          "method": "POST",
+          "webhookId": "bylda-memory-write-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "=https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory?id=in.{{ $json.prune_param }}&user_id=eq.{{ $json.user_id }}",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_memory"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.httpRequest": 4,
+        "n8n-nodes-base.code": 1,
+        "n8n-nodes-base.if": 1,
+        "n8n-nodes-base.respondToWebhook": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "06-stg-ai-webhook-to-operator-memory-read-dhr.json": {
+      "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Memory Read \u00b7 DHR",
+      "supabase_tables": {
+        "operator_memory": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_ERROR_WEBHOOK_URL"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "operator-memory-read",
+          "method": "POST",
+          "webhookId": "bylda-memory-read-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "={{ $json.query_url }}",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.code": 2,
+        "n8n-nodes-base.httpRequest": 2,
+        "n8n-nodes-base.respondToWebhook": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "07-stg-ai-webhook-to-operator-confidence-fallback-handler-dhr.json": {
+      "name": "STG \u00b7 AI \u00b7 Webhook \u2192 Operator Confidence Fallback Handler \u00b7 DHR",
+      "supabase_tables": {
+        "operator_sessions": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_AI_MODEL_DEFAULT", "GLOBAL_ERROR_WEBHOOK_URL"],
+      "credentials": [
+        {
+          "type": "httpHeaderAuth",
+          "name": "ANTHROPIC_PROD_API",
+          "id": "PLACEHOLDER_ANTHROPIC_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "operator-confidence-fallback",
+          "method": "POST",
+          "webhookId": "bylda-confidence-fallback-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "=https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_sessions?session_id=eq.{{ $json.session_id }}",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://api.anthropic.com/v1/messages"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.httpRequest": 3,
+        "n8n-nodes-base.code": 1,
+        "n8n-nodes-base.respondToWebhook": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "08-stg-ops-webhook-to-operator-escalation-to-human-admin-ans.json": {
+      "name": "STG \u00b7 OPS \u00b7 Webhook \u2192 Operator Escalation to Human Admin \u00b7 ANS",
+      "supabase_tables": {
+        "support_tickets": ["op:rest"],
+        "profiles": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_APP_URL_PROD", "GLOBAL_ERROR_WEBHOOK_URL", "GLOBAL_SLACK_ALERT_CHANNEL"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        },
+        {
+          "type": "slackApi",
+          "name": "SLACK_PROD_INTERNAL_ALERTS",
+          "id": "PLACEHOLDER_SLACK_CRED_ID"
+        },
+        {
+          "type": "gmailOAuth2",
+          "name": "GMAIL_PROD_TRANSACTIONAL",
+          "id": "PLACEHOLDER_GMAIL_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "operator-escalation",
+          "method": "POST",
+          "webhookId": "bylda-operator-escalation-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/profiles",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/support_tickets"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.httpRequest": 3,
+        "n8n-nodes-base.code": 1,
+        "n8n-nodes-base.slack": 1,
+        "n8n-nodes-base.gmail": 1,
+        "n8n-nodes-base.merge": 1,
+        "n8n-nodes-base.respondToWebhook": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "09-stg-infra-schedule-to-operator-health-check-self-test-ping-ans.json": {
+      "name": "STG \u00b7 INFRA \u00b7 Schedule \u2192 Operator Health Check Self Test Ping \u00b7 ANS",
+      "supabase_tables": {
+        "health_checks": ["op:rest"]
+      },
+      "env_vars": [
+        "GLOBAL_APP_URL_STG",
+        "GLOBAL_ERROR_WEBHOOK_URL",
+        "GLOBAL_SLACK_ALERT_CHANNEL",
+        "N8N_WEBHOOK_BASE_URL"
+      ],
+      "credentials": [
+        {
+          "type": "slackApi",
+          "name": "SLACK_PROD_INTERNAL_ALERTS",
+          "id": "PLACEHOLDER_SLACK_CRED_ID"
+        },
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [],
+      "schedule": [
+        {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        }
+      ],
+      "http_urls": [
+        "={{ $json._url }}",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/health_checks"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.scheduleTrigger": 1,
+        "n8n-nodes-base.code": 4,
+        "n8n-nodes-base.splitInBatches": 1,
+        "n8n-nodes-base.httpRequest": 3,
+        "n8n-nodes-base.if": 1,
+        "n8n-nodes-base.slack": 1,
+        "n8n-nodes-base.merge": 1,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    },
+    "10-stg-infra-webhook-to-operator-version-update-prompt-swap-ans.json": {
+      "name": "STG \u00b7 INFRA \u00b7 Webhook \u2192 Operator Version Update Prompt Swap \u00b7 ANS",
+      "supabase_tables": {
+        "operator_prompts": ["op:rest"]
+      },
+      "env_vars": ["GLOBAL_ERROR_WEBHOOK_URL", "BYLDA_OPS_ADMIN_TOKEN"],
+      "credentials": [
+        {
+          "type": "supabaseApi",
+          "name": "SUPABASE_PROD_SERVICE_ROLE",
+          "id": "PLACEHOLDER_SUPABASE_CRED_ID"
+        }
+      ],
+      "webhook_paths": [
+        {
+          "path": "operator-prompt-swap",
+          "method": "POST",
+          "webhookId": "bylda-prompt-swap-stg"
+        }
+      ],
+      "schedule": [],
+      "http_urls": [
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/n8n_error_log",
+        "https://ipidfqwlszuhjgjygbvx.supabase.co/rest/v1/operator_prompts"
+      ],
+      "node_types_count": {
+        "n8n-nodes-base.webhook": 1,
+        "n8n-nodes-base.code": 1,
+        "n8n-nodes-base.if": 1,
+        "n8n-nodes-base.respondToWebhook": 2,
+        "n8n-nodes-base.httpRequest": 2,
+        "n8n-nodes-base.errorTrigger": 1
+      }
+    }
+  }
+}
