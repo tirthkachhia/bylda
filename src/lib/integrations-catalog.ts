@@ -65,11 +65,25 @@ export const CATALOG: IntegrationDef[] = [
     key: "gohighlevel",
     name: "GoHighLevel",
     category: "CRM & Sales",
-    description: "All-in-one sales and marketing CRM for agencies.",
+    description: "Import contacts and opportunities directly into Bylda CRM.",
     iconSlug: "gohighlevel",
     inputType: "key",
-    hint: "API key",
+    hint: "Private integration token",
     popular: true,
+    fields: [
+      {
+        key: "gohighlevel",
+        label: "Private integration token",
+        hint: "Paste a sub-account private integration token",
+        inputType: "key",
+      },
+      {
+        key: "gohighlevel_location",
+        label: "Location ID",
+        hint: "Your GoHighLevel sub-account location ID",
+        inputType: "text",
+      },
+    ],
   },
   {
     key: "salesforce",

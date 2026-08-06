@@ -442,6 +442,24 @@ export async function saveIntegration(integrationKey: string, value: string) {
   return data;
 }
 
+export type GoHighLevelSyncResult = {
+  ok: boolean;
+  location_id: string;
+  contacts_imported: number;
+  opportunities_imported: number;
+  contacts_received: number;
+  opportunities_received: number;
+};
+
+export async function syncGoHighLevel() {
+  const { data, error } = await supabase.functions.invoke("sync-gohighlevel", {
+    body: { action: "sync" },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data as GoHighLevelSyncResult;
+}
+
 export async function disconnectIntegration(userId: string, integrationKey: string) {
   const { error } = await supabase
     .from("user_integrations")

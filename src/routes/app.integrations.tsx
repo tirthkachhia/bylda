@@ -6,7 +6,12 @@ import { StatusPill } from "@/components/app/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
-import { integrationsQuery, saveIntegration, type MaskedIntegration } from "@/lib/queries";
+import {
+  integrationsQuery,
+  saveIntegration,
+  syncGoHighLevel,
+  type MaskedIntegration,
+} from "@/lib/queries";
 import { blockIfGuest } from "@/lib/guest";
 import { toast } from "sonner";
 import {
@@ -16,7 +21,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Search, Plus, Check, Lock, AlertTriangle, X, Plug } from "lucide-react";
+import { Search, Plus, Check, Lock, AlertTriangle, X, Plug, RefreshCw } from "lucide-react";
 import {
   CATALOG,
   CATEGORIES,
@@ -139,7 +144,7 @@ function ConnectModal({
       setErr(`Enter ${missing.map((f) => f.label).join(", ")}`);
       return;
     }
-    if (entered.length === 0) {
+    if (entered.length === 0 && item.key !== "gohighlevel") {
       onClose();
       return;
     }
@@ -150,7 +155,14 @@ function ConnectModal({
       for (const f of entered) {
         await saveIntegration(f.key, vals[f.key].trim());
       }
-      toast.success(`${item.name} ${anyConnected ? "updated" : "connected"}`);
+      if (item.key === "gohighlevel") {
+        const result = await syncGoHighLevel();
+        toast.success(
+          `GoHighLevel synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
+        );
+      } else {
+        toast.success(`${item.name} ${anyConnected ? "updated" : "connected"}`);
+      }
       onSaved();
       onClose();
     } catch (e) {
@@ -272,7 +284,19 @@ function ConnectModal({
                     boxShadow: "0 3px 10px color-mix(in oklab, var(--primary) 30%, transparent)",
                   }}
                 >
-                  {saving ? "Saving…" : anyConnected ? "Update" : "Connect"}
+                  {saving ? (
+                    "Saving…"
+                  ) : item.key === "gohighlevel" && anyConnected ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Sync CRM data
+                    </span>
+                  ) : anyConnected ? (
+                    "Update"
+                  ) : item.key === "gohighlevel" ? (
+                    "Connect & import"
+                  ) : (
+                    "Connect"
+                  )}
                 </button>
                 {anyConnected && (
                   <button
