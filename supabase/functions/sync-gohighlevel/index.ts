@@ -83,12 +83,76 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const [token, locationId] = await Promise.all([
+    const [storedCredential, storedLocationId] = await Promise.all([
       secret("gohighlevel"),
       secret("gohighlevel_location"),
     ]);
+    let token = storedCredential;
+    let locationId = storedLocationId;
+    if (storedCredential.startsWith("{")) {
+      try {
+        const oauth = JSON.parse(storedCredential) as {
+          access_token?: string;
+          refresh_token?: string;
+          expires_at?: string;
+          scope?: string[];
+          location_id?: string;
+          external_account_id?: string;
+        };
+        token = oauth.access_token ?? "";
+        locationId = oauth.location_id ?? storedLocationId;
+        const expiresAt = oauth.expires_at ? new Date(oauth.expires_at).getTime() : 0;
+        if (expiresAt > 0 && expiresAt <= Date.now() + 60_000) {
+          const clientId = Deno.env.get("GHL_CLIENT_ID");
+          const clientSecret = Deno.env.get("GHL_CLIENT_SECRET");
+          if (!oauth.refresh_token || !clientId || !clientSecret) {
+            return json({ error: "Reconnect GoHighLevel to renew access." }, 401);
+          }
+          const refreshResponse = await fetch("https://services.leadconnectorhq.com/oauth/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded", Version: "v3" },
+            body: new URLSearchParams({
+              clientId,
+              clientSecret,
+              grantType: "refresh_token",
+              refreshToken: oauth.refresh_token,
+              userType: "Location",
+            }),
+          });
+          const refreshed = await refreshResponse.json().catch(() => ({}));
+          if (!refreshResponse.ok || !refreshed.accessToken) {
+            return json({ error: "GoHighLevel access expired. Reconnect the account." }, 401);
+          }
+          token = refreshed.accessToken;
+          locationId = refreshed.locationId ?? locationId;
+          const nextExpiry = new Date(Date.now() + Number(refreshed.expiresIn ?? 86400) * 1000);
+          const nextPayload = JSON.stringify({
+            ...oauth,
+            access_token: token,
+            refresh_token: refreshed.refreshToken ?? oauth.refresh_token,
+            expires_at: nextExpiry.toISOString(),
+            location_id: locationId,
+          });
+          await admin.rpc("set_oauth_integration", {
+            _user_id: user.id,
+            _integration_key: "gohighlevel",
+            _token_payload: nextPayload,
+            _account_label: `HighLevel location ${locationId}`,
+            _external_account_id: oauth.external_account_id ?? locationId,
+            _scopes: oauth.scope ?? [],
+            _token_expires_at: nextExpiry.toISOString(),
+            _encryption_key: encKey,
+          });
+        }
+      } catch {
+        return json(
+          { error: "The GoHighLevel connection is invalid. Reconnect the account." },
+          400,
+        );
+      }
+    }
     if (!token || !locationId) {
-      return json({ error: "Connect a GoHighLevel token and Location ID first" }, 400);
+      return json({ error: "Connect your GoHighLevel account first" }, 400);
     }
 
     const headers = {
@@ -111,7 +175,10 @@ Deno.serve(async (req) => {
     ]);
 
     if (contactsResponse.status === 401 || opportunitiesResponse.status === 401) {
-      return json({ error: "GoHighLevel rejected this token. Check its sub-account and scopes." }, 401);
+      return json(
+        { error: "GoHighLevel rejected this token. Check its sub-account and scopes." },
+        401,
+      );
     }
     if (!contactsResponse.ok) {
       const detail = await contactsResponse.text();
@@ -127,25 +194,27 @@ Deno.serve(async (req) => {
     const opportunities: GhlOpportunity[] =
       opportunitiesPayload.opportunities ?? opportunitiesPayload.results ?? [];
 
-    const contactRows = contacts.filter((c) => c.id).map((c) => {
-      const names = (c.name ?? "").trim().split(/\s+/);
-      return {
-        user_id: user.id,
-        org_id: orgId,
-        first_name: c.firstName ?? names[0] ?? null,
-        last_name: c.lastName ?? (names.slice(1).join(" ") || null),
-        email: c.email ?? null,
-        phone: c.phone ?? null,
-        company: c.companyName ?? null,
-        status: "new",
-        source: c.source ?? "GoHighLevel",
-        tags: Array.isArray(c.tags) ? c.tags : [],
-        custom_fields: { gohighlevel: c.customFields ?? [] },
-        external_source: "gohighlevel",
-        external_id: c.id,
-        updated_at: new Date().toISOString(),
-      };
-    });
+    const contactRows = contacts
+      .filter((c) => c.id)
+      .map((c) => {
+        const names = (c.name ?? "").trim().split(/\s+/);
+        return {
+          user_id: user.id,
+          org_id: orgId,
+          first_name: c.firstName ?? names[0] ?? null,
+          last_name: c.lastName ?? (names.slice(1).join(" ") || null),
+          email: c.email ?? null,
+          phone: c.phone ?? null,
+          company: c.companyName ?? null,
+          status: "new",
+          source: c.source ?? "GoHighLevel",
+          tags: Array.isArray(c.tags) ? c.tags : [],
+          custom_fields: { gohighlevel: c.customFields ?? [] },
+          external_source: "gohighlevel",
+          external_id: c.id,
+          updated_at: new Date().toISOString(),
+        };
+      });
 
     let contactsImported = 0;
     if (contactRows.length) {
@@ -157,26 +226,28 @@ Deno.serve(async (req) => {
       contactsImported = data?.length ?? contactRows.length;
     }
 
-    const leadRows = opportunities.filter((o) => o.id).map((o) => ({
-      organization_id: orgId,
-      user_id: user.id,
-      name: o.name ?? o.contact?.name ?? "GoHighLevel opportunity",
-      email: o.contact?.email ?? null,
-      phone: o.contact?.phone ?? null,
-      company: o.contact?.companyName ?? null,
-      stage: "New",
-      source: o.source ?? "GoHighLevel",
-      value: o.monetaryValue ?? null,
-      external_source: "gohighlevel",
-      external_id: o.id,
-      external_data: {
-        status: o.status,
-        pipeline_id: o.pipelineId,
-        pipeline_stage_id: o.pipelineStageId,
-        contact_id: o.contactId,
-      },
-      updated_at: new Date().toISOString(),
-    }));
+    const leadRows = opportunities
+      .filter((o) => o.id)
+      .map((o) => ({
+        organization_id: orgId,
+        user_id: user.id,
+        name: o.name ?? o.contact?.name ?? "GoHighLevel opportunity",
+        email: o.contact?.email ?? null,
+        phone: o.contact?.phone ?? null,
+        company: o.contact?.companyName ?? null,
+        stage: "New",
+        source: o.source ?? "GoHighLevel",
+        value: o.monetaryValue ?? null,
+        external_source: "gohighlevel",
+        external_id: o.id,
+        external_data: {
+          status: o.status,
+          pipeline_id: o.pipelineId,
+          pipeline_stage_id: o.pipelineStageId,
+          contact_id: o.contactId,
+        },
+        updated_at: new Date().toISOString(),
+      }));
 
     let opportunitiesImported = 0;
     if (leadRows.length) {

@@ -13,7 +13,7 @@ import {
   planEntitlementsQuery,
   integrationsQuery,
   usageQuery,
-  saveIntegration,
+  disconnectIntegration,
   type OrgMember,
   type OrgRole,
 } from "@/lib/queries";
@@ -795,7 +795,7 @@ function ConnectorsTab() {
             Connected integrations
           </div>
           <div className="mt-0.5 text-[12px]" style={{ color: "var(--muted-foreground)" }}>
-            Manage credentials for your active connections.
+            Manage secure connected accounts. No teammate-facing API keys.
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -844,15 +844,14 @@ function ConnectorsTab() {
             const def = getCatalogByKey(conn.integration_key);
             const displayName = def?.name ?? conn.integration_key;
             const iconSlug = def?.iconSlug;
-            const inputType = def?.inputType ?? "key";
             return (
               <ConnectorRow
                 key={conn.integration_key}
                 integrationKey={conn.integration_key}
                 name={displayName}
                 iconSlug={iconSlug}
-                last4={conn.value_last4}
-                inputType={inputType}
+                accountLabel={conn.account_label}
+                connectionType={conn.connection_type}
                 onSaved={refresh}
               />
             );
@@ -882,47 +881,26 @@ function ConnectorRow({
   integrationKey,
   name,
   iconSlug,
-  last4,
-  inputType,
+  accountLabel,
+  connectionType,
   onSaved,
 }: {
   integrationKey: string;
   name: string;
   iconSlug?: string;
-  last4: string | null;
-  inputType: string;
+  accountLabel?: string | null;
+  connectionType?: "oauth" | "legacy_credential";
   onSaved: () => void;
 }) {
   const { user } = useAuth();
-  const [val, setVal] = useState("");
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
-
-  const update = async () => {
-    if (blockIfGuest("Sign up to manage integrations.")) return;
-    if (!user || !val) return;
-    setSaving(true);
-    setErr(null);
-    try {
-      await saveIntegration(integrationKey, val);
-      toast.success(`${name} updated`);
-      setVal("");
-      setExpanded(false);
-      onSaved();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const disconnect = async () => {
     if (blockIfGuest("Sign up to manage integrations.")) return;
     if (!user) return;
     setSaving(true);
     try {
-      await saveIntegration(integrationKey, "");
+      await disconnectIntegration(user.id, integrationKey);
       toast.success(`${name} disconnected`);
       onSaved();
     } catch (e) {
@@ -951,24 +929,25 @@ function ConnectorRow({
           <div className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
             {name}
           </div>
-          {last4 && (
-            <div className="text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
-              ending …{last4}
-            </div>
-          )}
+          <div className="text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
+            {connectionType === "oauth"
+              ? (accountLabel ?? "OAuth account connected")
+              : "Legacy connection — reconnect securely"}
+          </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setExpanded((x) => !x)}
-            className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition"
-            style={{
-              background: "color-mix(in oklab, var(--primary) 10%, transparent)",
-              border: "1px solid color-mix(in oklab, var(--primary) 20%, transparent)",
-              color: "var(--primary)",
-            }}
-          >
-            Update
-          </button>
+          <Link to="/app/integrations">
+            <button
+              className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition"
+              style={{
+                background: "color-mix(in oklab, var(--primary) 10%, transparent)",
+                border: "1px solid color-mix(in oklab, var(--primary) 20%, transparent)",
+                color: "var(--primary)",
+              }}
+            >
+              Manage account
+            </button>
+          </Link>
           <button
             onClick={disconnect}
             disabled={saving}
@@ -983,43 +962,6 @@ function ConnectorRow({
           </button>
         </div>
       </div>
-
-      {expanded && (
-        <div className="px-4 pb-3 space-y-2">
-          <div className="flex gap-2">
-            <Input
-              placeholder={`New ${inputType === "url" ? "URL" : "API key / token"}`}
-              value={val}
-              onChange={(e) => {
-                setVal(e.target.value);
-                setErr(null);
-              }}
-              type={inputType === "url" ? "text" : "password"}
-              className="rounded-xl text-[12.5px]"
-              style={{ background: "var(--surface-2)" }}
-            />
-            <button
-              onClick={update}
-              disabled={saving || !val}
-              className="shrink-0 rounded-xl px-4 text-[12px] font-semibold text-white transition disabled:opacity-40"
-              style={{
-                background: "linear-gradient(135deg, var(--primary), var(--accent))",
-              }}
-            >
-              {saving ? "…" : "Save"}
-            </button>
-          </div>
-          {err && (
-            <div
-              className="flex items-center gap-1 text-[11.5px]"
-              style={{ color: "var(--destructive)" }}
-            >
-              <AlertTriangle className="h-3 w-3 shrink-0" />
-              {err}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

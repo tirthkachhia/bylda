@@ -17,6 +17,14 @@ verify_jwt = true
 [functions.save-integration]
 verify_jwt = true
 
+# Starts a user-authorized provider OAuth flow. Requires a valid Supabase JWT.
+[functions.integration-oauth-start]
+verify_jwt = true
+
+# Provider redirect target; state is single-use and validated by the function.
+[functions.integration-oauth-callback]
+verify_jwt = false
+
 [functions.generate-ai-dashboard]
 verify_jwt = true
 

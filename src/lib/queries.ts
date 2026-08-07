@@ -418,6 +418,11 @@ export type MaskedIntegration = {
   is_connected: boolean;
   created_at: string;
   updated_at: string;
+  connection_type?: "oauth" | "legacy_credential";
+  account_label?: string | null;
+  external_account_id?: string | null;
+  scopes?: string[];
+  token_expires_at?: string | null;
 };
 
 export const integrationsQuery = (userId: string) =>
@@ -440,6 +445,16 @@ export async function saveIntegration(integrationKey: string, value: string) {
   });
   if (error) throw error;
   return data;
+}
+
+export async function startIntegrationOAuth(integrationKey: string) {
+  const { data, error } = await supabase.functions.invoke("integration-oauth-start", {
+    body: { integration_key: integrationKey },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  if (!data?.authorization_url) throw new Error("Provider sign-in URL was not returned");
+  return data as { authorization_url: string; provider: string };
 }
 
 export type GoHighLevelSyncResult = {
