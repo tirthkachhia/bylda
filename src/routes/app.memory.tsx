@@ -104,6 +104,7 @@ function MemoryPage() {
 
   const [queryText, setQueryText] = useState("");
   const [queryAnswer, setQueryAnswer] = useState<string | null>(null);
+  const [queryProvider, setQueryProvider] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"business" | "sources" | "artifacts" | "query">(
     "business",
   );
@@ -136,14 +137,38 @@ function MemoryPage() {
 
   const queryMutation = useMutation({
     mutationFn: async ({ query, orgId }: { query: string; orgId: string }) => {
-      const { data, error } = await supabase.functions.invoke("memory-query", {
-        body: { query, orgId },
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sign in again to use Ask AI.");
+
+      const response = await fetch(import.meta.env.VITE_BYLDA_AI_URL || "https://ai.usebylda.com", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ mode: "memory_query", message: query, org_id: orgId }),
       });
-      if (error) throw new Error(error.message);
-      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-      return data as { answer: string; sources_searched?: number };
+      const data = (await response.json()) as {
+        answer?: string;
+        error?: string;
+        sources_searched?: number;
+        provider?: string;
+      };
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `Ask AI failed (${response.status})`);
+      }
+      return {
+        answer: data.answer ?? "No response generated.",
+        sources_searched: data.sources_searched,
+        provider: data.provider,
+      };
     },
-    onSuccess: (data) => setQueryAnswer(data.answer),
+    onSuccess: (data) => {
+      setQueryAnswer(data.answer);
+      setQueryProvider(data.provider ?? null);
+    },
     onError: () => toast.error("Failed to query memory. Please try again."),
   });
 
@@ -718,6 +743,7 @@ function MemoryPage() {
                 onClick={() => {
                   if (currentOrgId && queryText.trim()) {
                     setQueryAnswer(null);
+                    setQueryProvider(null);
                     queryMutation.mutate({ query: queryText, orgId: currentOrgId });
                   }
                 }}
@@ -799,11 +825,21 @@ function MemoryPage() {
               className="rounded-xl p-5 space-y-3"
               style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
-              <div className="flex items-center gap-2">
-                <Brain className="h-4 w-4 shrink-0" style={{ color: "var(--primary)" }} />
-                <span className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
-                  Answer
-                </span>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-4 w-4 shrink-0" style={{ color: "var(--primary)" }} />
+                  <span
+                    className="text-[13px] font-semibold"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    Answer
+                  </span>
+                </div>
+                {queryProvider === "cloudflare-workers-ai" && (
+                  <span className="rounded-full bg-orange-500/10 px-2.5 py-1 text-[9px] font-semibold text-orange-600">
+                    Cloudflare Workers AI
+                  </span>
+                )}
               </div>
               <div
                 className="text-[13px] leading-relaxed whitespace-pre-wrap"
