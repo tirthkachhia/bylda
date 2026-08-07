@@ -1,942 +1,370 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BarChart3,
+  Check,
+  CircleDot,
+  Clock3,
+  Database,
+  Mail,
+  MessageSquareText,
+  PhoneCall,
+  Play,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { useEffect } from "react";
+import { Logo } from "@/components/brand/Logo";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({ component: LandingPage });
+
+const workflow = [
+  {
+    step: "01",
+    title: "Brief the rep",
+    detail: "Deal context, open blockers, and the question that moves it forward.",
+    icon: Sparkles,
+  },
+  {
+    step: "02",
+    title: "Capture the call",
+    detail: "Use the recording and transcript from the dialer already in your stack.",
+    icon: PhoneCall,
+  },
+  {
+    step: "03",
+    title: "Verify the work",
+    detail: "Review the outcome, next step, stage, objection, and budget with evidence.",
+    icon: BadgeCheck,
+  },
+  {
+    step: "04",
+    title: "Write it back",
+    detail: "Approve one update to your CRM and send the grounded follow-up.",
+    icon: Database,
+  },
+];
 
 function LandingPage() {
   const navigate = useNavigate();
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // /app resolves the mode-aware product home (Launchpad vs Bylda).
-      if (!cancelled && session) navigate({ to: "/app" });
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session) navigate({ to: "/app/crm/calls" });
     });
     return () => {
       cancelled = true;
     };
   }, [navigate]);
-  return <CinematicLanding />;
+
+  return (
+    <div className="min-h-screen bg-[#f4f4ef] text-[#111318] selection:bg-[#b9d4ff]">
+      <header className="sticky top-0 z-50 border-b border-black/[0.08] bg-[#f4f4ef]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-[72px] max-w-[1240px] items-center justify-between px-5 sm:px-8">
+          <Link to="/" aria-label="Bylda home">
+            <Logo />
+          </Link>
+          <nav className="hidden items-center gap-7 text-[13px] font-medium text-[#5d626b] md:flex">
+            <a href="#product" className="transition hover:text-black">
+              Product
+            </a>
+            <a href="#workflow" className="transition hover:text-black">
+              How it works
+            </a>
+            <Link to="/pricing" className="transition hover:text-black">
+              Pricing
+            </Link>
+            <Link to="/about" className="transition hover:text-black">
+              Company
+            </Link>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/auth/sign-in"
+              className="px-3 py-2 text-[13px] font-semibold text-[#555b65] hover:text-black"
+            >
+              Sign in
+            </Link>
+            <Link
+              to="/auth/sign-up"
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-[#111318] px-4 text-[12px] font-semibold text-white hover:bg-[#2b3038]"
+            >
+              Start pilot <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section className="relative overflow-hidden border-b border-black/[0.08]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_15%,rgba(107,151,229,0.2),transparent_30%)]" />
+          <div className="relative mx-auto grid max-w-[1240px] gap-12 px-5 pb-16 pt-20 sm:px-8 lg:grid-cols-[0.88fr_1.12fr] lg:items-center lg:pb-24 lg:pt-24">
+            <div>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-black/[0.1] bg-white/60 px-3 py-1.5 text-[11px] font-semibold text-[#454b55]">
+                <CircleDot className="h-3.5 w-3.5 text-[#3275d8]" /> Built for CRM-native revenue
+                teams
+              </div>
+              <h1 className="max-w-[680px] text-[48px] font-bold leading-[0.98] tracking-[-0.062em] sm:text-[68px] lg:text-[78px]">
+                Every call leaves the CRM <span className="text-[#3275d8]">better.</span>
+              </h1>
+              <p className="mt-7 max-w-[570px] text-[17px] leading-7 text-[#60656e]">
+                Bylda turns sales conversations into verified CRM updates, buyer-grounded
+                follow-ups, and deal memory—without replacing your dialer or CRM.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  to="/auth/sign-up"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#111318] px-6 text-[13px] font-semibold text-white hover:bg-[#2b3038]"
+                >
+                  Start a pilot <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/auth/sign-in"
+                  search={{ redirect: "/app/crm/calls" } as never}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/[0.12] bg-white/60 px-6 text-[13px] font-semibold hover:bg-white"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current" /> Open live demo
+                </Link>
+              </div>
+              <div className="mt-9 flex flex-wrap gap-x-6 gap-y-2 text-[11px] font-medium text-[#6d727b]">
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-[#3275d8]" /> No CRM migration
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-[#3275d8]" /> Human-approved updates
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-[#3275d8]" /> Evidence on every field
+                </span>
+              </div>
+            </div>
+            <ProductPreview />
+          </div>
+        </section>
+
+        <section id="workflow" className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
+          <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr]">
+            <div className="max-w-sm">
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#3275d8]">
+                The closed loop
+              </div>
+              <h2 className="mt-4 text-[38px] font-bold leading-[1.04] tracking-[-0.05em] sm:text-[48px]">
+                The conversation becomes the work.
+              </h2>
+              <p className="mt-5 text-[15px] leading-7 text-[#666b73]">
+                Reps stay in the conversation. Bylda handles the admin while keeping every decision
+                reviewable.
+              </p>
+            </div>
+            <div className="grid gap-px overflow-hidden rounded-[24px] border border-black/[0.1] bg-black/[0.1] sm:grid-cols-2">
+              {workflow.map(({ step, title, detail, icon: Icon }) => (
+                <article key={step} className="min-h-[220px] bg-[#fafaf7] p-7">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[11px] text-[#8a8e95]">{step}</span>
+                    <Icon className="h-5 w-5 text-[#3275d8]" />
+                  </div>
+                  <h3 className="mt-10 text-[20px] font-bold tracking-[-0.025em]">{title}</h3>
+                  <p className="mt-3 text-[13px] leading-6 text-[#6c717a]">{detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="product" className="bg-[#111318] text-white">
+          <div className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
+            <div className="mb-12 max-w-2xl">
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#78a9f2]">
+                One shared source of truth
+              </div>
+              <h2 className="mt-4 text-[38px] font-bold leading-[1.04] tracking-[-0.05em] sm:text-[50px]">
+                What the buyer said—not what the pipeline hopes.
+              </h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <DarkFeature
+                icon={MessageSquareText}
+                title="Call intelligence"
+                body="Outcomes, objections, competitors, pricing, and next steps extracted with linked transcript evidence."
+              />
+              <DarkFeature
+                icon={Mail}
+                title="Grounded follow-up"
+                body="A ready-to-send recap built from commitments actually made on the call—not a generic template."
+              />
+              <DarkFeature
+                icon={BarChart3}
+                title="Explainable forecast"
+                body="Managers see deal risk and pipeline movement backed by real buyer behavior across every conversation."
+              />
+            </div>
+            <div className="mt-4 flex flex-col gap-5 rounded-[24px] border border-white/[0.1] bg-white/[0.035] p-7 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1b2f4e] text-[#80acf0]">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Designed for human control</h3>
+                  <p className="mt-1 max-w-2xl text-[13px] leading-6 text-[#9097a3]">
+                    Nothing writes to the CRM until a rep approves it. Every proposed value shows
+                    its source and confidence.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/about"
+                className="shrink-0 text-[12px] font-semibold text-[#8bb5f5] hover:text-white"
+              >
+                Security & approach →
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[1240px] px-5 py-20 sm:px-8 lg:py-28">
+          <div className="rounded-[30px] border border-black/[0.09] bg-white px-6 py-14 text-center shadow-[0_24px_80px_rgba(22,27,35,0.07)] sm:px-12">
+            <Clock3 className="mx-auto h-6 w-6 text-[#3275d8]" />
+            <h2 className="mx-auto mt-5 max-w-2xl text-[38px] font-bold leading-[1.05] tracking-[-0.05em] sm:text-[50px]">
+              See the finished work before your next call.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-[14px] leading-6 text-[#666b73]">
+              Connect a call source and CRM, then run a controlled pilot with your existing sales
+              process.
+            </p>
+            <div className="mt-8 flex justify-center gap-3">
+              <Link
+                to="/auth/sign-up"
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-[#3275d8] px-6 text-[13px] font-semibold text-white hover:bg-[#2867be]"
+              >
+                Start pilot <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/pricing"
+                className="inline-flex h-12 items-center rounded-full border border-black/[0.12] px-6 text-[13px] font-semibold hover:bg-[#f5f5f1]"
+              >
+                View pricing
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-black/[0.08]">
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-5 py-8 text-[12px] text-[#737780] sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <Logo className="text-[#111318]" markClassName="h-8 w-8 rounded-[9px]" />
+          <div className="flex gap-5">
+            <Link to="/pricing">Pricing</Link>
+            <Link to="/about">Company</Link>
+            <a href="mailto:hello@usebylda.com">Contact</a>
+          </div>
+          <span>© 2026 Bylda, Inc.</span>
+        </div>
+      </footer>
+    </div>
+  );
 }
 
-// ─── Dashboard mock ──────────────────────────────────────────────────────────
-
-function DashboardMock() {
+function ProductPreview() {
   return (
-    <div
-      style={{
-        width: 860,
-        maxWidth: "88vw",
-        borderRadius: 13,
-        background: "#09091e",
-        overflow: "hidden",
-        userSelect: "none",
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          height: 38,
-          background: "#05051a",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 14px",
-          gap: 7,
-        }}
-      >
-        {["#ff5f56", "#ffbd2e", "#27c93f"].map((c) => (
-          <div
-            key={c}
-            style={{ width: 11, height: 11, borderRadius: "50%", background: c, opacity: 0.85 }}
-          />
-        ))}
-        <div
-          style={{
-            flex: 1,
-            textAlign: "center",
-            fontSize: 11,
-            color: "rgba(255,255,255,0.18)",
-            fontFamily: "monospace",
-          }}
-        >
-          bylda-os — dashboard
+    <div className="relative lg:pl-6">
+      <div className="overflow-hidden rounded-[26px] border border-black/[0.12] bg-[#111318] shadow-[0_32px_90px_rgba(25,30,38,0.22)]">
+        <div className="flex h-12 items-center justify-between border-b border-white/[0.08] px-4">
+          <div className="flex items-center gap-2 text-[10px] font-semibold text-[#aeb5c0]">
+            <span className="h-2 w-2 rounded-full bg-[#4bd58b]" /> Call complete · 26:14
+          </div>
+          <span className="text-[9px] uppercase tracking-[0.14em] text-[#646d7b]">
+            Review before write-back
+          </span>
+        </div>
+        <div className="grid gap-px bg-white/[0.08] sm:grid-cols-[1.1fr_0.9fr]">
+          <div className="bg-[#111318] p-5 sm:p-6">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#667181]">
+              Northstar Logistics
+            </div>
+            <h3 className="mt-2 text-[22px] font-bold tracking-[-0.035em] text-white">
+              Technical review agreed
+            </h3>
+            <p className="mt-2 text-[12px] leading-5 text-[#8992a0]">
+              Maya confirmed budget and needs implementation inside two weeks.
+            </p>
+            <div className="mt-6 space-y-3">
+              <PreviewField label="Deal stage" value="Evaluation" confidence="98%" />
+              <PreviewField label="Budget" value="$28k–$35k" confidence="94%" />
+              <PreviewField
+                label="Next step"
+                value="Technical review · Tue 2 PM"
+                confidence="99%"
+              />
+            </div>
+          </div>
+          <div className="bg-[#0c0f14] p-5 sm:p-6">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#748095]">
+              <MessageSquareText className="h-3.5 w-3.5" /> Evidence
+            </div>
+            <blockquote className="mt-5 border-l-2 border-[#3275d8] pl-4 text-[12px] leading-6 text-[#b1b8c3]">
+              “We have budget in the thirty-thousand range. Tuesday at two works for the technical
+              review.”
+            </blockquote>
+            <div className="mt-4 font-mono text-[9px] text-[#596271]">
+              17:31–24:08 · Maya Rodriguez
+            </div>
+            <button className="mt-8 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#3275d8] text-[11px] font-semibold text-white">
+              <Check className="h-3.5 w-3.5" /> Approve CRM update
+            </button>
+          </div>
         </div>
       </div>
-      <div style={{ display: "flex", height: 488 }}>
-        <div
-          style={{
-            width: 186,
-            background: "#060618",
-            borderRight: "1px solid rgba(255,255,255,0.05)",
-            padding: "14px 10px",
-          }}
-        >
-          {[
-            { name: "Dashboard", active: false },
-            { name: "Idea Validator", active: true },
-            { name: "Pitch Generator", active: false },
-            { name: "GTM Strategy", active: false },
-            { name: "Funding Score", active: false },
-            { name: "Investor Emails", active: false },
-            { name: "First 10 Customers", active: false },
-          ].map(({ name, active }) => (
-            <div
-              key={name}
-              style={{
-                padding: "7px 10px",
-                borderRadius: 7,
-                marginBottom: 3,
-                fontSize: 11.5,
-                background: active ? "rgba(59,130,246,0.14)" : "transparent",
-                color: active ? "#3b82f6" : "rgba(255,255,255,0.38)",
-                border: active ? "1px solid rgba(59,130,246,0.22)" : "1px solid transparent",
-                fontWeight: active ? 600 : 400,
-              }}
-            >
-              {name}
-            </div>
-          ))}
-        </div>
-        <div style={{ flex: 1, padding: "22px 24px", overflow: "hidden" }}>
-          <div style={{ fontSize: 17, fontWeight: 700, color: "#f0f4ff", marginBottom: 3 }}>
-            Idea Validator
+      <div className="absolute -bottom-5 -left-2 hidden rounded-2xl border border-black/[0.1] bg-white p-4 shadow-xl sm:block">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e6f5ed] text-[#258456]">
+            <Mail className="h-4 w-4" />
           </div>
-          <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.3)", marginBottom: 18 }}>
-            Stress-test your concept before you build
+          <div>
+            <div className="text-[11px] font-semibold">Follow-up drafted</div>
+            <div className="mt-0.5 text-[9px] text-[#737780]">Grounded in 4 call moments</div>
           </div>
-          <div
-            style={{
-              background: "#0d0d26",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 10,
-              padding: "13px 15px",
-              marginBottom: 14,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10.5,
-                color: "rgba(255,255,255,0.28)",
-                marginBottom: 7,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              Your idea
-            </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
-              AI that writes investor updates in 30 seconds so founders focus on building…
-            </div>
-          </div>
-          {[
-            { label: "Market Viability", pct: 87, color: "#3b82f6" },
-            { label: "Competition Level", pct: 64, color: "#8b5cf6" },
-            { label: "Execution Risk", pct: 38, color: "#06b6d4" },
-            { label: "Investor Appeal", pct: 91, color: "#10b981" },
-          ].map(({ label, pct, color }) => (
-            <div key={label} style={{ marginBottom: 11 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.4)",
-                  marginBottom: 5,
-                }}
-              >
-                <span>{label}</span>
-                <span style={{ color, fontWeight: 600 }}>{pct}%</span>
-              </div>
-              <div style={{ height: 3.5, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
-                <div
-                  style={{
-                    height: 3.5,
-                    width: `${pct}%`,
-                    background: color,
-                    borderRadius: 2,
-                    boxShadow: `0 0 8px ${color}55`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Crack paths ─────────────────────────────────────────────────────────────
-
-const CRACKS = [
-  "M50,50 L8,12 L2,0",
-  "M50,50 L82,8 L96,0",
-  "M50,50 L96,42 L100,28",
-  "M50,50 L88,78 L100,92",
-  "M50,50 L62,96 L55,100",
-  "M50,50 L24,92 L12,100",
-  "M50,50 L4,68 L0,82",
-  "M50,50 L6,32 L0,18",
-];
-
-const FEATURE_LINES = [
-  "AI tools that think for you.",
-  "Automations that run your ops.",
-  "A CRM that closes deals.",
-];
-
-// ─── Main component ───────────────────────────────────────────────────────────
-
-function CinematicLanding() {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLElement>(null);
-  const dashSecRef = useRef<HTMLElement>(null);
-  const featSecRef = useRef<HTMLElement>(null);
-  const flashSecRef = useRef<HTMLElement>(null);
-  const finalSecRef = useRef<HTMLElement>(null);
-  const dashRevealRef = useRef<HTMLDivElement>(null);
-  const dashMockRef = useRef<HTMLDivElement>(null);
-  const ctaBtnRef = useRef<HTMLButtonElement>(null);
-  const floodRef = useRef<HTMLDivElement>(null);
-  const typeRef = useRef<HTMLSpanElement>(null);
-  const spotlightRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let gsapCtx: { revert: () => void } | undefined;
-
-    const boot = async () => {
-      const { gsap } = await import("gsap");
-      const { ScrollTrigger } = await import("gsap/ScrollTrigger");
-      const { TextPlugin } = await import("gsap/TextPlugin");
-      gsap.registerPlugin(ScrollTrigger, TextPlugin);
-
-      gsapCtx = gsap.context(() => {
-        // ── Scroll spotlight follows page ───────────────────────────────────
-        gsap.to(spotlightRef.current, {
-          y: () => document.body.scrollHeight - window.innerHeight,
-          ease: "none",
-          scrollTrigger: {
-            trigger: wrapRef.current,
-            start: "top top",
-            end: "bottom bottom",
-            scrub: 0.6,
-          },
-        });
-
-        // ── Hero letters: gradient drop-in ──────────────────────────────────
-        const letters = gsap.utils.toArray<HTMLElement>(".gsap-letter");
-        gsap.set(letters, { y: -160, opacity: 0, rotationX: -90, transformOrigin: "50% 0%" });
-        gsap.to(letters, {
-          y: 0,
-          opacity: 1,
-          rotationX: 0,
-          stagger: 0.052,
-          duration: 0.88,
-          ease: "back.out(1.7)",
-          delay: 0.2,
-        });
-
-        gsap.set(".gsap-subtitle", { y: 52, opacity: 0 });
-        gsap.to(".gsap-subtitle", {
-          y: 0,
-          opacity: 1,
-          duration: 1.1,
-          ease: "power2.out",
-          delay: 1.65,
-        });
-
-        // ── Orb pulse ───────────────────────────────────────────────────────
-        gsap.to(".gsap-orb", {
-          scale: 1.5,
-          opacity: 0.4,
-          duration: 3.4,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut",
-        });
-
-        // ── Pin 1: crack + dashboard reveal ────────────────────────────────
-        gsap.set(".gsap-crack-svg", { opacity: 0 });
-        gsap.set(".gsap-crack-path", (_i: number, el: SVGPathElement) => {
-          const len = el.getTotalLength?.() ?? 300;
-          gsap.set(el, { strokeDasharray: len, strokeDashoffset: len });
-        });
-        gsap.set(dashRevealRef.current, { scale: 0.04, opacity: 0 });
-
-        const crackTl = gsap.timeline({ defaults: { ease: "none" } });
-        crackTl
-          .to(".gsap-hero-text", { opacity: 0, duration: 0.18 })
-          .to(".gsap-crack-svg", { opacity: 1, duration: 0.05 }, "<")
-          .to(".gsap-crack-path", { strokeDashoffset: 0, stagger: 0.07, duration: 0.32 }, "<0.06")
-          .to(
-            dashRevealRef.current,
-            { scale: 1, opacity: 1, duration: 0.55, ease: "power2.out" },
-            "-=0.12",
-          )
-          .to(".gsap-crack-svg", { opacity: 0, duration: 0.16 }, "-=0.06");
-
-        ScrollTrigger.create({
-          trigger: heroRef.current,
-          start: "top top",
-          end: "+=290%",
-          pin: true,
-          scrub: 2,
-          animation: crackTl,
-        });
-
-        // ── Pin 2: zoom into Idea Validator ────────────────────────────────
-        gsap.set(".gsap-tool-overlay", { opacity: 0 });
-
-        const zoomTl = gsap.timeline({ defaults: { ease: "power2.inOut" } });
-        zoomTl
-          .to(dashMockRef.current, { scale: 2.55, x: -155, y: -85, duration: 0.4 })
-          .to(".gsap-tool-overlay", { opacity: 1, duration: 0.22 }, "-=0.05")
-          .to(".gsap-tool-overlay", { opacity: 0, duration: 0.2 }, "+=0.38")
-          .to(dashMockRef.current, { scale: 1, x: 0, y: 0, duration: 0.4 });
-
-        ScrollTrigger.create({
-          trigger: dashSecRef.current,
-          start: "top top",
-          end: "+=230%",
-          pin: true,
-          scrub: 2,
-          animation: zoomTl,
-        });
-
-        // ── Features: slide in from left, one by one ────────────────────────
-        const featLines = gsap.utils.toArray<HTMLElement>(".gsap-feat-line");
-        gsap.set(featLines, { x: -90, opacity: 0 });
-        featLines.forEach((line, i) => {
-          gsap.to(line, {
-            x: 0,
-            opacity: 1,
-            duration: 0.9,
-            ease: "power2.out",
-            delay: i * 0.18,
-            scrollTrigger: {
-              trigger: line,
-              start: "top 78%",
-              toggleActions: "play none none none",
-            },
-          });
-        });
-
-        // ── Flash + typewriter ──────────────────────────────────────────────
-        gsap.set(".gsap-flash", { opacity: 0 });
-        gsap.set(".gsap-flash-bg", { opacity: 0 });
-        if (typeRef.current) typeRef.current.textContent = "";
-
-        const flashTl = gsap.timeline({
-          scrollTrigger: {
-            trigger: flashSecRef.current,
-            start: "top 65%",
-            toggleActions: "play none none none",
-          },
-        });
-        flashTl
-          .to(".gsap-flash", { opacity: 1, duration: 0.08 })
-          .to(".gsap-flash-bg", { opacity: 1, duration: 0.28 }, "+=0.06")
-          .to(".gsap-flash", { opacity: 0, duration: 0.3 })
-          .to(
-            typeRef.current,
-            {
-              text: { value: "Your competitors launched last Tuesday.", delimiter: "" },
-              duration: 2.8,
-              ease: "none",
-            },
-            "-=0.1",
-          )
-          .to(".gsap-cursor", { opacity: 0, duration: 0.2 }, "+=1.6")
-          .to(typeRef.current, { opacity: 0, y: -22, duration: 0.5, delay: 0.2 });
-
-        // ── CTA: pulsing rings ──────────────────────────────────────────────
-        const ringTrigger = { trigger: finalSecRef.current, start: "top 80%" };
-        gsap.to(".gsap-ring-1", {
-          scale: 1.55,
-          opacity: 0,
-          duration: 2.1,
-          ease: "power2.out",
-          repeat: -1,
-          repeatDelay: 0.3,
-          scrollTrigger: ringTrigger,
-        });
-        gsap.to(".gsap-ring-2", {
-          scale: 1.7,
-          opacity: 0,
-          duration: 2.6,
-          ease: "power2.out",
-          repeat: -1,
-          repeatDelay: 0.3,
-          delay: 0.85,
-          scrollTrigger: ringTrigger,
-        });
-
-        // ── CTA: glow pulse on button ───────────────────────────────────────
-        gsap.to(ctaBtnRef.current, {
-          boxShadow:
-            "0 0 70px rgba(59,130,246,0.95), 0 0 140px rgba(59,130,246,0.4), 0 0 220px rgba(99,102,241,0.2)",
-          duration: 1.8,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut",
-          scrollTrigger: ringTrigger,
-        });
-
-        // ── CTA: hover flood ────────────────────────────────────────────────
-        const btn = ctaBtnRef.current;
-        const flood = floodRef.current;
-        if (btn && flood) {
-          gsap.set(flood, { clipPath: "inset(50% 50% 50% 50% round 50%)" });
-          const enter = () =>
-            gsap.to(flood, {
-              clipPath: "inset(0% 0% 0% 0% round 0%)",
-              duration: 0.65,
-              ease: "power2.out",
-            });
-          const leave = () =>
-            gsap.to(flood, {
-              clipPath: "inset(50% 50% 50% 50% round 50%)",
-              duration: 0.45,
-              ease: "power2.in",
-            });
-          btn.addEventListener("mouseenter", enter);
-          btn.addEventListener("mouseleave", leave);
-          return () => {
-            btn.removeEventListener("mouseenter", enter);
-            btn.removeEventListener("mouseleave", leave);
-          };
-        }
-      }, wrapRef);
-    };
-
-    boot();
-    return () => {
-      gsapCtx?.revert();
-    };
-  }, []);
-
-  const S: React.CSSProperties = {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    overflow: "hidden",
-  };
-
+function PreviewField({
+  label,
+  value,
+  confidence,
+}: {
+  label: string;
+  value: string;
+  confidence: string;
+}) {
   return (
-    <div ref={wrapRef} style={{ background: "#000", color: "#fff", overflowX: "hidden" }}>
-      <style>{`
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-        .gsap-letter { display: inline-block; }
-      `}</style>
-
-      {/* ── Scroll spotlight (fixed, moves down at 40% scroll speed) ──────── */}
-      <div
-        ref={spotlightRef}
-        style={{
-          position: "fixed",
-          left: "50%",
-          top: "10vh",
-          transform: "translateX(-50%)",
-          width: 900,
-          height: 560,
-          borderRadius: "50%",
-          background:
-            "radial-gradient(ellipse, rgba(59,130,246,0.07) 0%, rgba(99,102,241,0.03) 40%, transparent 68%)",
-          pointerEvents: "none",
-          zIndex: 1,
-        }}
-      />
-
-      {/* ── Crack SVG overlay ─────────────────────────────────────────────── */}
-      <svg
-        className="gsap-crack-svg"
-        style={{
-          position: "fixed",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: 30,
-          pointerEvents: "none",
-        }}
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <filter id="crack-glow">
-            <feGaussianBlur stdDeviation="0.5" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        {CRACKS.map((d, i) => (
-          <path
-            key={i}
-            className="gsap-crack-path"
-            d={d}
-            stroke="rgba(59,130,246,0.95)"
-            strokeWidth="0.45"
-            fill="none"
-            strokeLinecap="round"
-            filter="url(#crack-glow)"
-          />
-        ))}
-      </svg>
-
-      {/* ══ S1 — HERO (pinned) ═══════════════════════════════════════════════ */}
-      <section ref={heroRef} style={{ ...S, background: "#000" }}>
-        {/* Blue orb */}
-        <div
-          className="gsap-orb"
-          style={{
-            position: "absolute",
-            width: 700,
-            height: 700,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(59,130,246,0.2) 0%, rgba(59,130,246,0.05) 48%, transparent 70%)",
-            opacity: 0.5,
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Hero text */}
-        <div
-          className="gsap-hero-text"
-          style={{ textAlign: "center", zIndex: 5, padding: "0 24px", position: "relative" }}
-        >
-          {/* Gradient headline with glow */}
-          <div style={{ position: "relative", display: "inline-block" }}>
-            {/* Glow bloom behind text */}
-            <div
-              style={{
-                position: "absolute",
-                top: "55%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "130%",
-                height: "90%",
-                background:
-                  "radial-gradient(ellipse, rgba(59,130,246,0.28) 0%, rgba(99,102,241,0.1) 45%, transparent 70%)",
-                filter: "blur(28px)",
-                pointerEvents: "none",
-                zIndex: 0,
-              }}
-            />
-
-            {/* Gradient text container */}
-            <div
-              style={{
-                position: "relative",
-                zIndex: 1,
-                fontSize: "clamp(3.6rem, 12vw, 10rem)",
-                fontWeight: 900,
-                letterSpacing: "-0.055em",
-                lineHeight: 0.92,
-                display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "center",
-                background:
-                  "linear-gradient(90deg, #ffffff 0%, #bfdbfe 28%, #3b82f6 62%, #6366f1 85%, #8b5cf6 100%)",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              {"STOP JUGGLING.".split("").map((ch, i) => (
-                <span
-                  key={i}
-                  className="gsap-letter"
-                  style={{ marginRight: ch === " " ? "0.22em" : 0 }}
-                >
-                  {ch === " " ? " " : ch}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Tagline — brand statement */}
-          <div
-            className="gsap-subtitle"
-            style={{ marginTop: 28, maxWidth: 640, margin: "28px auto 0" }}
-          >
-            <div
-              style={{
-                fontSize: "clamp(0.85rem, 1.6vw, 1.05rem)",
-                fontWeight: 600,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "#3b82f6",
-                marginBottom: 12,
-              }}
-            >
-              Bylda OS
-            </div>
-            <div
-              style={{
-                fontSize: "clamp(1rem, 2.2vw, 1.42rem)",
-                fontWeight: 400,
-                color: "rgba(255,255,255,0.52)",
-                lineHeight: 1.55,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              The AI operating system founders use to go from&nbsp;
-              <span style={{ color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>
-                idea to revenue.
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Dashboard that scales up through the cracks */}
-        <div
-          ref={dashRevealRef}
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 20,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 48,
-            pointerEvents: "none",
-          }}
-        >
-          <DashboardMock />
-        </div>
-      </section>
-
-      {/* ══ S2 — DASHBOARD ZOOM (pinned) ════════════════════════════════════ */}
-      <section ref={dashSecRef} style={{ ...S, background: "#03030e" }}>
-        {/* Blue spotlight behind mockup */}
-        <div
-          style={{
-            position: "absolute",
-            width: 1100,
-            height: 700,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(ellipse, rgba(59,130,246,0.12) 0%, rgba(99,102,241,0.05) 45%, transparent 68%)",
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
-
-        <div style={{ position: "relative", zIndex: 5 }}>
-          {/* Label */}
-          <div
-            style={{
-              textAlign: "center",
-              marginBottom: 18,
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              color: "#3b82f6",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#3b82f6",
-                boxShadow: "0 0 10px #3b82f6",
-                animation: "blink 2s ease-in-out infinite",
-              }}
-            />
-            Bylda OS — Live Preview
-          </div>
-
-          {/* Glowing border wrapper → inner content is what GSAP zooms */}
-          <div
-            style={{
-              borderRadius: 16,
-              padding: "2px",
-              background:
-                "linear-gradient(135deg, rgba(59,130,246,0.65) 0%, rgba(139,92,246,0.35) 50%, rgba(59,130,246,0.5) 100%)",
-              boxShadow:
-                "0 0 60px rgba(59,130,246,0.3), 0 0 120px rgba(59,130,246,0.1), 0 48px 96px rgba(0,0,0,0.85)",
-            }}
-          >
-            <div
-              ref={dashMockRef}
-              style={{
-                transformOrigin: "30% 35%",
-                position: "relative",
-                borderRadius: 13,
-                overflow: "hidden",
-              }}
-            >
-              <DashboardMock />
-              {/* Zoom overlay */}
-              <div
-                className="gsap-tool-overlay"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(0,0,0,0.72)",
-                  backdropFilter: "blur(8px)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "clamp(1.4rem, 4vw, 3rem)",
-                    fontWeight: 800,
-                    letterSpacing: "-0.04em",
-                    color: "#fff",
-                    textAlign: "center",
-                    textShadow: "0 0 60px rgba(59,130,246,0.4)",
-                  }}
-                >
-                  Validate your idea in{" "}
-                  <span style={{ color: "#3b82f6", textShadow: "0 0 40px rgba(59,130,246,0.9)" }}>
-                    60 seconds.
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ S3 — WHAT BYLDA IS (feature lines) ══════════════════════════════ */}
-      <section
-        ref={featSecRef}
-        style={{ ...S, background: "#02020d", flexDirection: "column", padding: "100px 0" }}
-      >
-        <div style={{ marginBottom: 56, textAlign: "center" }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "#3b82f6",
-              marginBottom: 12,
-            }}
-          >
-            Built for founders who move fast
-          </div>
-        </div>
-
-        <div style={{ maxWidth: 820, width: "100%", padding: "0 32px" }}>
-          {FEATURE_LINES.map((text, i) => (
-            <div
-              key={text}
-              className="gsap-feat-line"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 28,
-                marginBottom: i < FEATURE_LINES.length - 1 ? 44 : 0,
-              }}
-            >
-              {/* Neon blue accent bar */}
-              <div
-                style={{
-                  width: 4,
-                  flexShrink: 0,
-                  borderRadius: 3,
-                  height: "clamp(52px, 7vw, 80px)",
-                  background: "linear-gradient(180deg, #3b82f6 0%, #6366f1 100%)",
-                  boxShadow: "0 0 18px rgba(59,130,246,0.9), 0 0 40px rgba(59,130,246,0.4)",
-                }}
-              />
-              <div
-                style={{
-                  fontSize: "clamp(1.7rem, 4.5vw, 3.2rem)",
-                  fontWeight: 800,
-                  color: "#f0f4ff",
-                  letterSpacing: "-0.04em",
-                  lineHeight: 1.1,
-                }}
-              >
-                {text}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ S4 — FLASH + TYPEWRITER ══════════════════════════════════════════ */}
-      <section ref={flashSecRef} style={{ ...S, background: "#000" }}>
-        <div
-          className="gsap-flash"
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "#fff",
-            opacity: 0,
-            zIndex: 20,
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          className="gsap-flash-bg"
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "#000",
-            opacity: 0,
-            zIndex: 10,
-          }}
-        />
-        <div style={{ position: "relative", zIndex: 30, textAlign: "center", padding: "0 24px" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-            <span
-              ref={typeRef}
-              style={{
-                fontSize: "clamp(1.1rem, 3.2vw, 2.4rem)",
-                fontWeight: 700,
-                letterSpacing: "-0.03em",
-                color: "#f0f4ff",
-                lineHeight: 1.3,
-                fontFamily: "inherit",
-              }}
-            />
-            <span
-              className="gsap-cursor"
-              style={{
-                display: "inline-block",
-                width: 3,
-                height: "1.15em",
-                background: "#3b82f6",
-                marginLeft: 2,
-                verticalAlign: "middle",
-                animation: "blink 1s step-end infinite",
-              }}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ══ S5 — FINAL CTA ═══════════════════════════════════════════════════ */}
-      <section
-        ref={finalSecRef}
-        style={{
-          ...S,
-          flexDirection: "column",
-          background:
-            "radial-gradient(ellipse 100% 60% at 50% 100%, #0a1a3e 0%, #030314 50%, #000 100%)",
-        }}
-      >
-        {/* Flood overlay */}
-        <div
-          ref={floodRef}
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 5,
-            pointerEvents: "none",
-            background:
-              "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 40%, #6366f1 75%, #8b5cf6 100%)",
-          }}
-        />
-
-        <div style={{ position: "relative", zIndex: 10, textAlign: "center" }}>
-          <div
-            style={{
-              marginBottom: 16,
-              fontSize: "clamp(0.8rem, 1.8vw, 1rem)",
-              color: "rgba(255,255,255,0.25)",
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              fontWeight: 600,
-            }}
-          >
-            The OS for founders who ship
-          </div>
-
-          <div
-            style={{
-              fontSize: "clamp(2rem, 5vw, 3.5rem)",
-              fontWeight: 800,
-              letterSpacing: "-0.04em",
-              marginBottom: 40,
-              lineHeight: 1.1,
-            }}
-          >
-            Ready to build?
-          </div>
-
-          {/* Button + pulsing rings */}
-          <div
-            style={{
-              position: "relative",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {/* Ring 1 */}
-            <div
-              className="gsap-ring-1"
-              style={{
-                position: "absolute",
-                inset: "-18px -28px",
-                borderRadius: 22,
-                border: "1.5px solid rgba(59,130,246,0.45)",
-                pointerEvents: "none",
-              }}
-            />
-            {/* Ring 2 */}
-            <div
-              className="gsap-ring-2"
-              style={{
-                position: "absolute",
-                inset: "-32px -44px",
-                borderRadius: 28,
-                border: "1px solid rgba(59,130,246,0.22)",
-                pointerEvents: "none",
-              }}
-            />
-
-            <button
-              ref={ctaBtnRef}
-              onClick={() => {
-                window.location.href = "/auth/sign-up";
-              }}
-              style={{
-                padding: "26px 80px",
-                fontSize: "clamp(1.1rem, 2.8vw, 1.6rem)",
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
-                background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 55%, #6366f1 100%)",
-                border: "1px solid rgba(255,255,255,0.18)",
-                borderRadius: 16,
-                color: "#fff",
-                cursor: "pointer",
-                boxShadow: "0 0 30px rgba(59,130,246,0.4), 0 8px 40px rgba(0,0,0,0.5)",
-                position: "relative",
-                zIndex: 20,
-                fontFamily: "inherit",
-                transition: "transform 0.2s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-            >
-              Build now →
-            </button>
-          </div>
-
-          <div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.2)" }}>
-            No credit card required · Free to start
-          </div>
-        </div>
-      </section>
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+      <div className="flex justify-between text-[9px] uppercase tracking-[0.1em] text-[#606a79]">
+        <span>{label}</span>
+        <span className="text-[#66c996]">{confidence}</span>
+      </div>
+      <div className="mt-1.5 text-[12px] font-medium text-[#e5e9ef]">{value}</div>
     </div>
+  );
+}
+
+function DarkFeature({
+  icon: Icon,
+  title,
+  body,
+}: {
+  icon: typeof PhoneCall;
+  title: string;
+  body: string;
+}) {
+  return (
+    <article className="rounded-[22px] border border-white/[0.1] bg-white/[0.035] p-7">
+      <Icon className="h-5 w-5 text-[#7ba8ed]" />
+      <h3 className="mt-8 text-[19px] font-semibold tracking-[-0.02em]">{title}</h3>
+      <p className="mt-3 text-[13px] leading-6 text-[#9199a6]">{body}</p>
+    </article>
   );
 }

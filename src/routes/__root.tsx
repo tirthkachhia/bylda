@@ -47,36 +47,36 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Bylda — Build your business in the clouds" },
+      { title: "Bylda — Every call, written back" },
       {
         name: "description",
-        content: "Build. Launch. Operate. The AI sky-island operating system for founders.",
+        content:
+          "Bylda turns every connected sales call into CRM updates, follow-up, deal memory, and a more accurate forecast.",
       },
-      { property: "og:title", content: "Bylda — Build your business in the clouds" },
-      { name: "twitter:title", content: "Bylda — Build your business in the clouds" },
+      { property: "og:title", content: "Bylda — Every call, written back" },
+      { name: "twitter:title", content: "Bylda — Every call, written back" },
       {
         property: "og:description",
-        content: "Build. Launch. Operate. The AI sky-island operating system for founders.",
+        content: "Turn every connected sales call into CRM updates, follow-up, and deal memory.",
       },
       {
         name: "twitter:description",
-        content: "Build. Launch. Operate. The AI sky-island operating system for founders.",
+        content: "Turn every connected sales call into CRM updates, follow-up, and deal memory.",
       },
       {
         property: "og:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/VZji9IHswxTUZ3I7CRrnmLLHw093/social-images/social-1776887659447-generated-image_(4).webp",
+        content: "/bylda-logo.png",
       },
       {
         name: "twitter:image",
-        content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/VZji9IHswxTUZ3I7CRrnmLLHw093/social-images/social-1776887659447-generated-image_(4).webp",
+        content: "/bylda-logo.png",
       },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "preconnect", href: "https://api.fontshare.com" },
       {
         rel: "stylesheet",

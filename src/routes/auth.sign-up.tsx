@@ -36,12 +36,12 @@ function SignUp() {
   };
 
   return (
-    <AuthShell title="Create your account" subtitle="Free forever. No credit card required.">
+    <AuthShell title="Start your pilot" subtitle="Evaluate Bylda on real calls with a small team.">
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field label="Full name">
           <Input
             value={fullName}
-            placeholder="Alex Founder"
+            placeholder="Alex Chen"
             onChange={(e) => setFullName(e.target.value)}
             required
             className="h-11 bg-surface-2"
@@ -69,7 +69,7 @@ function SignUp() {
           />
         </Field>
         <Button className="w-full h-11 mt-2" type="submit" disabled={loading}>
-          {loading ? "Creating…" : "Get started free"}
+          {loading ? "Creating…" : "Create pilot workspace"}
         </Button>
       </form>
       <p className="mt-5 text-[12.5px] text-muted-foreground">
