@@ -1,22 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // The production Worker that owns the usebylda.com routes is "bylda"
-  // (app.usebylda.com/* and usebylda.com/*). `wrangler deploy` must target that
-  // same service, otherwise Cloudflare rejects the deploy with "Can't deploy
-  // routes that are assigned to another worker" — which is exactly what happened
-  // while this was named "nova-launchpad" (a different, route-less worker).
-  // Deploying "bylda" updates the live worker in place, so the routes it already
-  // owns match the config and the deploy succeeds.
+  // The web app is hosted by Vercel. Keep this Worker route-less so a future
+  // `wrangler deploy` cannot take ownership of usebylda.com away from Vercel.
   "name": "bylda",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
-
-  // Primary app route on usebylda.com
-  "routes": [
-    { "pattern": "app.usebylda.com/*", "zone_name": "usebylda.com" },
-    { "pattern": "usebylda.com/*", "zone_name": "usebylda.com" },
-  ],
 
   "vars": {
     // Supabase — project: ipidfqwlszuhjgjygbvx
