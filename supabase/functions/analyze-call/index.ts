@@ -7,6 +7,13 @@
 // transcript text, so it works regardless of which carrier recorded the call.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { callPAL } from "../_shared/pal/index.ts";
+import {
+  buildVerticalExtractionTool,
+  buildVerticalSystemPrompt,
+  filterCrmContext,
+  normalizeCallExtraction,
+  resolveSalesVertical,
+} from "../_shared/sales-verticals.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,41 +28,6 @@ function json(body: unknown, status = 200) {
   });
 }
 
-const EXTRACT_TOOL = {
-  name: "record_call_insights",
-  description: "Record structured coaching insights extracted from a sales call transcript.",
-  parameters: {
-    type: "object",
-    properties: {
-      summary: { type: "string", description: "2-3 sentence summary of the call." },
-      sentiment_score: {
-        type: "number",
-        description: "Overall prospect sentiment from -1 (negative) to 1 (positive).",
-      },
-      talk_ratio: {
-        type: "number",
-        description: "Fraction of talk time by the rep, 0-1 (e.g. 0.6 = rep talked 60%).",
-      },
-      objections: {
-        type: "array",
-        items: { type: "string" },
-        description: "Distinct objections or concerns the prospect raised.",
-      },
-      competitor_mentions: {
-        type: "array",
-        items: { type: "string" },
-        description: "Competitor names or products referenced.",
-      },
-      next_steps_extracted: {
-        type: "array",
-        items: { type: "string" },
-        description: "Concrete agreed next steps / follow-ups.",
-      },
-    },
-    required: ["summary", "objections", "competitor_mentions", "next_steps_extracted"],
-  },
-};
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -63,14 +35,16 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return json({ error: "Missing auth" }, 401);
 
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) return json({ error: "Server not configured" }, 503);
+  const internalRequest = authHeader === `Bearer ${serviceKey}`;
+
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: authHeader } },
   });
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr || !user) return json({ error: "Unauthorized" }, 401);
+  const authResult = internalRequest ? null : await supabase.auth.getUser();
+  const user = authResult?.data.user ?? null;
+  if (!internalRequest && (authResult?.error || !user)) return json({ error: "Unauthorized" }, 401);
 
   let body: { call_id?: string };
   try {
@@ -81,8 +55,6 @@ Deno.serve(async (req: Request) => {
   const callId = String(body.call_id ?? "");
   if (!callId) return json({ error: "call_id is required" }, 400);
 
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceKey) return json({ error: "Server not configured" }, 503);
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
 
   // Load the call + its org, and verify membership.
@@ -93,13 +65,15 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
   if (!call) return json({ error: "Call not found" }, 404);
 
-  const { data: member } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .eq("organization_id", call.organization_id)
-    .maybeSingle();
-  if (!member) return json({ error: "Forbidden" }, 403);
+  if (!internalRequest) {
+    const { data: member } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user!.id)
+      .eq("organization_id", call.organization_id)
+      .maybeSingle();
+    if (!member) return json({ error: "Forbidden" }, 403);
+  }
 
   const { data: transcript } = await admin
     .from("call_transcripts")
@@ -111,15 +85,73 @@ Deno.serve(async (req: Request) => {
   const text = transcript?.transcript_text?.trim();
   if (!text) return json({ error: "No transcript to analyze for this call" }, 400);
 
+  // Workspace context selects the sales vertical. Existing CRM values are used
+  // as prior context so the model reports changes instead of treating every call
+  // as a blank record. Arbitrary custom fields are filtered to the profile's
+  // allow-list before they are sent to the model.
+  const [{ data: businessContext }, { data: lead }, { data: contact }] = await Promise.all([
+    admin
+      .from("business_context")
+      .select("identity,customer,motion")
+      .eq("organization_id", call.organization_id)
+      .maybeSingle(),
+    call.lead_id
+      ? admin
+          .from("leads")
+          .select("name,stage,value,notes,custom_fields,external_source,external_id")
+          .eq("id", call.lead_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    call.contact_id
+      ? admin
+          .from("contacts")
+          .select("first_name,last_name,company,status,custom_fields,external_source,external_id")
+          .eq("id", call.contact_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const identity =
+    businessContext?.identity && typeof businessContext.identity === "object"
+      ? (businessContext.identity as Record<string, unknown>)
+      : {};
+  const vertical = resolveSalesVertical(identity.industry, identity.niche);
+  const leadRecord = lead as Record<string, unknown> | null;
+  const contactRecord = contact as Record<string, unknown> | null;
+  const crmContext = {
+    lead: leadRecord
+      ? {
+          name: leadRecord.name,
+          stage: leadRecord.stage,
+          value: leadRecord.value,
+          notes: leadRecord.notes,
+          source: leadRecord.external_source,
+          custom_fields: filterCrmContext(vertical, leadRecord.custom_fields),
+        }
+      : null,
+    contact: contactRecord
+      ? {
+          name: [contactRecord.first_name, contactRecord.last_name].filter(Boolean).join(" "),
+          company: contactRecord.company,
+          status: contactRecord.status,
+          source: contactRecord.external_source,
+          custom_fields: filterCrmContext(vertical, contactRecord.custom_fields),
+        }
+      : null,
+  };
+
   let extracted: Record<string, unknown> = {};
   try {
     const result = await callPAL(
       {
-        systemPrompt:
-          "You are a sales conversation-intelligence analyst. Extract only what the transcript supports; do not invent objections, competitors, or next steps. Be concise.",
-        userPrompt: `Analyze this sales call transcript and record the insights.\n\nTRANSCRIPT:\n${text.slice(0, 24000)}`,
-        tool: EXTRACT_TOOL,
-        maxTokens: 900,
+        systemPrompt: buildVerticalSystemPrompt(vertical),
+        userPrompt: [
+          `Analyze this ${vertical.label} sales call and record only supported insights.`,
+          "Treat CRM CONTEXT as prior state, not as transcript evidence. A vertical field still needs a transcript quote.",
+          `CRM CONTEXT:\n${JSON.stringify(crmContext)}`,
+          `TRANSCRIPT:\n${text.slice(0, 24000)}`,
+        ].join("\n\n"),
+        tool: buildVerticalExtractionTool(vertical),
+        maxTokens: 1600,
       },
       { ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") },
     );
@@ -128,17 +160,13 @@ Deno.serve(async (req: Request) => {
     return json({ error: e instanceof Error ? e.message : "Analysis failed" }, 502);
   }
 
-  const objections = Array.isArray(extracted.objections) ? extracted.objections : [];
-  const competitors = Array.isArray(extracted.competitor_mentions)
-    ? extracted.competitor_mentions
-    : [];
-  const nextSteps = Array.isArray(extracted.next_steps_extracted)
-    ? extracted.next_steps_extracted
-    : [];
-  const talkRatio = typeof extracted.talk_ratio === "number" ? extracted.talk_ratio : null;
-  const sentiment =
-    typeof extracted.sentiment_score === "number" ? extracted.sentiment_score : null;
-  const summary = typeof extracted.summary === "string" ? extracted.summary : null;
+  const normalized = normalizeCallExtraction(vertical, extracted);
+  const objections = normalized.objections;
+  const competitors = normalized.competitor_mentions;
+  const nextSteps = normalized.next_steps_extracted;
+  const talkRatio = normalized.talk_ratio;
+  const sentiment = normalized.sentiment_score;
+  const summary = normalized.summary || null;
 
   // Upsert insights (one row per call).
   await admin
@@ -152,6 +180,19 @@ Deno.serve(async (req: Request) => {
         talk_ratio: talkRatio,
         next_steps_extracted: nextSteps,
         summary,
+        sales_profile: vertical.key,
+        vertical_insights: {
+          profile_label: vertical.label,
+          deal_insights: normalized.deal_insights,
+          fields: normalized.fields,
+          compliance_flags: normalized.compliance_flags,
+        },
+        crm_writeback_preview: normalized.crm_writeback_preview,
+        missing_required_fields: normalized.missing_required_fields,
+        analysis_version: 2,
+        writeback_status: "pending_review",
+        approved_at: null,
+        approved_by: null,
       },
       { onConflict: "call_id" },
     )
@@ -197,5 +238,12 @@ Deno.serve(async (req: Request) => {
     next_steps: nextSteps.length,
     talk_ratio: talkRatio,
     sentiment_score: sentiment,
+    sales_profile: vertical.key,
+    extracted_fields: normalized.fields.length,
+    writeback_candidates: normalized.crm_writeback_preview.filter((field) => field.eligible).length,
+    manual_review_fields: normalized.crm_writeback_preview.filter((field) => !field.eligible)
+      .length,
+    missing_required_fields: normalized.missing_required_fields,
+    compliance_flags: normalized.compliance_flags,
   });
 });

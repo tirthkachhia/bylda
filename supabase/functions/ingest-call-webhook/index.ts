@@ -51,7 +51,8 @@ function number(value: unknown) {
 }
 
 function uuid(value: string | undefined) {
-  return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  return value &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
     ? value
     : undefined;
 }
@@ -88,7 +89,10 @@ function normalize(raw: Record<string, unknown>) {
     "generic";
 
   return {
-    provider: provider.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").slice(0, 64),
+    provider: provider
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "-")
+      .slice(0, 64),
     providerCallId:
       text(first(source, ["provider_call_id", "call_id", "callId", "id", "uuid", "sid"])) ??
       crypto.randomUUID(),
@@ -125,7 +129,8 @@ Deno.serve(async (req) => {
     return json({ error: "Expected a JSON call payload" }, 400);
   }
   const call = normalize(raw as Record<string, unknown>);
-  const eligible = call.connected && (call.duration == null || call.duration >= MINIMUM_DURATION_SECONDS);
+  const eligible =
+    call.connected && (call.duration == null || call.duration >= MINIMUM_DURATION_SECONDS);
   const skipReason = !call.connected
     ? "not_connected"
     : call.duration != null && call.duration < MINIMUM_DURATION_SECONDS
@@ -190,12 +195,47 @@ Deno.serve(async (req) => {
     transcriptStored = true;
   }
 
+  // Analyze in the background after a qualifying transcript lands. The
+  // service-role token is accepted only for this server-to-server path; normal
+  // browser calls still require an authenticated organization member.
+  if (transcriptStored) {
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const analysisRequest = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-call`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ call_id: storedCall.id }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          console.error("[ingest-call-webhook] analysis", response.status, await response.text());
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "[ingest-call-webhook] analysis",
+          error instanceof Error ? error.message : error,
+        );
+      });
+    const edgeRuntime = (
+      globalThis as unknown as {
+        EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void };
+      }
+    ).EdgeRuntime;
+    if (edgeRuntime) edgeRuntime.waitUntil(analysisRequest);
+    else await analysisRequest;
+  }
+
   return json({
     ok: true,
     call_id: storedCall.id,
     provider: call.provider,
     eligible_for_ai: eligible,
     transcript_stored: transcriptStored,
+    analysis_queued: transcriptStored,
     skip_reason: skipReason,
   });
 });

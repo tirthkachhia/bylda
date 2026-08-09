@@ -96,6 +96,10 @@ verify_jwt = true
 [functions.analyze-call]
 verify_jwt = true
 
+# Dialers authenticate with a per-organization HMAC URL, not a Supabase JWT.
+[functions.ingest-call-webhook]
+verify_jwt = false
+
 # Unified inbox AI reply generation.
 [functions.conversation-ai]
 verify_jwt = true

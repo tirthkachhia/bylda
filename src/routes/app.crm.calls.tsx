@@ -33,6 +33,35 @@ type Transcript = {
   sentiment_score: number | null;
   created_at: string;
 };
+type WritebackField = {
+  key: string;
+  label: string;
+  value: string;
+  confidence: number;
+  evidence_quote: string;
+  crm_target: string;
+  eligible: boolean;
+  reason: string;
+};
+type CallInsight = {
+  id: string;
+  call_id: string;
+  summary: string | null;
+  sales_profile: string;
+  vertical_insights: {
+    profile_label?: string;
+    deal_insights?: {
+      qualification_reason?: string;
+      primary_driver?: string;
+      primary_risk?: string;
+      coaching_note?: string;
+    };
+    compliance_flags?: string[];
+  } | null;
+  crm_writeback_preview: WritebackField[] | null;
+  missing_required_fields: string[] | null;
+  writeback_status: string;
+};
 const demoTranscript = [
   {
     time: "00:42",
@@ -55,28 +84,49 @@ const demoTranscript = [
     text: "I’ll send the implementation outline today and hold Tuesday at 2 PM for the technical review with Jordan.",
   },
 ];
-const fields = [
-  { key: "stage", label: "Deal stage", value: "Evaluation", confidence: 98, source: "17:31" },
+const demoFields = [
+  {
+    key: "stage",
+    label: "Deal stage",
+    value: "Evaluation",
+    confidence: 98,
+    source: "17:31",
+    eligible: true,
+    reason: "Eligible after write-back approval",
+  },
   {
     key: "outcome",
     label: "Call outcome",
     value: "Qualified · technical review",
     confidence: 97,
     source: "24:08",
+    eligible: true,
+    reason: "Eligible after write-back approval",
   },
-  { key: "amount", label: "Expected value", value: "$32,000", confidence: 94, source: "17:31" },
+  {
+    key: "amount",
+    label: "Expected value",
+    value: "$32,000",
+    confidence: 94,
+    source: "17:31",
+    eligible: true,
+    reason: "Eligible after write-back approval",
+  },
   {
     key: "next",
     label: "Next step",
     value: "Technical review · Aug 11, 2:00 PM",
     confidence: 99,
     source: "24:08",
+    eligible: true,
+    reason: "Eligible after write-back approval",
   },
 ] as const;
 
 function CallsPage() {
-  const { currentOrgId } = useAuth();
+  const { currentOrgId, user } = useAuth();
   const [rows, setRows] = useState<Transcript[]>([]);
+  const [insight, setInsight] = useState<CallInsight | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"summary" | "transcript">("summary");
   const [editing, setEditing] = useState(false);
@@ -99,7 +149,20 @@ function CallsPage() {
         .order("created_at", { ascending: false })
         .limit(20);
       if (!cancelled) {
-        setRows((data as Transcript[]) ?? []);
+        const transcripts = (data as Transcript[]) ?? [];
+        setRows(transcripts);
+        if (transcripts[0]?.call_id) {
+          const { data: analyzed } = await db
+            .from("call_insights")
+            .select(
+              "id,call_id,summary,sales_profile,vertical_insights,crm_writeback_preview,missing_required_fields,writeback_status",
+            )
+            .eq("call_id", transcripts[0].call_id)
+            .maybeSingle();
+          if (!cancelled) setInsight((analyzed as CallInsight | null) ?? null);
+        } else {
+          setInsight(null);
+        }
         setLoading(false);
       }
     }
@@ -116,11 +179,41 @@ function CallsPage() {
         : demoTranscript,
     [rows],
   );
-  const approve = () => {
+  const fields = useMemo(() => {
+    const extracted = insight?.crm_writeback_preview;
+    if (!extracted?.length) return [...demoFields];
+    return extracted.map((field) => ({
+      key: field.key,
+      label: field.label,
+      value: field.value,
+      confidence: Math.round(field.confidence * 100),
+      source: field.evidence_quote,
+      eligible: field.eligible,
+      reason: field.reason,
+    }));
+  }, [insight]);
+  const eligibleFields = fields.filter((field) => field.eligible);
+  const dealInsights = insight?.vertical_insights?.deal_insights;
+  const approve = async () => {
+    if (insight?.id && user?.id) {
+      const { error } = await db
+        .from("call_insights")
+        .update({
+          writeback_status: "approved",
+          approved_at: new Date().toISOString(),
+          approved_by: user.id,
+        })
+        .eq("id", insight.id);
+      if (error) {
+        toast.error("Could not approve CRM update", { description: error.message });
+        return;
+      }
+      setInsight({ ...insight, writeback_status: "approved" });
+    }
     setWritten(true);
     setEditing(false);
-    toast.success("CRM update approved", {
-      description: "Four verified fields are queued for your connected CRM.",
+    toast.success("CRM fields approved", {
+      description: `${eligibleFields.length} evidence-backed fields are ready for the connected CRM.`,
     });
   };
   const copyEmail = async () => {
@@ -223,6 +316,11 @@ function CallsPage() {
                       Demo data
                     </span>
                   )}
+                  {insight?.vertical_insights?.profile_label && (
+                    <span className="rounded bg-[#e7f0eb] px-2 py-1 font-bold uppercase tracking-wider text-[#347052]">
+                      {insight.vertical_insights.profile_label}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="grid divide-y divide-black/[0.08] md:grid-cols-4 md:divide-x md:divide-y-0">
@@ -257,30 +355,41 @@ function CallsPage() {
                           Bylda’s read
                         </div>
                         <p className="mt-3 text-[14px] font-medium leading-7 text-[#333943]">
-                          Northstar is qualified and actively comparing call-intelligence vendors.
-                          Maya confirmed budget, but speed to implementation is the decision
-                          criterion. A technical review is scheduled with Jordan.
+                          {insight?.summary ||
+                            "Northstar is qualified and actively comparing call-intelligence vendors. Maya confirmed budget, but speed to implementation is the decision criterion. A technical review is scheduled with Jordan."}
                         </p>
                       </div>
                       <div className="mt-6 grid gap-3 sm:grid-cols-2">
                         <Insight
                           title="Why this advances"
-                          body="Budget and decision criteria are explicit, with the technical buyer entering next."
-                          source="17:31"
+                          body={
+                            dealInsights?.qualification_reason ||
+                            "Budget and decision criteria are explicit, with the technical buyer entering next."
+                          }
+                          source={insight ? "AI" : "17:31"}
                         />
                         <Insight
                           title="What could stall it"
-                          body="Any implementation plan beyond two weeks weakens the case against Gong."
-                          source="00:42"
+                          body={
+                            dealInsights?.primary_risk ||
+                            "Any implementation plan beyond two weeks weakens the case against Gong."
+                          }
+                          source={insight ? "AI" : "00:42"}
                         />
                         <Insight
-                          title="Competitor"
-                          body="Gong is in consideration, perceived as heavier than Northstar needs."
-                          source="17:31"
+                          title="Primary driver"
+                          body={
+                            dealInsights?.primary_driver ||
+                            "Gong is in consideration, perceived as heavier than Northstar needs."
+                          }
+                          source={insight ? "AI" : "17:31"}
                         />
                         <Insight
                           title="Rep coaching"
-                          body="Lead the next call with the ten-day activation plan, not feature breadth."
+                          body={
+                            dealInsights?.coaching_note ||
+                            "Lead the next call with the ten-day activation plan, not feature breadth."
+                          }
                           source="AI"
                         />
                       </div>
@@ -342,7 +451,7 @@ function CallsPage() {
                       <h2 className="text-[14px] font-bold">CRM write-back</h2>
                     </div>
                     <p className="mt-1 text-[10px] text-[#838890]">
-                      4 fields sourced from this call
+                      {fields.length} fields sourced from this call
                     </p>
                   </div>
                   {written ? (
@@ -368,7 +477,7 @@ function CallsPage() {
                           {field.label}
                         </span>
                         <span className="text-[9px] font-semibold text-[#2d8859]">
-                          {field.confidence}% confidence
+                          {field.eligible ? `${field.confidence}% confidence` : "Review required"}
                         </span>
                       </div>
                       {editing ? (
@@ -386,8 +495,12 @@ function CallsPage() {
                         className="mt-2 flex items-center gap-1.5 text-[9px] font-medium text-[#4c78b6]"
                       >
                         <FileText className="h-3 w-3" />
-                        Evidence at {field.source}
+                        Evidence:{" "}
+                        {field.source.length > 54 ? `${field.source.slice(0, 54)}…` : field.source}
                       </button>
+                      {!field.eligible && (
+                        <p className="mt-2 text-[9px] text-[#9a632d]">{field.reason}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -409,7 +522,7 @@ function CallsPage() {
                     ) : (
                       <>
                         <Check className="h-4 w-4" />
-                        Approve 4 CRM fields
+                        Approve {eligibleFields.length} CRM fields
                       </>
                     )}
                   </button>
