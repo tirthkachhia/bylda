@@ -3,6 +3,7 @@ export const OAUTH_PROVIDER_BY_INTEGRATION: Record<string, string> = {
   gohighlevel: "GoHighLevel",
   salesforce: "Salesforce",
   pipedrive: "Pipedrive",
+  close_io: "Close",
   slack: "Slack",
   googlesheets: "Google",
   googledrive: "Google",

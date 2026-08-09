@@ -152,9 +152,8 @@ export const CATALOG: IntegrationDef[] = [
     key: "close_io",
     name: "Close",
     category: "CRM & Sales",
-    description: "CRM designed for inside sales teams.",
-    inputType: "key",
-    hint: "API key",
+    description: "Connect Close securely to sync calls, leads, contacts, and opportunities.",
+    inputType: "oauth",
   },
   {
     key: "insightly",

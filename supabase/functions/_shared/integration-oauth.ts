@@ -6,6 +6,7 @@ export type OAuthProviderKey =
   | "slack"
   | "salesforce"
   | "pipedrive"
+  | "close"
   | "notion"
   | "zoom"
   | "calendly"
@@ -104,6 +105,14 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
     scopes: [],
     tokenAuth: "basic",
   },
+  close: {
+    key: "close",
+    clientIdEnv: "CLOSE_CLIENT_ID",
+    clientSecretEnv: "CLOSE_CLIENT_SECRET",
+    authorizeUrl: "https://app.close.com/oauth2/authorize/",
+    tokenUrl: "https://api.close.com/oauth2/token/",
+    scopes: [],
+  },
   notion: {
     key: "notion",
     clientIdEnv: "NOTION_CLIENT_ID",
@@ -155,6 +164,7 @@ export const INTEGRATION_PROVIDER: Record<string, OAuthProviderKey> = {
   gohighlevel: "gohighlevel",
   salesforce: "salesforce",
   pipedrive: "pipedrive",
+  close_io: "close",
   slack: "slack",
   googlesheets: "google",
   googledrive: "google",
