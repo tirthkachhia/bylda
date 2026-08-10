@@ -25,6 +25,18 @@ verify_jwt = true
 [functions.integration-oauth-callback]
 verify_jwt = false
 
+[functions.paypal-connect-start]
+verify_jwt = true
+
+[functions.paypal-connect-callback]
+verify_jwt = false
+
+[functions.shopify-connect-start]
+verify_jwt = true
+
+[functions.shopify-connect-callback]
+verify_jwt = false
+
 [functions.generate-ai-dashboard]
 verify_jwt = true
 

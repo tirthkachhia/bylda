@@ -1,15 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import {
-  CALLBACK_URL,
-  INTEGRATION_PROVIDER,
-  OAUTH_PROVIDERS,
-  clientCredentials,
-  randomState,
-  scopesForIntegration,
-  sha256,
-  sha256Base64Url,
-} from "../_shared/integration-oauth.ts";
+import { randomState, sha256 } from "../_shared/integration-oauth.ts";
 
+const CALLBACK_URL =
+  "https://ipidfqwlszuhjgjygbvx.supabase.co/functions/v1/shopify-connect-callback";
 const allowedOrigins = new Set([
   Deno.env.get("APP_URL") ?? "https://app.usebylda.com",
   "https://bylda-eight.vercel.app",
@@ -37,6 +30,15 @@ function json(req: Request, body: unknown, status = 200) {
   });
 }
 
+function normalizeShop(value: string) {
+  const hostname = value
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .split("/")[0];
+  return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(hostname) ? hostname : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { status: 204, headers: corsHeaders(req) });
@@ -44,7 +46,6 @@ Deno.serve(async (req) => {
 
   const auth = req.headers.get("Authorization");
   if (!auth) return json(req, { error: "Unauthorized" }, 401);
-
   const userClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -54,35 +55,20 @@ Deno.serve(async (req) => {
   if (userError || !userData.user) return json(req, { error: "Unauthorized" }, 401);
 
   const body = await req.json().catch(() => null);
-  const integrationKey = String(body?.integration_key ?? "");
-  const providerKey = INTEGRATION_PROVIDER[integrationKey];
-  if (!providerKey) {
-    return json(
-      req,
-      {
-        error: "This provider does not offer a Bylda managed sign-in yet.",
-        code: "OAUTH_NOT_AVAILABLE",
-      },
-      400,
-    );
-  }
+  const shop = normalizeShop(String(body?.shop ?? ""));
+  if (!shop) return json(req, { error: "Enter a valid store.myshopify.com domain." }, 400);
 
-  const provider = OAUTH_PROVIDERS[providerKey];
-  const { clientId, clientSecret } = clientCredentials(provider);
+  const clientId = Deno.env.get("SHOPIFY_CLIENT_ID") ?? "";
+  const clientSecret = Deno.env.get("SHOPIFY_CLIENT_SECRET") ?? "";
   if (!clientId || !clientSecret) {
-    return json(
-      req,
-      {
-        error: `${providerKey} sign-in is awaiting administrator configuration.`,
-        code: "OAUTH_NOT_CONFIGURED",
-      },
-      503,
-    );
+    return json(req, { error: "Shopify sign-in is awaiting administrator configuration." }, 503);
   }
 
+  const scopes = (Deno.env.get("SHOPIFY_SCOPES") ?? "read_products,read_orders")
+    .split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
   const state = randomState();
-  const codeVerifier = providerKey === "airtable" ? randomState() : null;
-  const requestedScopes = scopesForIntegration(integrationKey, provider);
   const requestOrigin = req.headers.get("Origin") ?? "";
   const redirectTo = allowedOrigins.has(requestOrigin)
     ? `${requestOrigin}/app/integrations`
@@ -94,36 +80,18 @@ Deno.serve(async (req) => {
   const { error: stateError } = await admin.from("integration_oauth_states").insert({
     state_hash: await sha256(state),
     user_id: userData.user.id,
-    provider: providerKey,
-    integration_key: integrationKey,
-    requested_scopes: requestedScopes,
-    oauth_code_verifier: codeVerifier,
+    provider: "shopify",
+    integration_key: "shopify",
+    requested_scopes: scopes,
     redirect_to: redirectTo,
     expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
-  if (stateError) {
-    console.error("[integration-oauth-start] state insert", stateError.message);
-    return json(req, { error: "Could not start secure sign-in" }, 500);
-  }
+  if (stateError) return json(req, { error: "Could not start secure Shopify sign-in." }, 500);
 
-  const url = new URL(provider.authorizeUrl);
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("redirect_uri", CALLBACK_URL);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("state", state);
-  if (requestedScopes.length) {
-    url.searchParams.set(
-      "scope",
-      provider.key === "slack" ? requestedScopes.join(",") : requestedScopes.join(" "),
-    );
-  }
-  if (codeVerifier) {
-    url.searchParams.set("code_challenge", await sha256Base64Url(codeVerifier));
-    url.searchParams.set("code_challenge_method", "S256");
-  }
-  for (const [key, value] of Object.entries(provider.authorizeExtras ?? {})) {
-    url.searchParams.set(key, value);
-  }
-
-  return json(req, { authorization_url: url.toString(), provider: providerKey });
+  const authorizationUrl = new URL(`https://${shop}/admin/oauth/authorize`);
+  authorizationUrl.searchParams.set("client_id", clientId);
+  authorizationUrl.searchParams.set("scope", scopes.join(","));
+  authorizationUrl.searchParams.set("redirect_uri", CALLBACK_URL);
+  authorizationUrl.searchParams.set("state", state);
+  return json(req, { authorization_url: authorizationUrl.toString(), provider: "shopify" });
 });
