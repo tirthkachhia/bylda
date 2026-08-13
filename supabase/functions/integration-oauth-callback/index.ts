@@ -3,6 +3,7 @@ import {
   CALLBACK_URL,
   OAUTH_PROVIDERS,
   clientCredentials,
+  pkceVerifier,
   sha256,
   type OAuthProvider,
   type OAuthProviderKey,
@@ -51,6 +52,7 @@ function tokenRequest(
   code: string,
   clientId: string,
   clientSecret: string,
+  codeVerifier?: string,
 ) {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -78,6 +80,7 @@ function tokenRequest(
     body.set("redirect_uri", CALLBACK_URL);
   }
   body.set("code", code);
+  if (codeVerifier) body.set("code_verifier", codeVerifier);
   return {
     headers,
     body:
@@ -179,7 +182,9 @@ Deno.serve(async (req) => {
     );
   }
 
-  const request = tokenRequest(provider, code, clientId, clientSecret);
+  const codeVerifier =
+    oauthState.provider === "salesforce" ? await pkceVerifier(state, clientSecret) : undefined;
+  const request = tokenRequest(provider, code, clientId, clientSecret, codeVerifier);
   const tokenResponse = await fetch(provider.tokenUrl, {
     method: "POST",
     headers: request.headers,

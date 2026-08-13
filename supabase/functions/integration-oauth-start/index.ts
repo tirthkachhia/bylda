@@ -4,6 +4,8 @@ import {
   INTEGRATION_PROVIDER,
   OAUTH_PROVIDERS,
   clientCredentials,
+  pkceChallenge,
+  pkceVerifier,
   randomState,
   scopesForIntegration,
   sha256,
@@ -103,6 +105,11 @@ Deno.serve(async (req) => {
   url.searchParams.set("redirect_uri", CALLBACK_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", state);
+  if (provider.key === "salesforce") {
+    const verifier = await pkceVerifier(state, clientSecret);
+    url.searchParams.set("code_challenge", await pkceChallenge(verifier));
+    url.searchParams.set("code_challenge_method", "S256");
+  }
   if (requestedScopes.length) {
     url.searchParams.set(
       "scope",

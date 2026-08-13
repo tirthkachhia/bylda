@@ -176,7 +176,14 @@ Deno.serve(async (req) => {
       if (refreshed.instance_url && validInstanceUrl(String(refreshed.instance_url))) {
         instanceUrl = String(refreshed.instance_url).replace(/\/$/, "");
       }
-      oauth = { ...oauth, access_token: accessToken, instance_url: instanceUrl };
+      oauth = {
+        ...oauth,
+        access_token: accessToken,
+        refresh_token: refreshed.refresh_token
+          ? String(refreshed.refresh_token)
+          : oauth.refresh_token,
+        instance_url: instanceUrl,
+      };
       await saveCredential();
     };
 
