@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Lock, Search, ShieldCheck, X } from "lucide-react";
+import { Check, ExternalLink, Lock, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatusPill } from "@/components/app/StatusPill";
@@ -20,6 +20,7 @@ import {
   disconnectIntegration,
   integrationsQuery,
   startIntegrationOAuth,
+  syncSalesforce,
   type MaskedIntegration,
 } from "@/lib/queries";
 import {
@@ -138,6 +139,24 @@ function ConnectModal({
     }
   };
 
+  const syncCrm = async () => {
+    if (blockIfGuest("Sign up to sync CRM data.")) return;
+    if (!user || item.key !== "salesforce") return;
+    setWorking(true);
+    setError(null);
+    try {
+      const result = await syncSalesforce();
+      toast.success(
+        `Salesforce synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
+      );
+      onSaved();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not sync Salesforce data");
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
@@ -216,6 +235,12 @@ function ConnectModal({
                 </Button>
               )}
             </div>
+            {connection && item.key === "salesforce" && (
+              <Button variant="outline" className="w-full" onClick={syncCrm} disabled={working}>
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${working ? "animate-spin" : ""}`} />
+                Sync contacts and opportunities
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-4 pt-1">
@@ -344,8 +369,20 @@ function IntegrationsPage() {
     const status = params.get("oauth");
     const provider = params.get("provider");
     if (!status) return;
-    if (status === "success") toast.success(`${provider ?? "Account"} connected securely`);
-    else if (status === "cancelled") toast.info("Account connection cancelled");
+    if (status === "success") {
+      toast.success(`${provider ?? "Account"} connected securely`);
+      if (provider === "salesforce") {
+        void syncSalesforce()
+          .then((result) => {
+            toast.success(
+              `Salesforce synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
+            );
+          })
+          .catch((error) => {
+            toast.error(error instanceof Error ? error.message : "Salesforce sync failed");
+          });
+      }
+    } else if (status === "cancelled") toast.info("Account connection cancelled");
     else toast.error("Account connection failed. Please try again.");
     window.history.replaceState({}, "", window.location.pathname);
     if (user) queryClient.invalidateQueries({ queryKey: ["user_integrations", user.id] });

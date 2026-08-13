@@ -95,6 +95,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
     authorizeUrl: "https://login.salesforce.com/services/oauth2/authorize",
     tokenUrl: "https://login.salesforce.com/services/oauth2/token",
     scopes: ["api", "refresh_token"],
+    authorizeExtras: { prompt: "login consent" },
   },
   pipedrive: {
     key: "pipedrive",

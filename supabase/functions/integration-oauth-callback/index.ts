@@ -33,6 +33,8 @@ type TokenPayload = Record<string, unknown> & {
   workspace_id?: string;
   workspace_name?: string;
   organization_id?: string;
+  instance_url?: string;
+  id?: string;
   owner?: { user?: { id?: string; name?: string } };
 };
 
@@ -99,6 +101,17 @@ function accountMetadata(provider: OAuthProviderKey, payload: TokenPayload) {
     return {
       id: String(payload.workspace_id ?? payload.owner?.user?.id ?? ""),
       label: String(payload.workspace_name ?? payload.owner?.user?.name ?? "Notion workspace"),
+    };
+  }
+  if (provider === "salesforce") {
+    const identityParts =
+      String(payload.id ?? "")
+        .split("/id/")[1]
+        ?.split("/") ?? [];
+    const organizationId = String(payload.organization_id ?? identityParts[0] ?? "");
+    return {
+      id: organizationId,
+      label: organizationId ? `Salesforce organization ${organizationId}` : "Salesforce account",
     };
   }
   return {
@@ -202,6 +215,8 @@ Deno.serve(async (req) => {
     external_account_id: account.id,
     location_id: payload.locationId ?? null,
     company_id: payload.companyId ?? null,
+    instance_url: payload.instance_url ?? null,
+    identity_url: payload.id ?? null,
     connected_at: new Date().toISOString(),
   });
 

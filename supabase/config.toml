@@ -25,6 +25,10 @@ verify_jwt = true
 [functions.integration-oauth-callback]
 verify_jwt = false
 
+# Imports contacts and opportunities from a user-authorized Salesforce org.
+[functions.sync-salesforce]
+verify_jwt = true
+
 [functions.generate-ai-dashboard]
 verify_jwt = true
 
