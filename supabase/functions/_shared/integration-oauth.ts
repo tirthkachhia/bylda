@@ -244,8 +244,7 @@ export const INTEGRATION_PROVIDER: Record<string, OAuthProviderKey> = {
   xero: "xero",
 };
 
-export const CALLBACK_URL =
-  "https://ipidfqwlszuhjgjygbvx.supabase.co/functions/v1/integration-oauth-callback";
+export const CALLBACK_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/integration-oauth-callback`;
 
 export function scopesForIntegration(integrationKey: string, provider: OAuthProvider) {
   const scoped: Record<string, string[]> = {

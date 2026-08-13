@@ -45,6 +45,7 @@ import { Route as AppLaunchControlRouteImport } from './routes/app.launch-contro
 import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
 import { Route as AppGalaxyRouteImport } from './routes/app.galaxy'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
+import { Route as AppContextMemoryRouteImport } from './routes/app.context-memory'
 import { Route as AppContactsRouteImport } from './routes/app.contacts'
 import { Route as AppCommandCenterRouteImport } from './routes/app.command-center'
 import { Route as AppByldaOsRouteImport } from './routes/app.bylda-os'
@@ -272,6 +273,11 @@ const AppGalaxyRoute = AppGalaxyRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContextMemoryRoute = AppContextMemoryRouteImport.update({
+  id: '/context-memory',
+  path: '/context-memory',
   getParentRoute: () => AppRoute,
 } as any)
 const AppContactsRoute = AppContactsRouteImport.update({
@@ -537,6 +543,7 @@ export interface FileRoutesByFullPath {
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
+  '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
   '/app/integrations': typeof AppIntegrationsRoute
@@ -622,6 +629,7 @@ export interface FileRoutesByTo {
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
+  '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
   '/app/integrations': typeof AppIntegrationsRoute
@@ -709,6 +717,7 @@ export interface FileRoutesById {
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
+  '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
   '/app/integrations': typeof AppIntegrationsRoute
@@ -797,6 +806,7 @@ export interface FileRouteTypes {
     | '/app/bylda-os'
     | '/app/command-center'
     | '/app/contacts'
+    | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
     | '/app/integrations'
@@ -882,6 +892,7 @@ export interface FileRouteTypes {
     | '/app/bylda-os'
     | '/app/command-center'
     | '/app/contacts'
+    | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
     | '/app/integrations'
@@ -968,6 +979,7 @@ export interface FileRouteTypes {
     | '/app/bylda-os'
     | '/app/command-center'
     | '/app/contacts'
+    | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
     | '/app/integrations'
@@ -1303,6 +1315,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/context-memory': {
+      id: '/app/context-memory'
+      path: '/context-memory'
+      fullPath: '/app/context-memory'
+      preLoaderRoute: typeof AppContextMemoryRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/contacts': {
@@ -1714,6 +1733,7 @@ interface AppRouteChildren {
   AppByldaOsRoute: typeof AppByldaOsRouteWithChildren
   AppCommandCenterRoute: typeof AppCommandCenterRoute
   AppContactsRoute: typeof AppContactsRoute
+  AppContextMemoryRoute: typeof AppContextMemoryRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppGalaxyRoute: typeof AppGalaxyRoute
   AppIntegrationsRoute: typeof AppIntegrationsRoute
@@ -1779,6 +1799,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppByldaOsRoute: AppByldaOsRouteWithChildren,
   AppCommandCenterRoute: AppCommandCenterRoute,
   AppContactsRoute: AppContactsRoute,
+  AppContextMemoryRoute: AppContextMemoryRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppGalaxyRoute: AppGalaxyRoute,
   AppIntegrationsRoute: AppIntegrationsRoute,

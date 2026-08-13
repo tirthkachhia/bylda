@@ -76,7 +76,14 @@ Deno.serve(async (req) => {
   const secret = Deno.env.get("INBOUND_WEBHOOK_SECRET");
   if (!secret) return json({ configured: false });
 
-  const key = await hmacHex(secret, orgId);
-  const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/receive-message?org=${orgId}&key=${key}`;
-  return json({ configured: true, url });
+  const [messageKey, callKey] = await Promise.all([
+    hmacHex(secret, orgId),
+    hmacHex(secret, `calls:${orgId}`),
+  ]);
+  const functionsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1`;
+  return json({
+    configured: true,
+    url: `${functionsUrl}/receive-message?org=${orgId}&key=${messageKey}`,
+    call_url: `${functionsUrl}/ingest-call-webhook?org=${orgId}&key=${callKey}`,
+  });
 });

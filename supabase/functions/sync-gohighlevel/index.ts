@@ -1,4 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  emitDomainEvent,
+  markRawObjectProcessed,
+  sha256Hex,
+  storeRawObject,
+  upsertExternalObject,
+} from "../_shared/context-ingestion.ts";
+import { resolveCompany } from "../_shared/crmObjects.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -194,6 +202,80 @@ Deno.serve(async (req) => {
     const opportunities: GhlOpportunity[] =
       opportunitiesPayload.opportunities ?? opportunitiesPayload.results ?? [];
 
+    // Retain provider truth before normalization so imports can be replayed.
+    const rawContactIds = new Map<string, string | null>();
+    const rawOpportunityIds = new Map<string, string | null>();
+    await Promise.all([
+      ...contacts
+        .filter((contact) => contact.id)
+        .map(async (contact) => {
+          const payload = contact as unknown as Record<string, unknown>;
+          const snapshotHash = await sha256Hex(JSON.stringify(payload));
+          rawContactIds.set(
+            contact.id,
+            await storeRawObject(admin, {
+              organizationId: orgId,
+              provider: "gohighlevel",
+              objectType: "contact",
+              externalId: contact.id,
+              idempotencyKey: `${contact.id}:${snapshotHash}`,
+              payload,
+            }),
+          );
+        }),
+      ...opportunities
+        .filter((opportunity) => opportunity.id)
+        .map(async (opportunity) => {
+          const payload = opportunity as unknown as Record<string, unknown>;
+          const snapshotHash = await sha256Hex(JSON.stringify(payload));
+          rawOpportunityIds.set(
+            opportunity.id,
+            await storeRawObject(admin, {
+              organizationId: orgId,
+              provider: "gohighlevel",
+              objectType: "opportunity",
+              externalId: opportunity.id,
+              idempotencyKey: `${opportunity.id}:${snapshotHash}`,
+              payload,
+            }),
+          );
+        }),
+    ]);
+
+    const companyIds = new Map<string, string>();
+    for (const companyName of [
+      ...new Set(
+        contacts
+          .map((contact) => contact.companyName?.trim())
+          .filter((name): name is string => Boolean(name)),
+      ),
+    ]) {
+      const company = await resolveCompany(admin, orgId, { name: companyName });
+      if (company) companyIds.set(companyName.toLowerCase(), company.id);
+    }
+
+    const contactExternalIds = contacts.map((contact) => contact.id).filter(Boolean);
+    const existingContactsResult = contactExternalIds.length
+      ? await admin
+          .from("contacts")
+          .select("id,external_id,company_id")
+          .eq("org_id", orgId)
+          .eq("external_source", "gohighlevel")
+          .in("external_id", contactExternalIds)
+      : { data: [], error: null };
+    if (existingContactsResult.error) {
+      throw new Error(`Existing contact lookup failed: ${existingContactsResult.error.message}`);
+    }
+    const existingContacts = existingContactsResult.data;
+    const contactIdByExternal = new Map<string, { id: string; companyId: string | null }>();
+    for (const row of existingContacts ?? []) {
+      if (!row.external_id) continue;
+      contactIdByExternal.set(String(row.external_id), {
+        id: String(row.id),
+        companyId: row.company_id ? String(row.company_id) : null,
+      });
+    }
+
     const contactRows = contacts
       .filter((c) => c.id)
       .map((c) => {
@@ -206,6 +288,11 @@ Deno.serve(async (req) => {
           email: c.email ?? null,
           phone: c.phone ?? null,
           company: c.companyName ?? null,
+          company_id: c.companyName
+            ? (companyIds.get(c.companyName.trim().toLowerCase()) ??
+              contactIdByExternal.get(c.id)?.companyId ??
+              null)
+            : (contactIdByExternal.get(c.id)?.companyId ?? null),
           status: "new",
           source: c.source ?? "GoHighLevel",
           tags: Array.isArray(c.tags) ? c.tags : [],
@@ -221,43 +308,140 @@ Deno.serve(async (req) => {
       const { data, error } = await admin
         .from("contacts")
         .upsert(contactRows, { onConflict: "org_id,external_source,external_id" })
-        .select("id");
+        .select("id,external_id,company_id");
       if (error) throw new Error(`Contact import failed: ${error.message}`);
       contactsImported = data?.length ?? contactRows.length;
+      for (const row of data ?? []) {
+        if (!row.external_id) continue;
+        const externalId = String(row.external_id);
+        contactIdByExternal.set(externalId, {
+          id: String(row.id),
+          companyId: row.company_id ? String(row.company_id) : null,
+        });
+        await Promise.all([
+          upsertExternalObject(admin, {
+            organizationId: orgId,
+            provider: "gohighlevel",
+            externalObjectType: "contact",
+            externalObjectId: externalId,
+            canonicalType: "contact",
+            canonicalId: String(row.id),
+          }),
+          markRawObjectProcessed(
+            admin,
+            rawContactIds.get(externalId) ?? null,
+            "contact",
+            String(row.id),
+          ),
+        ]);
+      }
+    }
+
+    const opportunityExternalIds = opportunities
+      .map((opportunity) => opportunity.id)
+      .filter(Boolean);
+    const existingLeadsResult = opportunityExternalIds.length
+      ? await admin
+          .from("leads")
+          .select("id,external_id,contact_id,company_id")
+          .eq("organization_id", orgId)
+          .eq("external_source", "gohighlevel")
+          .in("external_id", opportunityExternalIds)
+      : { data: [], error: null };
+    if (existingLeadsResult.error) {
+      throw new Error(`Existing opportunity lookup failed: ${existingLeadsResult.error.message}`);
+    }
+    const existingLeads = existingLeadsResult.data;
+    const existingLeadByExternal = new Map<
+      string,
+      { contactId: string | null; companyId: string | null }
+    >();
+    for (const row of existingLeads ?? []) {
+      if (!row.external_id) continue;
+      existingLeadByExternal.set(String(row.external_id), {
+        contactId: row.contact_id ? String(row.contact_id) : null,
+        companyId: row.company_id ? String(row.company_id) : null,
+      });
     }
 
     const leadRows = opportunities
       .filter((o) => o.id)
-      .map((o) => ({
-        organization_id: orgId,
-        user_id: user.id,
-        name: o.name ?? o.contact?.name ?? "GoHighLevel opportunity",
-        email: o.contact?.email ?? null,
-        phone: o.contact?.phone ?? null,
-        company: o.contact?.companyName ?? null,
-        stage: "New",
-        source: o.source ?? "GoHighLevel",
-        value: o.monetaryValue ?? null,
-        external_source: "gohighlevel",
-        external_id: o.id,
-        external_data: {
-          status: o.status,
-          pipeline_id: o.pipelineId,
-          pipeline_stage_id: o.pipelineStageId,
-          contact_id: o.contactId,
-        },
-        updated_at: new Date().toISOString(),
-      }));
+      .map((o) => {
+        const linkedContact = o.contactId ? contactIdByExternal.get(o.contactId) : undefined;
+        const existingLead = existingLeadByExternal.get(o.id);
+        return {
+          organization_id: orgId,
+          user_id: user.id,
+          name: o.name ?? o.contact?.name ?? "GoHighLevel opportunity",
+          email: o.contact?.email ?? null,
+          phone: o.contact?.phone ?? null,
+          company: o.contact?.companyName ?? null,
+          contact_id: linkedContact?.id ?? existingLead?.contactId ?? null,
+          company_id:
+            linkedContact?.companyId ??
+            (o.contact?.companyName
+              ? (companyIds.get(o.contact.companyName.trim().toLowerCase()) ??
+                existingLead?.companyId ??
+                null)
+              : (existingLead?.companyId ?? null)),
+          stage: "New",
+          source: o.source ?? "GoHighLevel",
+          value: o.monetaryValue ?? null,
+          external_source: "gohighlevel",
+          external_id: o.id,
+          external_data: {
+            status: o.status,
+            pipeline_id: o.pipelineId,
+            pipeline_stage_id: o.pipelineStageId,
+            contact_id: o.contactId,
+          },
+          updated_at: new Date().toISOString(),
+        };
+      });
 
     let opportunitiesImported = 0;
     if (leadRows.length) {
       const { data, error } = await admin
         .from("leads")
         .upsert(leadRows, { onConflict: "organization_id,external_source,external_id" })
-        .select("id");
+        .select("id,external_id");
       if (error) throw new Error(`Opportunity import failed: ${error.message}`);
       opportunitiesImported = data?.length ?? leadRows.length;
+      for (const row of data ?? []) {
+        if (!row.external_id) continue;
+        const externalId = String(row.external_id);
+        await Promise.all([
+          upsertExternalObject(admin, {
+            organizationId: orgId,
+            provider: "gohighlevel",
+            externalObjectType: "opportunity",
+            externalObjectId: externalId,
+            canonicalType: "lead",
+            canonicalId: String(row.id),
+          }),
+          markRawObjectProcessed(
+            admin,
+            rawOpportunityIds.get(externalId) ?? null,
+            "lead",
+            String(row.id),
+          ),
+        ]);
+      }
     }
+
+    await emitDomainEvent(admin, {
+      organizationId: orgId,
+      eventKey: `gohighlevel:${locationId}:sync:${new Date().toISOString().slice(0, 13)}`,
+      eventType: "crm.sync.completed",
+      source: "sync-gohighlevel",
+      subjectType: "integration",
+      payload: {
+        provider: "gohighlevel",
+        location_id: locationId,
+        contacts_imported: contactsImported,
+        opportunities_imported: opportunitiesImported,
+      },
+    });
 
     return json({
       ok: true,

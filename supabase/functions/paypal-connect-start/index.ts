@@ -1,8 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { randomState, sha256 } from "../_shared/integration-oauth.ts";
 
-const PROJECT_REF = "ipidfqwlszuhjgjygbvx";
-const CALLBACK_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/paypal-connect-callback`;
+const CALLBACK_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/paypal-connect-callback`;
 const allowedOrigins = new Set([
   Deno.env.get("APP_URL") ?? "https://app.usebylda.com",
   "https://bylda-eight.vercel.app",
