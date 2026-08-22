@@ -1,25 +1,35 @@
+import { Buffer } from "node:buffer";
+
 // Bylda AI API — served from https://ai.usebylda.com.
 // Authenticates with Supabase and runs inference on Cloudflare Workers AI.
 
-type AiResponse = {
+interface WorkersAI {
+  run(model: string, input: unknown): Promise<unknown>;
+}
+
+type TextGenerationResult = {
   response?: string;
   usage?: Record<string, number>;
 };
 
-interface WorkersAI {
-  run(
-    model: string,
-    input: {
-      messages: Array<{ role: string; content: string }>;
-      max_tokens?: number;
-      temperature?: number;
-    },
-  ): Promise<AiResponse>;
-}
+type TranscriptionResult = {
+  text?: string;
+  transcription_info?: { text?: string; word_count?: number };
+  segments?: unknown[];
+  vtt?: string;
+};
+
+type TextGenerationInput = {
+  messages: Array<{ role: string; content: string }>;
+  max_tokens?: number;
+  temperature?: number;
+};
 
 export interface Env {
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
+  CALL_TRANSCRIPTION_SECRET: string;
+  TRANSCRIPTION_ALLOWED_HOSTS?: string;
   AI: WorkersAI;
 }
 
@@ -32,6 +42,9 @@ type MemoryArtifact = {
 
 const ALLOWED_ORIGIN = "https://app.usebylda.com";
 const MODEL = "@cf/openai/gpt-oss-20b";
+const TRANSCRIPTION_MODEL = "@cf/openai/whisper-large-v3-turbo";
+const AUDIO_CHUNK_BYTES = 1024 * 1024;
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 const SYSTEM_PROMPT = `You are Bylda, the revenue intelligence assistant for sales teams.
 
 Help users understand sales calls, deal history, buyer signals, CRM records, follow-ups, and pipeline risk. Ground every claim in the context provided. Be concise, specific, and operational. Never invent facts that are not present in the user's data. When evidence is incomplete, say what is missing.`;
@@ -107,7 +120,7 @@ async function runMemoryQuery(
     .join("\n\n");
 
   try {
-    const result = await env.AI.run(MODEL, {
+    const result = (await env.AI.run(MODEL, {
       max_tokens: 1200,
       temperature: 0.2,
       messages: [
@@ -117,7 +130,7 @@ async function runMemoryQuery(
         },
         { role: "user", content: request.message },
       ],
-    });
+    } satisfies TextGenerationInput)) as TextGenerationResult;
     return json({
       answer: result.response ?? "No response generated.",
       sources_searched: artifacts.length,
@@ -147,7 +160,7 @@ async function runChat(
   }
 
   try {
-    const result = await env.AI.run(MODEL, {
+    const result = (await env.AI.run(MODEL, {
       max_tokens: 1600,
       temperature: 0.3,
       messages: [
@@ -155,7 +168,7 @@ async function runChat(
         ...(body.conversation_history ?? []),
         { role: "user", content: body.message },
       ],
-    });
+    } satisfies TextGenerationInput)) as TextGenerationResult;
     return json({
       answer: result.response ?? "No response generated.",
       provider: "cloudflare-workers-ai",
@@ -168,10 +181,113 @@ async function runChat(
   }
 }
 
+function safeEqual(left: string, right: string) {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+function allowedRecordingUrl(value: string, env: Env) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    const hostname = url.hostname.toLowerCase();
+    if (
+      hostname === "localhost" ||
+      hostname === "0.0.0.0" ||
+      hostname === "::1" ||
+      /^127\./.test(hostname) ||
+      /^10\./.test(hostname) ||
+      /^192\.168\./.test(hostname) ||
+      /^169\.254\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+    ) {
+      return false;
+    }
+    const configured = (env.TRANSCRIPTION_ALLOWED_HOSTS ?? "")
+      .split(",")
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean);
+    const allowed = configured.length
+      ? configured
+      : ["readymode.com", "amazonaws.com", "cloudfront.net", "storage.googleapis.com"];
+    return allowed.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
+  }
+}
+
+async function transcribeChunk(chunk: ArrayBuffer, env: Env) {
+  const audio = Buffer.from(chunk).toString("base64");
+  const result = (await env.AI.run(TRANSCRIPTION_MODEL, {
+    audio,
+    task: "transcribe",
+    language: "en",
+    vad_filter: true,
+    condition_on_previous_text: false,
+    initial_prompt:
+      "Insurance sales call. Preserve names, carriers, policy types, premiums, coverage, objections, beneficiaries, and next steps accurately.",
+  })) as TranscriptionResult;
+  return (result.text ?? result.transcription_info?.text ?? "").trim();
+}
+
+async function runTranscription(request: Request, env: Env) {
+  const supplied = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!env.CALL_TRANSCRIPTION_SECRET || !safeEqual(supplied, env.CALL_TRANSCRIPTION_SECRET)) {
+    return json({ error: "Unauthorized" }, 401);
+  }
+
+  const body = (await request.json().catch(() => null)) as {
+    recording_url?: string;
+    provider?: string;
+  } | null;
+  const recordingUrl = body?.recording_url?.trim() ?? "";
+  if (!recordingUrl || !allowedRecordingUrl(recordingUrl, env)) {
+    return json({ error: "Recording URL is not allowed" }, 400);
+  }
+
+  const audioResponse = await fetch(recordingUrl, {
+    headers: { Accept: "audio/*,application/octet-stream;q=0.8" },
+    redirect: "follow",
+  });
+  if (!audioResponse.ok) return json({ error: "Could not download the call recording" }, 502);
+  if (!allowedRecordingUrl(audioResponse.url, env)) {
+    return json({ error: "Recording redirect is not allowed" }, 400);
+  }
+  const declaredLength = Number(audioResponse.headers.get("content-length") ?? 0);
+  if (declaredLength > MAX_AUDIO_BYTES) return json({ error: "Recording is too large" }, 413);
+
+  const audio = await audioResponse.arrayBuffer();
+  if (!audio.byteLength || audio.byteLength > MAX_AUDIO_BYTES) {
+    return json({ error: "Recording is empty or too large" }, audio.byteLength ? 413 : 400);
+  }
+
+  const transcriptParts: string[] = [];
+  for (let offset = 0; offset < audio.byteLength; offset += AUDIO_CHUNK_BYTES) {
+    const text = await transcribeChunk(audio.slice(offset, offset + AUDIO_CHUNK_BYTES), env);
+    if (text) transcriptParts.push(text);
+  }
+  const transcript = transcriptParts.join("\n").trim();
+  if (!transcript) return json({ error: "The recording did not contain recognizable speech" }, 422);
+
+  return json({
+    transcript,
+    provider: body?.provider ?? "readymode",
+    model: TRANSCRIPTION_MODEL,
+    chunks: Math.ceil(audio.byteLength / AUDIO_CHUNK_BYTES),
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors() });
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+    const pathname = new URL(request.url).pathname;
+    if (pathname === "/transcribe") return runTranscription(request, env);
 
     const token = (request.headers.get("Authorization") ?? "").replace("Bearer ", "");
     if (!(await validateJWT(token, env))) return json({ error: "Unauthorized" }, 401);

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { normalizeCall } from "../_shared/call-normalize.ts";
 
 const MINIMUM_DURATION_SECONDS = 45;
 
@@ -33,85 +34,41 @@ function safeEqual(a: string, b: string) {
   return difference === 0;
 }
 
-function first(source: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = source[key];
-    if (value !== undefined && value !== null && value !== "") return value;
+async function transcribeRecording(recordingUrl: string, provider: string) {
+  const workerUrl = Deno.env.get("TRANSCRIPTION_WORKER_URL");
+  const secret = Deno.env.get("CALL_TRANSCRIPTION_SECRET");
+  if (!workerUrl || !secret) return { transcript: null, status: "not_configured" };
+
+  try {
+    const response = await fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recording_url: recordingUrl, provider, language: "en" }),
+      signal: AbortSignal.timeout(90_000),
+    });
+    const payload = (await response.json().catch(() => ({}))) as {
+      transcript?: string;
+      error?: string;
+    };
+    if (!response.ok || !payload.transcript?.trim()) {
+      console.error(
+        "[ingest-call-webhook] transcription",
+        response.status,
+        payload.error ?? "empty",
+      );
+      return { transcript: null, status: "failed" };
+    }
+    return { transcript: payload.transcript.trim(), status: "completed" };
+  } catch (error) {
+    console.error(
+      "[ingest-call-webhook] transcription",
+      error instanceof Error ? error.message : error,
+    );
+    return { transcript: null, status: "failed" };
   }
-  return undefined;
-}
-
-function text(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function number(value: unknown) {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function uuid(value: string | undefined) {
-  return value &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-    ? value
-    : undefined;
-}
-
-function normalize(raw: Record<string, unknown>) {
-  const nested = [raw.data, raw.call, raw.payload, raw.event, raw.body].find(
-    (value) => value && typeof value === "object" && !Array.isArray(value),
-  ) as Record<string, unknown> | undefined;
-  const source = { ...raw, ...(nested ?? {}) };
-  const transcriptObject = first(source, ["transcription", "transcript_data"]);
-  const transcriptNested =
-    transcriptObject && typeof transcriptObject === "object"
-      ? (transcriptObject as Record<string, unknown>)
-      : undefined;
-  const transcript =
-    text(first(source, ["transcript", "transcript_text", "transcription_text", "text"])) ??
-    text(transcriptNested?.text);
-  const segments = first(source, ["speaker_segments", "segments", "utterances"]);
-  const duration = number(
-    first(source, ["duration_seconds", "duration", "call_duration", "talk_time", "talkTime"]),
-  );
-  const disposition = text(
-    first(source, ["disposition", "outcome", "call_outcome", "result", "status"]),
-  );
-  const statusValue = (disposition ?? "completed").toLowerCase();
-  const connectedFlag = first(source, ["connected", "answered", "is_connected", "isAnswered"]);
-  const connected =
-    typeof connectedFlag === "boolean"
-      ? connectedFlag
-      : !["missed", "no_answer", "no-answer", "voicemail", "failed", "busy"].includes(statusValue);
-  const provider =
-    text(first(source, ["provider", "dialer", "source", "integration"])) ??
-    text(raw.provider) ??
-    "generic";
-
-  return {
-    provider: provider
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, "-")
-      .slice(0, 64),
-    providerCallId:
-      text(first(source, ["provider_call_id", "call_id", "callId", "id", "uuid", "sid"])) ??
-      crypto.randomUUID(),
-    direction:
-      text(first(source, ["direction", "call_direction"]))?.toLowerCase() === "inbound"
-        ? "inbound"
-        : "outbound",
-    duration: duration == null ? null : Math.max(0, Math.round(duration)),
-    connected,
-    disposition,
-    fromNumber: text(first(source, ["from_number", "from", "caller", "caller_number"])),
-    toNumber: text(first(source, ["to_number", "to", "callee", "destination"])),
-    recordingUrl: text(first(source, ["recording_url", "recordingUrl", "recording", "audio_url"])),
-    transcript,
-    speakerSegments: Array.isArray(segments) ? segments : [],
-    startedAt: text(first(source, ["started_at", "start_time", "startTime", "timestamp"])),
-    contactId: uuid(text(first(source, ["contact_id", "contactId"]))),
-    leadId: uuid(text(first(source, ["lead_id", "leadId", "opportunity_id"]))),
-  };
 }
 
 Deno.serve(async (req) => {
@@ -128,14 +85,21 @@ Deno.serve(async (req) => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return json({ error: "Expected a JSON call payload" }, 400);
   }
-  const call = normalize(raw as Record<string, unknown>);
+  const call = normalizeCall(raw as Record<string, unknown>);
   const eligible =
     call.connected && (call.duration == null || call.duration >= MINIMUM_DURATION_SECONDS);
+  let transcript = call.transcript;
+  let transcriptionStatus = transcript ? "supplied" : "not_requested";
+  if (!transcript && call.recordingUrl && eligible) {
+    const result = await transcribeRecording(call.recordingUrl, call.provider);
+    transcript = result.transcript ?? undefined;
+    transcriptionStatus = result.status;
+  }
   const skipReason = !call.connected
     ? "not_connected"
     : call.duration != null && call.duration < MINIMUM_DURATION_SECONDS
       ? "under_45_seconds"
-      : !call.transcript
+      : !transcript
         ? "transcript_not_supplied"
         : null;
 
@@ -165,6 +129,7 @@ Deno.serve(async (req) => {
           ingestion: "universal-dialer-webhook",
           eligible_for_ai: eligible,
           skip_reason: skipReason,
+          transcription_status: transcriptionStatus,
           received_at: new Date().toISOString(),
         },
       },
@@ -178,12 +143,12 @@ Deno.serve(async (req) => {
   }
 
   let transcriptStored = false;
-  if (eligible && call.transcript) {
+  if (eligible && transcript) {
     const { error } = await admin.from("call_transcripts").upsert(
       {
         call_id: storedCall.id,
         organization_id: orgId,
-        transcript_text: call.transcript,
+        transcript_text: transcript,
         speaker_segments: call.speakerSegments,
       },
       { onConflict: "call_id" },
@@ -236,6 +201,7 @@ Deno.serve(async (req) => {
     eligible_for_ai: eligible,
     transcript_stored: transcriptStored,
     analysis_queued: transcriptStored,
+    transcription_status: transcriptionStatus,
     skip_reason: skipReason,
   });
 });
