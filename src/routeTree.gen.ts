@@ -75,6 +75,7 @@ import { Route as AppLaunchpadByldaRouteImport } from './routes/app.launchpad.by
 import { Route as AppLaunchpadToolRouteImport } from './routes/app.launchpad.$tool'
 import { Route as AppCrmWaitlistRouteImport } from './routes/app.crm.waitlist'
 import { Route as AppCrmTasksRouteImport } from './routes/app.crm.tasks'
+import { Route as AppCrmSetupRouteImport } from './routes/app.crm.setup'
 import { Route as AppCrmFormsRouteImport } from './routes/app.crm.forms'
 import { Route as AppCrmDuplicatesRouteImport } from './routes/app.crm.duplicates'
 import { Route as AppCrmConversationsRouteImport } from './routes/app.crm.conversations'
@@ -425,6 +426,11 @@ const AppCrmTasksRoute = AppCrmTasksRouteImport.update({
   path: '/crm/tasks',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCrmSetupRoute = AppCrmSetupRouteImport.update({
+  id: '/crm/setup',
+  path: '/crm/setup',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCrmFormsRoute = AppCrmFormsRouteImport.update({
   id: '/crm/forms',
   path: '/crm/forms',
@@ -583,6 +589,7 @@ export interface FileRoutesByFullPath {
   '/app/crm/conversations': typeof AppCrmConversationsRoute
   '/app/crm/duplicates': typeof AppCrmDuplicatesRoute
   '/app/crm/forms': typeof AppCrmFormsRoute
+  '/app/crm/setup': typeof AppCrmSetupRoute
   '/app/crm/tasks': typeof AppCrmTasksRoute
   '/app/crm/waitlist': typeof AppCrmWaitlistRoute
   '/app/launchpad/$tool': typeof AppLaunchpadToolRoute
@@ -668,6 +675,7 @@ export interface FileRoutesByTo {
   '/app/crm/conversations': typeof AppCrmConversationsRoute
   '/app/crm/duplicates': typeof AppCrmDuplicatesRoute
   '/app/crm/forms': typeof AppCrmFormsRoute
+  '/app/crm/setup': typeof AppCrmSetupRoute
   '/app/crm/tasks': typeof AppCrmTasksRoute
   '/app/crm/waitlist': typeof AppCrmWaitlistRoute
   '/app/launchpad/$tool': typeof AppLaunchpadToolRoute
@@ -755,6 +763,7 @@ export interface FileRoutesById {
   '/app/crm/conversations': typeof AppCrmConversationsRoute
   '/app/crm/duplicates': typeof AppCrmDuplicatesRoute
   '/app/crm/forms': typeof AppCrmFormsRoute
+  '/app/crm/setup': typeof AppCrmSetupRoute
   '/app/crm/tasks': typeof AppCrmTasksRoute
   '/app/crm/waitlist': typeof AppCrmWaitlistRoute
   '/app/launchpad/$tool': typeof AppLaunchpadToolRoute
@@ -843,6 +852,7 @@ export interface FileRouteTypes {
     | '/app/crm/conversations'
     | '/app/crm/duplicates'
     | '/app/crm/forms'
+    | '/app/crm/setup'
     | '/app/crm/tasks'
     | '/app/crm/waitlist'
     | '/app/launchpad/$tool'
@@ -928,6 +938,7 @@ export interface FileRouteTypes {
     | '/app/crm/conversations'
     | '/app/crm/duplicates'
     | '/app/crm/forms'
+    | '/app/crm/setup'
     | '/app/crm/tasks'
     | '/app/crm/waitlist'
     | '/app/launchpad/$tool'
@@ -1014,6 +1025,7 @@ export interface FileRouteTypes {
     | '/app/crm/conversations'
     | '/app/crm/duplicates'
     | '/app/crm/forms'
+    | '/app/crm/setup'
     | '/app/crm/tasks'
     | '/app/crm/waitlist'
     | '/app/launchpad/$tool'
@@ -1515,6 +1527,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCrmTasksRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/crm/setup': {
+      id: '/app/crm/setup'
+      path: '/crm/setup'
+      fullPath: '/app/crm/setup'
+      preLoaderRoute: typeof AppCrmSetupRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/crm/forms': {
       id: '/app/crm/forms'
       path: '/crm/forms'
@@ -1750,6 +1769,7 @@ interface AppRouteChildren {
   AppCrmConversationsRoute: typeof AppCrmConversationsRoute
   AppCrmDuplicatesRoute: typeof AppCrmDuplicatesRoute
   AppCrmFormsRoute: typeof AppCrmFormsRoute
+  AppCrmSetupRoute: typeof AppCrmSetupRoute
   AppCrmTasksRoute: typeof AppCrmTasksRoute
   AppCrmWaitlistRoute: typeof AppCrmWaitlistRoute
   AppLaunchpadToolRoute: typeof AppLaunchpadToolRoute
@@ -1815,6 +1835,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmConversationsRoute: AppCrmConversationsRoute,
   AppCrmDuplicatesRoute: AppCrmDuplicatesRoute,
   AppCrmFormsRoute: AppCrmFormsRoute,
+  AppCrmSetupRoute: AppCrmSetupRoute,
   AppCrmTasksRoute: AppCrmTasksRoute,
   AppCrmWaitlistRoute: AppCrmWaitlistRoute,
   AppLaunchpadToolRoute: AppLaunchpadToolRoute,

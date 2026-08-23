@@ -1,5 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, BookOpenText, Database, Link2, PhoneCall, Settings } from "lucide-react";
+import {
+  BarChart3,
+  BookOpenText,
+  Database,
+  Link2,
+  PhoneCall,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/brand/Logo";
@@ -9,6 +17,7 @@ const NAV = [
   { label: "Deal memory", to: "/app/memory", icon: BookOpenText },
   { label: "CRM records", to: "/app/contacts", icon: Database },
   { label: "Forecast", to: "/app/bylda/reports", icon: BarChart3 },
+  { label: "CRM intelligence", to: "/app/crm/setup", icon: Sparkles },
 ] as const;
 
 export function AppSidebar() {

@@ -25,6 +25,7 @@ export type SalesVerticalProfile = {
   insightQuestions: string[];
   complianceRules: string[];
   fields: VerticalFieldSpec[];
+  autoWriteMinConfidence?: number;
 };
 
 export type ExtractedVerticalField = {
@@ -537,6 +538,80 @@ export function resolveSalesVertical(industry: unknown, niche?: unknown): SalesV
   return SALES_VERTICAL_PROFILES.generic;
 }
 
+/**
+ * Safely hydrate an organization-specific profile saved by the CRM setup
+ * questionnaire. Invalid or incomplete JSON falls back to the proven static
+ * industry template; callers never execute model-provided targets blindly.
+ */
+export function hydrateSalesVerticalProfile(
+  value: unknown,
+  fallback: SalesVerticalProfile,
+): SalesVerticalProfile {
+  if (!value || typeof value !== "object") return fallback;
+  const raw = value as Record<string, unknown>;
+  const allowedBaseTargets = new Set(fallback.fields.map((field) => field.crmTarget));
+  const fields = Array.isArray(raw.fields)
+    ? raw.fields
+        .filter((field): field is Record<string, unknown> =>
+          Boolean(field && typeof field === "object"),
+        )
+        .map((field) => {
+          const key = typeof field.key === "string" ? field.key.trim() : "";
+          const label = typeof field.label === "string" ? field.label.trim() : "";
+          const description = typeof field.description === "string" ? field.description.trim() : "";
+          const crmTarget = typeof field.crmTarget === "string" ? field.crmTarget.trim() : "";
+          const sensitivity: FieldSensitivity =
+            field.sensitivity === "restricted" || field.sensitivity === "review"
+              ? field.sensitivity
+              : "standard";
+          const allowedTarget =
+            allowedBaseTargets.has(crmTarget) ||
+            /^lead\.custom_fields\.bylda_[a-z0-9_]+$/.test(crmTarget) ||
+            /^contact\.custom_fields\.bylda_[a-z0-9_]+$/.test(crmTarget) ||
+            /^blocked\.[a-z0-9_]+$/.test(crmTarget);
+          if (!key || !label || !description || !allowedTarget) return null;
+          return {
+            key,
+            label,
+            description,
+            crmTarget,
+            required: Boolean(field.required),
+            sensitivity,
+          } satisfies VerticalFieldSpec;
+        })
+        .filter((field): field is VerticalFieldSpec => field !== null)
+    : [];
+  if (fields.length < 3) return fallback;
+
+  const stringList = (candidate: unknown, original: string[]) => {
+    const result = Array.isArray(candidate)
+      ? candidate
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => item.trim())
+          .slice(0, 12)
+      : [];
+    return result.length ? result : original;
+  };
+  const threshold = Number(raw.autoWriteMinConfidence);
+  return {
+    key: fallback.key,
+    label: typeof raw.label === "string" && raw.label.trim() ? raw.label.trim() : fallback.label,
+    aliases: fallback.aliases,
+    objective:
+      typeof raw.objective === "string" && raw.objective.trim()
+        ? raw.objective.trim()
+        : fallback.objective,
+    insightQuestions: stringList(raw.insightQuestions, fallback.insightQuestions),
+    complianceRules: [
+      ...new Set([...fallback.complianceRules, ...stringList(raw.complianceRules, [])]),
+    ],
+    fields,
+    autoWriteMinConfidence: Number.isFinite(threshold)
+      ? Math.max(0.5, Math.min(1, threshold))
+      : fallback.autoWriteMinConfidence,
+  };
+}
+
 export function buildVerticalExtractionTool(vertical: SalesVerticalProfile) {
   return {
     name: "record_call_insights",
@@ -649,17 +724,18 @@ export function buildCrmWritebackPreview(
   fields: ExtractedVerticalField[],
 ): CrmWritebackCandidate[] {
   const specs = new Map(vertical.fields.map((field) => [field.key, field]));
+  const minimumConfidence = vertical.autoWriteMinConfidence ?? 0.82;
   return fields.map((field) => {
     const spec = specs.get(field.key)!;
     const sensitivity = spec.sensitivity ?? "standard";
-    const eligible = sensitivity === "standard" && field.confidence >= 0.82;
+    const eligible = sensitivity === "standard" && field.confidence >= minimumConfidence;
     const reason =
       sensitivity === "restricted"
         ? "Blocked: restricted personal or financial data"
         : sensitivity === "review"
           ? "Manual review required"
-          : field.confidence < 0.82
-            ? "Manual review required: confidence below 82%"
+          : field.confidence < minimumConfidence
+            ? `Manual review required: confidence below ${Math.round(minimumConfidence * 100)}%`
             : "Eligible after write-back approval";
     return { ...field, crm_target: spec.crmTarget, eligible, reason };
   });

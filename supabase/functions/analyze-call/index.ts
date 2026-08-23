@@ -11,6 +11,7 @@ import {
   buildVerticalExtractionTool,
   buildVerticalSystemPrompt,
   filterCrmContext,
+  hydrateSalesVerticalProfile,
   normalizeCallExtraction,
   resolveSalesVertical,
 } from "../_shared/sales-verticals.ts";
@@ -89,32 +90,40 @@ Deno.serve(async (req: Request) => {
   // as prior context so the model reports changes instead of treating every call
   // as a blank record. Arbitrary custom fields are filtered to the profile's
   // allow-list before they are sent to the model.
-  const [{ data: businessContext }, { data: lead }, { data: contact }] = await Promise.all([
-    admin
-      .from("business_context")
-      .select("identity,customer,motion")
-      .eq("organization_id", call.organization_id)
-      .maybeSingle(),
-    call.lead_id
-      ? admin
-          .from("leads")
-          .select("name,stage,value,notes,custom_fields,external_source,external_id")
-          .eq("id", call.lead_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    call.contact_id
-      ? admin
-          .from("contacts")
-          .select("first_name,last_name,company,status,custom_fields,external_source,external_id")
-          .eq("id", call.contact_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
+  const [{ data: businessContext }, { data: lead }, { data: contact }, { data: customProfile }] =
+    await Promise.all([
+      admin
+        .from("business_context")
+        .select("identity,customer,motion")
+        .eq("organization_id", call.organization_id)
+        .maybeSingle(),
+      call.lead_id
+        ? admin
+            .from("leads")
+            .select("name,stage,value,notes,custom_fields,external_source,external_id")
+            .eq("id", call.lead_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      call.contact_id
+        ? admin
+            .from("contacts")
+            .select("first_name,last_name,company,status,custom_fields,external_source,external_id")
+            .eq("id", call.contact_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      admin
+        .from("crm_intelligence_profiles")
+        .select("generated_profile")
+        .eq("organization_id", call.organization_id)
+        .eq("status", "active")
+        .maybeSingle(),
+    ]);
   const identity =
     businessContext?.identity && typeof businessContext.identity === "object"
       ? (businessContext.identity as Record<string, unknown>)
       : {};
-  const vertical = resolveSalesVertical(identity.industry, identity.niche);
+  const inferredVertical = resolveSalesVertical(identity.industry, identity.niche);
+  const vertical = hydrateSalesVerticalProfile(customProfile?.generated_profile, inferredVertical);
   const leadRecord = lead as Record<string, unknown> | null;
   const contactRecord = contact as Record<string, unknown> | null;
   const crmContext = {

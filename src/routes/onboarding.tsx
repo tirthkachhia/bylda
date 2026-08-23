@@ -163,7 +163,7 @@ function Onboarding() {
     try {
       await invokeEdge("complete-onboarding", { mode, answers }, { timeoutMs: 90_000, retries: 1 });
       setPhase("done");
-      setTimeout(() => navigate({ to: "/app/mission-control" }), 3200);
+      setTimeout(() => navigate({ to: "/app/crm/setup" }), 3200);
     } catch (e) {
       setProvisionError(
         e instanceof EdgeError ? e.message : "Something went wrong while building your workspace.",
@@ -172,7 +172,7 @@ function Onboarding() {
   };
 
   if (phase === "done")
-    return <WelcomeScreen mode={mode} onSkip={() => navigate({ to: "/app/mission-control" })} />;
+    return <WelcomeScreen mode={mode} onSkip={() => navigate({ to: "/app/crm/setup" })} />;
 
   const { accent, accentDark } = ACCENTS[mode];
 

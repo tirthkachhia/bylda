@@ -100,6 +100,10 @@ verify_jwt = true
 [functions.analyze-call]
 verify_jwt = true
 
+# Builds the org-specific extraction/write-back profile from the short CRM setup interview.
+[functions.generate-crm-intelligence-profile]
+verify_jwt = true
+
 # Dialers authenticate with a per-organization HMAC URL, not a Supabase JWT.
 [functions.ingest-call-webhook]
 verify_jwt = false
