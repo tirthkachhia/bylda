@@ -35,6 +35,7 @@ export interface Env {
 
 type MemoryArtifact = {
   title: string;
+  content: string | null;
   content_preview: string | null;
   source_type: string;
   source_label: string | null;
@@ -82,7 +83,7 @@ async function runMemoryQuery(
   env: Env,
 ) {
   const params = new URLSearchParams({
-    select: "title,content_preview,source_type,source_label",
+    select: "title,content,content_preview,source_type,source_label",
     org_id: `eq.${request.orgId}`,
     status: "eq.indexed",
     order: "updated_at.desc",
@@ -112,11 +113,17 @@ async function runMemoryQuery(
     });
   }
 
+  let contextBudget = 45000;
   const context = artifacts
     .map((artifact) => {
+      if (contextBudget <= 0) return "";
       const source = artifact.source_label ?? artifact.source_type;
-      return `### [${source}] ${artifact.title}\n${artifact.content_preview ?? "(no preview)"}`;
+      const body = artifact.content ?? artifact.content_preview ?? "(no preview)";
+      const excerpt = body.slice(0, Math.min(5000, contextBudget));
+      contextBudget -= excerpt.length;
+      return `### [${source}] ${artifact.title}\n${excerpt}`;
     })
+    .filter(Boolean)
     .join("\n\n");
 
   try {

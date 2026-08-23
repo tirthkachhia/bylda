@@ -31,6 +31,7 @@ import {
   Trash2,
   RefreshCw,
   Clock,
+  PhoneCall,
   Loader2,
 } from "lucide-react";
 
@@ -51,9 +52,13 @@ const SOURCE_CONFIG: Record<
   slack: { label: "Slack", icon: FileText, desc: "Messages and threads" },
   url: { label: "Website / URL", icon: Globe, desc: "Any public page or doc" },
   upload: { label: "File Upload", icon: Upload, desc: "PDFs, text, markdown, CSV" },
+  call: { label: "Sales Call", icon: PhoneCall, desc: "Transcript-backed call intelligence" },
+  integration: { label: "Integration", icon: Link2, desc: "Connected app data" },
 };
 
-const SOURCE_TYPES = Object.keys(SOURCE_CONFIG);
+const SOURCE_TYPES = Object.keys(SOURCE_CONFIG).filter(
+  (sourceType) => sourceType !== "call" && sourceType !== "integration",
+);
 
 const SUGGESTED_QUERIES = [
   "What is our current pricing strategy?",

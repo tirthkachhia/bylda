@@ -7,6 +7,7 @@
 // transcript text, so it works regardless of which carrier recorded the call.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { callPAL } from "../_shared/pal/index.ts";
+import { buildCallMemoryArtifact } from "../_shared/call-memory.ts";
 import {
   buildVerticalExtractionTool,
   buildVerticalSystemPrompt,
@@ -61,7 +62,7 @@ Deno.serve(async (req: Request) => {
   // Load the call + its org, and verify membership.
   const { data: call } = await admin
     .from("calls")
-    .select("id, organization_id, contact_id, lead_id")
+    .select("id, organization_id, contact_id, lead_id, provider, started_at, disposition")
     .eq("id", callId)
     .maybeSingle();
   if (!call) return json({ error: "Call not found" }, 404);
@@ -217,6 +218,99 @@ Deno.serve(async (req: Request) => {
       .eq("id", transcript.id);
   }
 
+  // Bridge analyzed dialer calls into Deal Memory. Store the structured
+  // extraction first and the transcript after it so AI answers can cite the
+  // strongest evidence without loading raw audio or relying on CRM guesses.
+  // A repeated webhook or manual re-analysis updates the same call artifact.
+  let memoryStored = false;
+  try {
+    const [{ data: organization }, { data: existingArtifact }] = await Promise.all([
+      admin.from("organizations").select("owner_id").eq("id", call.organization_id).single(),
+      admin
+        .from("memory_artifacts")
+        .select("id")
+        .eq("org_id", call.organization_id)
+        .eq("source_type", "call")
+        .contains("metadata", { call_id: callId })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    const memoryUserId = organization?.owner_id as string | undefined;
+    if (!memoryUserId) throw new Error("Organization owner not found");
+
+    const subject =
+      (leadRecord?.name as string | undefined) ||
+      [contactRecord?.first_name, contactRecord?.last_name].filter(Boolean).join(" ") ||
+      (contactRecord?.company as string | undefined) ||
+      null;
+    const artifact = buildCallMemoryArtifact({
+      callId,
+      provider: call.provider,
+      startedAt: call.started_at,
+      disposition: call.disposition,
+      subject,
+      salesProfile: vertical.key,
+      profileLabel: vertical.label,
+      summary,
+      objections,
+      competitors,
+      nextSteps,
+      dealInsights: normalized.deal_insights,
+      fields: normalized.fields,
+      complianceFlags: normalized.compliance_flags,
+      transcript: text,
+    });
+
+    const { data: source, error: sourceError } = await admin
+      .from("memory_sources")
+      .upsert(
+        {
+          org_id: call.organization_id,
+          user_id: memoryUserId,
+          source_type: "integration",
+          source_label: artifact.sourceLabel,
+          source_url: null,
+          status: "indexed",
+          error_message: null,
+          last_synced_at: new Date().toISOString(),
+          metadata: { provider: call.provider, content: "sales_call_transcripts" },
+        },
+        { onConflict: "org_id,source_type,source_label" },
+      )
+      .select("id")
+      .single();
+    if (sourceError || !source) throw sourceError ?? new Error("Memory source was not created");
+
+    const bytes = new TextEncoder().encode(artifact.content);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const contentHash = Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    const artifactRow = {
+      org_id: call.organization_id,
+      user_id: memoryUserId,
+      source_id: source.id,
+      source_type: "call",
+      source_label: artifact.sourceLabel,
+      title: artifact.title,
+      content: artifact.content,
+      content_preview: artifact.contentPreview,
+      content_hash: contentHash,
+      token_count: Math.ceil(artifact.content.length / 4),
+      status: "indexed",
+      metadata: artifact.metadata,
+    };
+    const memoryWrite = existingArtifact
+      ? await admin.from("memory_artifacts").update(artifactRow).eq("id", existingArtifact.id)
+      : await admin.from("memory_artifacts").insert(artifactRow);
+    if (memoryWrite.error) throw memoryWrite.error;
+    memoryStored = true;
+  } catch (error) {
+    // Call analysis remains usable even if memory indexing has a transient
+    // failure; a re-analysis safely retries because artifacts are keyed by call.
+    console.error("[analyze-call] memory bridge", error instanceof Error ? error.message : error);
+  }
+
   // Surface a coaching signal when the call flagged risk (objections/competitors).
   if (objections.length > 0 || competitors.length > 0) {
     const parts: string[] = [];
@@ -254,5 +348,6 @@ Deno.serve(async (req: Request) => {
       .length,
     missing_required_fields: normalized.missing_required_fields,
     compliance_flags: normalized.compliance_flags,
+    memory_stored: memoryStored,
   });
 });
