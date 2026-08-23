@@ -492,6 +492,22 @@ export async function syncSalesforce() {
   return data as SalesforceSyncResult;
 }
 
+export type CallIngestUrlResult = {
+  configured: boolean;
+  url?: string;
+  minimum_duration_seconds?: number;
+  accepted_content_type?: string;
+};
+
+export async function getCallIngestUrl() {
+  const { data, error } = await supabase.functions.invoke("get-call-ingest-url", {
+    body: {},
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data as CallIngestUrlResult;
+}
+
 export async function disconnectIntegration(userId: string, integrationKey: string) {
   const { error } = await supabase
     .from("user_integrations")

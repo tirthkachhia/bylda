@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Lock, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
+import { Check, Copy, ExternalLink, Lock, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatusPill } from "@/components/app/StatusPill";
@@ -18,6 +18,7 @@ import { blockIfGuest } from "@/lib/guest";
 import { oauthProviderName } from "@/lib/integration-oauth";
 import {
   disconnectIntegration,
+  getCallIngestUrl,
   integrationsQuery,
   startIntegrationOAuth,
   syncSalesforce,
@@ -108,6 +109,24 @@ function ConnectModal({
   const connection = connected.find(
     (entry) => entry.integration_key === item.key && entry.is_connected,
   );
+  const isReadyMode = item.key === "readymode";
+  const ingestUrl = useQuery({
+    queryKey: ["call-ingest-url"],
+    queryFn: getCallIngestUrl,
+    enabled: isReadyMode && !!user,
+    staleTime: 5 * 60_000,
+  });
+
+  const copyWebhookUrl = async () => {
+    const url = ingestUrl.data?.url;
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("ReadyMode webhook URL copied");
+    } catch {
+      setError("Could not copy automatically. Select the URL and copy it manually.");
+    }
+  };
 
   const connect = async () => {
     if (blockIfGuest("Sign up to connect integrations.")) return;
@@ -168,7 +187,124 @@ function ConnectModal({
           <DialogDescription className="text-[12.5px]">{item.description}</DialogDescription>
         </DialogHeader>
 
-        {providerName ? (
+        {isReadyMode ? (
+          <div className="space-y-4 pt-1">
+            <div
+              className="rounded-xl p-4"
+              style={{
+                background: "color-mix(in oklab, var(--primary) 7%, var(--surface-2))",
+                border: "1px solid color-mix(in oklab, var(--primary) 22%, transparent)",
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <ShieldCheck
+                  className="mt-0.5 h-5 w-5 shrink-0"
+                  style={{ color: "var(--primary)" }}
+                />
+                <div>
+                  <div className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
+                    Secure call intake is ready
+                  </div>
+                  <p
+                    className="mt-1 text-[11.5px] leading-relaxed"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Give this organization-specific URL to ReadyMode’s integrations team. Calls of
+                    at least 45 seconds can be transcribed and analyzed automatically.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="readymode-webhook-url"
+                className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Bylda webhook URL
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="readymode-webhook-url"
+                  readOnly
+                  value={
+                    ingestUrl.isPending
+                      ? "Generating secure URL…"
+                      : (ingestUrl.data?.url ?? "Webhook URL is not configured")
+                  }
+                  className="min-w-0 flex-1 rounded-lg px-3 py-2 text-[11px] outline-none"
+                  style={{
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    color: "var(--foreground)",
+                  }}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyWebhookUrl}
+                  disabled={!ingestUrl.data?.url}
+                  aria-label="Copy ReadyMode webhook URL"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <p
+                className="text-[10.5px] leading-relaxed"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Treat this URL like a password. It authorizes call delivery into your Bylda
+                workspace.
+              </p>
+            </div>
+
+            {ingestUrl.isError && (
+              <p className="text-[11.5px]" style={{ color: "var(--destructive)" }}>
+                Could not load the webhook URL. Try refreshing or ask a workspace administrator.
+              </p>
+            )}
+
+            <div
+              className="rounded-xl p-4"
+              style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+            >
+              <div className="mb-2 text-[12.5px] font-semibold">ReadyMode checklist</div>
+              <div className="space-y-2 text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
+                {[
+                  "Enable Automation → Integration Features",
+                  "Enable CCS Profile → Play Recordings",
+                  "Enable Communication → Manage VOIP",
+                  "Ask ReadyMode to POST completed calls to the URL above",
+                ].map((step) => (
+                  <div key={step} className="flex items-start gap-2">
+                    <Check
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                      style={{ color: "var(--success)" }}
+                    />
+                    <span>{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" asChild>
+                <a
+                  href="https://help.readymode.com/support/solutions/articles/11000083503-readymode-integrations"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  ReadyMode instructions <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                </a>
+              </Button>
+              <Button variant="outline" onClick={onClose}>
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : providerName ? (
           <div className="space-y-4 pt-1">
             <div
               className="rounded-xl p-4"
@@ -290,6 +426,7 @@ function IntegrationCard({
   onClick: () => void;
 }) {
   const providerName = oauthProviderName(item.key);
+  const isReadyMode = item.key === "readymode";
   return (
     <div
       className="bylda-card flex cursor-pointer flex-col p-4 transition-all duration-200 hover:scale-[1.01]"
@@ -309,7 +446,13 @@ function IntegrationCard({
       <div className="mb-3 flex items-start justify-between gap-2">
         <IntegrationIcon slug={item.iconSlug} name={item.name} />
         <StatusPill tone={isConnected ? "success" : "muted"}>
-          {isConnected ? "Connected" : providerName ? "Secure sign-in" : "Managed"}
+          {isConnected
+            ? "Connected"
+            : isReadyMode
+              ? "Webhook setup"
+              : providerName
+                ? "Secure sign-in"
+                : "Managed"}
         </StatusPill>
       </div>
       <div className="flex-1">
@@ -344,6 +487,8 @@ function IntegrationCard({
             <>
               <Check className="mr-1 h-3 w-3" /> Manage
             </>
+          ) : isReadyMode ? (
+            "Set up"
           ) : providerName ? (
             "Connect account"
           ) : (
