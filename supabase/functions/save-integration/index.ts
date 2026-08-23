@@ -35,6 +35,19 @@ function validateValue(integrationKey: string, value: string): string | null {
       if (value.length < 10) return "API key is too short";
       return null;
 
+    case "openai":
+      if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(value)) return "Enter a valid OpenAI API key";
+      return null;
+
+    case "anthropic":
+      if (!/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(value)) return "Enter a valid Anthropic API key";
+      return null;
+
+    case "sendgrid":
+      if (!/^SG\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}$/.test(value))
+        return "Enter a valid SendGrid API key";
+      return null;
+
     // ── BYO provider sub-fields (multi-field credentials) ──
     case "sendgrid_from":
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value))
@@ -98,6 +111,36 @@ function validateValue(integrationKey: string, value: string): string | null {
   }
 }
 
+async function validateProviderCredential(
+  integrationKey: string,
+  value: string,
+): Promise<string | null> {
+  if (!value) return null;
+  if (integrationKey === "openai") {
+    const response = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${value}` },
+    });
+    if (!response.ok) return "OpenAI rejected this API key";
+  }
+  if (integrationKey === "anthropic") {
+    const response = await fetch("https://api.anthropic.com/v1/models?limit=1", {
+      headers: { "anthropic-version": "2023-06-01", "x-api-key": value },
+    });
+    if (!response.ok) return "Anthropic rejected this API key";
+  }
+  if (integrationKey === "sendgrid") {
+    const response = await fetch("https://api.sendgrid.com/v3/scopes", {
+      headers: { Authorization: `Bearer ${value}` },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return "SendGrid rejected this API key";
+    if (!Array.isArray(payload.scopes) || !payload.scopes.includes("mail.send")) {
+      return "This SendGrid API key needs the mail.send permission";
+    }
+  }
+  return null;
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -159,6 +202,8 @@ Deno.serve(async (req) => {
 
     const formatError = validateValue(integrationKey, value);
     if (formatError) return json({ error: formatError }, 400);
+    const credentialError = await validateProviderCredential(integrationKey, value);
+    if (credentialError) return json({ error: credentialError }, 400);
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,

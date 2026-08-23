@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatusPill } from "@/components/app/StatusPill";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -15,11 +16,12 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { blockIfGuest } from "@/lib/guest";
-import { oauthProviderName } from "@/lib/integration-oauth";
+import { credentialProvider, oauthProviderName } from "@/lib/integration-oauth";
 import {
   disconnectIntegration,
   getCallIngestUrl,
   integrationsQuery,
+  saveIntegration,
   startIntegrationOAuth,
   syncSalesforce,
   type MaskedIntegration,
@@ -105,10 +107,23 @@ function ConnectModal({
   const { user } = useAuth();
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [credentialValue, setCredentialValue] = useState("");
+  const [secondaryValue, setSecondaryValue] = useState("");
+  const [shopDomain, setShopDomain] = useState("");
   const providerName = oauthProviderName(item.key);
-  const connection = connected.find(
+  const credential = credentialProvider(item.key);
+  const primaryConnection = connected.find(
     (entry) => entry.integration_key === item.key && entry.is_connected,
   );
+  const sendgridSender = connected.find(
+    (entry) => entry.integration_key === "sendgrid_from" && entry.is_connected,
+  );
+  const connection =
+    item.key === "sendgrid"
+      ? primaryConnection && sendgridSender
+        ? primaryConnection
+        : undefined
+      : primaryConnection;
   const isReadyMode = item.key === "readymode";
   const ingestUrl = useQuery({
     queryKey: ["call-ingest-url"],
@@ -134,10 +149,45 @@ function ConnectModal({
     setWorking(true);
     setError(null);
     try {
-      const result = await startIntegrationOAuth(item.key);
+      if (item.key === "shopify" && !shopDomain.trim()) {
+        setError("Enter your Shopify store domain.");
+        setWorking(false);
+        return;
+      }
+      const result = await startIntegrationOAuth(
+        item.key,
+        item.key === "shopify" ? { shop: shopDomain.trim() } : undefined,
+      );
       window.location.assign(result.authorization_url);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start secure sign-in");
+      setWorking(false);
+    }
+  };
+
+  const saveCredential = async () => {
+    if (blockIfGuest("Sign up to connect integrations.")) return;
+    if (
+      !user ||
+      !credential ||
+      !credentialValue.trim() ||
+      (item.key === "sendgrid" && !secondaryValue.trim())
+    )
+      return;
+    setWorking(true);
+    setError(null);
+    try {
+      await saveIntegration(item.key, credentialValue.trim());
+      if (item.key === "sendgrid") {
+        await saveIntegration("sendgrid_from", secondaryValue.trim());
+      }
+      toast.success(`${item.name} connected`);
+      setCredentialValue("");
+      setSecondaryValue("");
+      onSaved();
+      onClose();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not validate this API key");
       setWorking(false);
     }
   };
@@ -149,6 +199,9 @@ function ConnectModal({
     setError(null);
     try {
       await disconnectIntegration(user.id, item.key);
+      if (item.key === "sendgrid") {
+        await disconnectIntegration(user.id, "sendgrid_from");
+      }
       toast.success(`${item.name} disconnected`);
       onSaved();
       onClose();
@@ -333,6 +386,21 @@ function ConnectModal({
               </div>
             </div>
 
+            {item.key === "shopify" && !connection && (
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium" htmlFor="shopify-store">
+                  Shopify store
+                </label>
+                <Input
+                  id="shopify-store"
+                  value={shopDomain}
+                  onChange={(event) => setShopDomain(event.target.value)}
+                  placeholder="your-store.myshopify.com"
+                  autoComplete="off"
+                />
+              </div>
+            )}
+
             {connection && (
               <div
                 className="rounded-xl px-4 py-3"
@@ -377,6 +445,124 @@ function ConnectModal({
                 Sync contacts and opportunities
               </Button>
             )}
+          </div>
+        ) : credential ? (
+          <div className="space-y-4 pt-1">
+            <div
+              className="rounded-xl p-4"
+              style={{
+                background: "color-mix(in oklab, var(--success) 7%, var(--surface-2))",
+                border: "1px solid color-mix(in oklab, var(--success) 22%, transparent)",
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <ShieldCheck
+                  className="mt-0.5 h-5 w-5 shrink-0"
+                  style={{ color: "var(--success)" }}
+                />
+                <div>
+                  <div className="text-[13px] font-semibold">Encrypted provider connection</div>
+                  <p
+                    className="mt-1 text-[11.5px] leading-relaxed"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Bylda validates this credential with {credential.name}, encrypts it at rest, and
+                    never displays it again.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {connection ? (
+              <>
+                <div
+                  className="rounded-xl px-4 py-3"
+                  style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+                >
+                  <div
+                    className="flex items-center gap-2 text-[12px] font-medium"
+                    style={{ color: "var(--success)" }}
+                  >
+                    <Check className="h-3.5 w-3.5" /> Connected
+                  </div>
+                  <div className="mt-1 text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
+                    Key ending in {connection.value_last4 ?? "••••"}
+                  </div>
+                </div>
+                <Input
+                  type={credential.inputType ?? "password"}
+                  name={`${item.key}-api-key-replacement`}
+                  value={credentialValue}
+                  onChange={(event) => setCredentialValue(event.target.value)}
+                  placeholder={`New ${credential.name} key`}
+                  autoComplete={credential.inputType === "url" ? "off" : "new-password"}
+                  data-1p-ignore
+                  data-lpignore="true"
+                />
+                {item.key === "sendgrid" && (
+                  <Input
+                    type="email"
+                    name="sendgrid-verified-sender-replacement"
+                    value={secondaryValue}
+                    onChange={(event) => setSecondaryValue(event.target.value)}
+                    placeholder="Verified sender email"
+                    autoComplete="off"
+                  />
+                )}
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  type={credential.inputType ?? "password"}
+                  name={`${item.key}-api-key`}
+                  value={credentialValue}
+                  onChange={(event) => setCredentialValue(event.target.value)}
+                  placeholder={credential.placeholder}
+                  autoComplete={credential.inputType === "url" ? "off" : "new-password"}
+                  data-1p-ignore
+                  data-lpignore="true"
+                />
+                {item.key === "sendgrid" && (
+                  <Input
+                    type="email"
+                    name="sendgrid-verified-sender"
+                    value={secondaryValue}
+                    onChange={(event) => setSecondaryValue(event.target.value)}
+                    placeholder="Verified sender email"
+                    autoComplete="off"
+                  />
+                )}
+              </div>
+            )}
+
+            {error && (
+              <p className="text-[11.5px]" style={{ color: "var(--destructive)" }}>
+                {error}
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={saveCredential}
+                disabled={
+                  working ||
+                  !credentialValue.trim() ||
+                  (item.key === "sendgrid" && !secondaryValue.trim())
+                }
+              >
+                {working
+                  ? "Validating…"
+                  : connection
+                    ? `Replace ${credential.name} key`
+                    : "Connect"}
+              </Button>
+              {connection && (
+                <Button variant="outline" onClick={disconnect} disabled={working}>
+                  Disconnect
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-4 pt-1">
@@ -427,6 +613,7 @@ function IntegrationCard({
 }) {
   const providerName = oauthProviderName(item.key);
   const isReadyMode = item.key === "readymode";
+  const credential = credentialProvider(item.key);
   return (
     <div
       className="bylda-card flex cursor-pointer flex-col p-4 transition-all duration-200 hover:scale-[1.01]"
@@ -452,7 +639,9 @@ function IntegrationCard({
               ? "Webhook setup"
               : providerName
                 ? "Secure sign-in"
-                : "Managed"}
+                : credential
+                  ? "Encrypted key"
+                  : "Managed"}
         </StatusPill>
       </div>
       <div className="flex-1">
@@ -489,7 +678,7 @@ function IntegrationCard({
             </>
           ) : isReadyMode ? (
             "Set up"
-          ) : providerName ? (
+          ) : providerName || credential ? (
             "Connect account"
           ) : (
             "Details"
@@ -535,10 +724,20 @@ function IntegrationsPage() {
 
   const filtered = searchCatalog(search, category);
   const popularItems = POPULAR_INTEGRATIONS.filter(() => !search && category === "All");
-  const isConnected = (key: string) =>
-    connected.some((entry) => entry.integration_key === key && entry.is_connected);
+  const isConnected = (key: string) => {
+    const primary = connected.some((entry) => entry.integration_key === key && entry.is_connected);
+    if (key !== "sendgrid") return primary;
+    return (
+      primary &&
+      connected.some((entry) => entry.integration_key === "sendgrid_from" && entry.is_connected)
+    );
+  };
   const refresh = () => {
     if (user) queryClient.invalidateQueries({ queryKey: ["user_integrations", user.id] });
+  };
+  const openConnector = (item: IntegrationDef) => {
+    if (credentialProvider(item.key)) setSearch("");
+    setConnecting(item);
   };
   const connectedCount = connected.filter((entry) => entry.is_connected).length;
 
@@ -597,10 +796,14 @@ function IntegrationsPage() {
           />
           <input
             id="integrations-search"
-            type="text"
+            name="integration-catalog-search"
+            type="search"
             placeholder="Search integrations…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
             className="w-full rounded-xl py-2.5 pl-10 pr-10 text-[13px] outline-none"
             style={{
               background: "var(--surface)",
@@ -653,7 +856,7 @@ function IntegrationsPage() {
                 key={item.key}
                 item={item}
                 isConnected={isConnected(item.key)}
-                onClick={() => setConnecting(item)}
+                onClick={() => openConnector(item)}
               />
             ))}
           </div>
@@ -685,7 +888,7 @@ function IntegrationsPage() {
                 key={item.key}
                 item={item}
                 isConnected={isConnected(item.key)}
-                onClick={() => setConnecting(item)}
+                onClick={() => openConnector(item)}
               />
             ))}
           </div>
@@ -696,7 +899,10 @@ function IntegrationsPage() {
         <ConnectModal
           item={connecting}
           connected={connected}
-          onClose={() => setConnecting(null)}
+          onClose={() => {
+            if (credentialProvider(connecting.key)) setSearch("");
+            setConnecting(null);
+          }}
           onSaved={refresh}
         />
       )}

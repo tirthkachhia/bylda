@@ -9,12 +9,14 @@ import {
   randomState,
   scopesForIntegration,
   sha256,
+  sha256Base64Url,
 } from "../_shared/integration-oauth.ts";
 
 const allowedOrigins = new Set([
   Deno.env.get("APP_URL") ?? "https://app.usebylda.com",
   "https://bylda-eight.vercel.app",
   "http://localhost:3000",
+  "http://localhost:8080",
   "http://localhost:8081",
 ]);
 
@@ -81,7 +83,12 @@ Deno.serve(async (req) => {
   }
 
   const state = randomState();
+  const codeVerifier = providerKey === "airtable" ? randomState() : null;
   const requestedScopes = scopesForIntegration(integrationKey, provider);
+  const requestOrigin = req.headers.get("Origin") ?? "";
+  const redirectTo = allowedOrigins.has(requestOrigin)
+    ? `${requestOrigin}/app/integrations`
+    : "/app/integrations";
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -92,7 +99,8 @@ Deno.serve(async (req) => {
     provider: providerKey,
     integration_key: integrationKey,
     requested_scopes: requestedScopes,
-    redirect_to: "/app/integrations",
+    oauth_code_verifier: codeVerifier,
+    redirect_to: redirectTo,
     expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
   if (stateError) {
@@ -115,6 +123,10 @@ Deno.serve(async (req) => {
       "scope",
       provider.key === "slack" ? requestedScopes.join(",") : requestedScopes.join(" "),
     );
+  }
+  if (codeVerifier) {
+    url.searchParams.set("code_challenge", await sha256Base64Url(codeVerifier));
+    url.searchParams.set("code_challenge_method", "S256");
   }
   for (const [key, value] of Object.entries(provider.authorizeExtras ?? {})) {
     url.searchParams.set(key, value);

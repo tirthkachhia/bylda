@@ -443,15 +443,40 @@ export async function saveIntegration(integrationKey: string, value: string) {
   const { data, error } = await supabase.functions.invoke("save-integration", {
     body: { integration_key: integrationKey, value },
   });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const errorBody = context
+      ? await context
+          .clone()
+          .json()
+          .catch(() => null)
+      : null;
+    throw new Error(errorBody?.error ?? error.message);
+  }
+  if (data?.error) throw new Error(data.error);
   return data;
 }
 
-export async function startIntegrationOAuth(integrationKey: string) {
-  const { data, error } = await supabase.functions.invoke("integration-oauth-start", {
-    body: { integration_key: integrationKey },
+export async function startIntegrationOAuth(integrationKey: string, options?: { shop?: string }) {
+  const functionName =
+    integrationKey === "paypal"
+      ? "paypal-connect-start"
+      : integrationKey === "shopify"
+        ? "shopify-connect-start"
+        : "integration-oauth-start";
+  const { data, error } = await supabase.functions.invoke(functionName, {
+    body: { integration_key: integrationKey, ...options },
   });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const errorBody = context
+      ? await context
+          .clone()
+          .json()
+          .catch(() => null)
+      : null;
+    throw new Error(errorBody?.error ?? error.message);
+  }
   if (data?.error) throw new Error(data.error);
   if (!data?.authorization_url) throw new Error("Provider sign-in URL was not returned");
   return data as { authorization_url: string; provider: string };

@@ -5,6 +5,12 @@ export type OAuthProviderKey =
   | "microsoft"
   | "slack"
   | "salesforce"
+  | "stripe"
+  | "mailchimp"
+  | "github"
+  | "jira"
+  | "asana"
+  | "airtable"
   | "pipedrive"
   | "close"
   | "notion"
@@ -19,9 +25,9 @@ export type OAuthProvider = {
   authorizeUrl: string;
   tokenUrl: string;
   scopes: string[];
-  tokenAuth?: "body" | "basic";
+  tokenAuth?: "body" | "basic" | "basic_url";
   tokenBody?: "form" | "json";
-  tokenFieldStyle?: "snake" | "gohighlevel";
+  tokenFieldStyle?: "snake" | "gohighlevel" | "stripe" | "airtable";
   authorizeExtras?: Record<string, string>;
 };
 
@@ -97,6 +103,59 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
     scopes: ["api", "refresh_token"],
     authorizeExtras: { prompt: "login consent" },
   },
+  stripe: {
+    key: "stripe",
+    clientIdEnv: "STRIPE_CONNECT_CLIENT_ID",
+    clientSecretEnv: "STRIPE_CONNECT_SECRET_KEY",
+    authorizeUrl: "https://connect.stripe.com/oauth/authorize",
+    tokenUrl: "https://connect.stripe.com/oauth/token",
+    scopes: ["read_write"],
+    tokenFieldStyle: "stripe",
+  },
+  mailchimp: {
+    key: "mailchimp",
+    clientIdEnv: "MAILCHIMP_CLIENT_ID",
+    clientSecretEnv: "MAILCHIMP_CLIENT_SECRET",
+    authorizeUrl: "https://login.mailchimp.com/oauth2/authorize",
+    tokenUrl: "https://login.mailchimp.com/oauth2/token",
+    scopes: [],
+  },
+  github: {
+    key: "github",
+    clientIdEnv: "GITHUB_CLIENT_ID",
+    clientSecretEnv: "GITHUB_CLIENT_SECRET",
+    authorizeUrl: "https://github.com/login/oauth/authorize",
+    tokenUrl: "https://github.com/login/oauth/access_token",
+    scopes: ["read:user", "user:email"],
+  },
+  jira: {
+    key: "jira",
+    clientIdEnv: "JIRA_CLIENT_ID",
+    clientSecretEnv: "JIRA_CLIENT_SECRET",
+    authorizeUrl: "https://auth.atlassian.com/authorize",
+    tokenUrl: "https://auth.atlassian.com/oauth/token",
+    scopes: ["read:jira-work", "read:jira-user", "offline_access"],
+    tokenBody: "json",
+    authorizeExtras: { audience: "api.atlassian.com", prompt: "consent" },
+  },
+  asana: {
+    key: "asana",
+    clientIdEnv: "ASANA_CLIENT_ID",
+    clientSecretEnv: "ASANA_CLIENT_SECRET",
+    authorizeUrl: "https://app.asana.com/-/oauth_authorize",
+    tokenUrl: "https://app.asana.com/-/oauth_token",
+    scopes: ["users:read", "tasks:read", "projects:read", "workspaces:read"],
+  },
+  airtable: {
+    key: "airtable",
+    clientIdEnv: "AIRTABLE_CLIENT_ID",
+    clientSecretEnv: "AIRTABLE_CLIENT_SECRET",
+    authorizeUrl: "https://airtable.com/oauth2/v1/authorize",
+    tokenUrl: "https://airtable.com/oauth2/v1/token",
+    scopes: ["data.records:read", "schema.bases:read", "user.email:read"],
+    tokenAuth: "basic_url",
+    tokenFieldStyle: "airtable",
+  },
   pipedrive: {
     key: "pipedrive",
     clientIdEnv: "PIPEDRIVE_CLIENT_ID",
@@ -164,6 +223,12 @@ export const INTEGRATION_PROVIDER: Record<string, OAuthProviderKey> = {
   hubspot: "hubspot",
   gohighlevel: "gohighlevel",
   salesforce: "salesforce",
+  stripe: "stripe",
+  mailchimp: "mailchimp",
+  github: "github",
+  jira: "jira",
+  asana: "asana",
+  airtable: "airtable",
   pipedrive: "pipedrive",
   close_io: "close",
   slack: "slack",
@@ -171,6 +236,7 @@ export const INTEGRATION_PROVIDER: Record<string, OAuthProviderKey> = {
   googledrive: "google",
   google_calendar: "google",
   youtube_api: "google",
+  googleanalytics: "google",
   onedrive: "microsoft",
   outlook_cal: "microsoft",
   notion: "notion",
@@ -190,6 +256,12 @@ export function scopesForIntegration(integrationKey: string, provider: OAuthProv
     youtube_api: ["openid", "email", "https://www.googleapis.com/auth/youtube.readonly"],
     onedrive: ["openid", "email", "profile", "offline_access", "Files.Read"],
     outlook_cal: ["openid", "email", "profile", "offline_access", "Calendars.Read"],
+    googleanalytics: [
+      "openid",
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/analytics.readonly",
+    ],
   };
   return scoped[integrationKey] ?? provider.scopes;
 }
@@ -213,6 +285,11 @@ function base64Url(bytes: Uint8Array) {
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
+}
+
+export async function sha256Base64Url(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return base64Url(new Uint8Array(digest));
 }
 
 export async function pkceVerifier(state: string, clientSecret: string) {
