@@ -49,6 +49,29 @@ export interface IntegrationDef {
   fields?: IntegrationField[];
 }
 
+/**
+ * Returns the encrypted credential fields for connectors that do not use OAuth.
+ * Keeping this derived from the catalog means every API-key, bearer-token, URL,
+ * and multi-field connector automatically gets a secure setup form.
+ */
+export function credentialFieldsForIntegration(item: IntegrationDef): IntegrationField[] {
+  if (item.inputType === "oauth") return [];
+  if (item.fields?.length) return item.fields;
+  return [
+    {
+      key: item.key,
+      label:
+        item.inputType === "url"
+          ? "Webhook or connection URL"
+          : item.inputType === "bearer"
+            ? "Bearer token"
+            : item.hint,
+      hint: item.hint,
+      inputType: item.inputType === "url" ? "url" : "key",
+    },
+  ];
+}
+
 export const CATALOG: IntegrationDef[] = [
   // ── CRM & Sales ──────────────────────────────────────────
   {

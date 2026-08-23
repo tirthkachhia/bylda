@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, ExternalLink, Lock, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
+import { Check, Copy, ExternalLink, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import { StatusPill } from "@/components/app/StatusPill";
@@ -30,6 +30,7 @@ import {
   CATALOG,
   CATEGORIES,
   POPULAR_INTEGRATIONS,
+  credentialFieldsForIntegration,
   searchCatalog,
   type IntegrationCategory,
   type IntegrationDef,
@@ -107,24 +108,40 @@ function ConnectModal({
   const { user } = useAuth();
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [credentialValue, setCredentialValue] = useState("");
-  const [secondaryValue, setSecondaryValue] = useState("");
+  const [credentialValues, setCredentialValues] = useState<Record<string, string>>({});
   const [shopDomain, setShopDomain] = useState("");
+  const [useCredentialFallback, setUseCredentialFallback] = useState(false);
   const providerName = oauthProviderName(item.key);
-  const credential = credentialProvider(item.key);
+  const managedCredential = credentialProvider(item.key);
+  const isReadyMode = item.key === "readymode";
   const primaryConnection = connected.find(
     (entry) => entry.integration_key === item.key && entry.is_connected,
   );
-  const sendgridSender = connected.find(
-    (entry) => entry.integration_key === "sendgrid_from" && entry.is_connected,
-  );
+  const hasCredentialFallback = item.inputType !== "oauth" && !isReadyMode;
+  const usingCredentialFallback =
+    hasCredentialFallback &&
+    (useCredentialFallback || primaryConnection?.connection_type === "legacy_credential");
+  const credentialFields =
+    hasCredentialFallback && (!providerName || usingCredentialFallback)
+      ? credentialFieldsForIntegration(item)
+      : [];
+  const requiredCredentialFields = credentialFields.filter((field) => !field.optional);
+  const credentialConnections = credentialFields
+    .map((field) =>
+      connected.find((entry) => entry.integration_key === field.key && entry.is_connected),
+    )
+    .filter((entry): entry is MaskedIntegration => !!entry);
+  const credentialsConnected =
+    requiredCredentialFields.length > 0 &&
+    requiredCredentialFields.every((field) =>
+      connected.some((entry) => entry.integration_key === field.key && entry.is_connected),
+    );
   const connection =
-    item.key === "sendgrid"
-      ? primaryConnection && sendgridSender
-        ? primaryConnection
-        : undefined
-      : primaryConnection;
-  const isReadyMode = item.key === "readymode";
+    providerName && !usingCredentialFallback
+      ? primaryConnection
+      : credentialsConnected
+        ? (primaryConnection ?? credentialConnections[0])
+        : undefined;
   const ingestUrl = useQuery({
     queryKey: ["call-ingest-url"],
     queryFn: getCallIngestUrl,
@@ -167,23 +184,23 @@ function ConnectModal({
 
   const saveCredential = async () => {
     if (blockIfGuest("Sign up to connect integrations.")) return;
-    if (
-      !user ||
-      !credential ||
-      !credentialValue.trim() ||
-      (item.key === "sendgrid" && !secondaryValue.trim())
-    )
+    if (!user || credentialFields.length === 0) return;
+    const missingField = requiredCredentialFields.find(
+      (field) => !credentialValues[field.key]?.trim(),
+    );
+    if (missingField) {
+      setError(`Enter ${missingField.label.toLowerCase()}.`);
       return;
+    }
     setWorking(true);
     setError(null);
     try {
-      await saveIntegration(item.key, credentialValue.trim());
-      if (item.key === "sendgrid") {
-        await saveIntegration("sendgrid_from", secondaryValue.trim());
+      for (const field of credentialFields) {
+        const value = credentialValues[field.key]?.trim();
+        if (value) await saveIntegration(field.key, value);
       }
       toast.success(`${item.name} connected`);
-      setCredentialValue("");
-      setSecondaryValue("");
+      setCredentialValues({});
       onSaved();
       onClose();
     } catch (caught) {
@@ -198,9 +215,12 @@ function ConnectModal({
     setWorking(true);
     setError(null);
     try {
-      await disconnectIntegration(user.id, item.key);
-      if (item.key === "sendgrid") {
-        await disconnectIntegration(user.id, "sendgrid_from");
+      const keys =
+        providerName && !usingCredentialFallback
+          ? [item.key]
+          : [...new Set(credentialFields.map((field) => field.key))];
+      for (const key of keys) {
+        await disconnectIntegration(user.id, key);
       }
       toast.success(`${item.name} disconnected`);
       onSaved();
@@ -357,7 +377,7 @@ function ConnectModal({
               </Button>
             </div>
           </div>
-        ) : providerName ? (
+        ) : providerName && !usingCredentialFallback ? (
           <div className="space-y-4 pt-1">
             <div
               className="rounded-xl p-4"
@@ -445,8 +465,21 @@ function ConnectModal({
                 Sync contacts and opportunities
               </Button>
             )}
+            {hasCredentialFallback && !connection && (
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setError(null);
+                  setUseCredentialFallback(true);
+                }}
+                disabled={working}
+              >
+                Use an API key or token instead
+              </Button>
+            )}
           </div>
-        ) : credential ? (
+        ) : credentialFields.length > 0 ? (
           <div className="space-y-4 pt-1">
             <div
               className="rounded-xl p-4"
@@ -466,8 +499,8 @@ function ConnectModal({
                     className="mt-1 text-[11.5px] leading-relaxed"
                     style={{ color: "var(--muted-foreground)" }}
                   >
-                    Bylda validates this credential with {credential.name}, encrypts it at rest, and
-                    never displays it again.
+                    Bylda encrypts these {item.name} credentials at rest and never displays their
+                    full values again. You can replace or disconnect them at any time.
                   </p>
                 </div>
               </div>
@@ -486,54 +519,40 @@ function ConnectModal({
                     <Check className="h-3.5 w-3.5" /> Connected
                   </div>
                   <div className="mt-1 text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
-                    Key ending in {connection.value_last4 ?? "••••"}
+                    {credentialConnections.length === 1
+                      ? `Credential ending in ${connection.value_last4 ?? "••••"}`
+                      : `${credentialConnections.length} credentials saved`}
                   </div>
                 </div>
-                <Input
-                  type={credential.inputType ?? "password"}
-                  name={`${item.key}-api-key-replacement`}
-                  value={credentialValue}
-                  onChange={(event) => setCredentialValue(event.target.value)}
-                  placeholder={`New ${credential.name} key`}
-                  autoComplete={credential.inputType === "url" ? "off" : "new-password"}
-                  data-1p-ignore
-                  data-lpignore="true"
-                />
-                {item.key === "sendgrid" && (
-                  <Input
-                    type="email"
-                    name="sendgrid-verified-sender-replacement"
-                    value={secondaryValue}
-                    onChange={(event) => setSecondaryValue(event.target.value)}
-                    placeholder="Verified sender email"
-                    autoComplete="off"
-                  />
-                )}
               </>
-            ) : (
-              <div className="space-y-2">
-                <Input
-                  type={credential.inputType ?? "password"}
-                  name={`${item.key}-api-key`}
-                  value={credentialValue}
-                  onChange={(event) => setCredentialValue(event.target.value)}
-                  placeholder={credential.placeholder}
-                  autoComplete={credential.inputType === "url" ? "off" : "new-password"}
-                  data-1p-ignore
-                  data-lpignore="true"
-                />
-                {item.key === "sendgrid" && (
+            ) : null}
+
+            <div className="space-y-3">
+              {credentialFields.map((field) => (
+                <div className="space-y-1.5" key={field.key}>
+                  <label className="text-[12px] font-medium" htmlFor={`${item.key}-${field.key}`}>
+                    {field.label}
+                    {field.optional ? " (optional)" : ""}
+                  </label>
                   <Input
-                    type="email"
-                    name="sendgrid-verified-sender"
-                    value={secondaryValue}
-                    onChange={(event) => setSecondaryValue(event.target.value)}
-                    placeholder="Verified sender email"
-                    autoComplete="off"
+                    id={`${item.key}-${field.key}`}
+                    type={field.inputType === "key" ? "password" : field.inputType}
+                    name={`${item.key}-${field.key}${connection ? "-replacement" : ""}`}
+                    value={credentialValues[field.key] ?? ""}
+                    onChange={(event) =>
+                      setCredentialValues((current) => ({
+                        ...current,
+                        [field.key]: event.target.value,
+                      }))
+                    }
+                    placeholder={connection ? `New ${field.label.toLowerCase()}` : field.hint}
+                    autoComplete={field.inputType === "key" ? "new-password" : "off"}
+                    data-1p-ignore
+                    data-lpignore="true"
                   />
-                )}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
 
             {error && (
               <p className="text-[11.5px]" style={{ color: "var(--destructive)" }}>
@@ -547,14 +566,13 @@ function ConnectModal({
                 onClick={saveCredential}
                 disabled={
                   working ||
-                  !credentialValue.trim() ||
-                  (item.key === "sendgrid" && !secondaryValue.trim())
+                  requiredCredentialFields.some((field) => !credentialValues[field.key]?.trim())
                 }
               >
                 {working
                   ? "Validating…"
                   : connection
-                    ? `Replace ${credential.name} key`
+                    ? `Replace ${managedCredential?.name ?? item.name} credentials`
                     : "Connect"}
               </Button>
               {connection && (
@@ -563,6 +581,19 @@ function ConnectModal({
                 </Button>
               )}
             </div>
+            {providerName && !connection && (
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setError(null);
+                  setUseCredentialFallback(false);
+                }}
+                disabled={working}
+              >
+                Back to secure {providerName} sign-in
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-4 pt-1">
@@ -571,23 +602,19 @@ function ConnectModal({
               style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
             >
               <div className="flex items-start gap-3">
-                <Lock
-                  className="mt-0.5 h-4 w-4 shrink-0"
-                  style={{ color: "var(--muted-foreground)" }}
-                />
                 <div>
                   <div
                     className="text-[12.5px] font-semibold"
                     style={{ color: "var(--foreground)" }}
                   >
-                    Managed connector required
+                    OAuth setup required
                   </div>
                   <p
                     className="mt-1 text-[11.5px] leading-relaxed"
                     style={{ color: "var(--muted-foreground)" }}
                   >
-                    Bylda no longer asks teammates to paste API keys. This provider will become
-                    available after a secure managed connector is approved.
+                    This provider does not support the API-key fallback in its current catalog
+                    configuration. Finish its OAuth setup to enable account connections.
                   </p>
                 </div>
               </div>
@@ -613,7 +640,8 @@ function IntegrationCard({
 }) {
   const providerName = oauthProviderName(item.key);
   const isReadyMode = item.key === "readymode";
-  const credential = credentialProvider(item.key);
+  const hasCredentialFallback =
+    !providerName && !isReadyMode && credentialFieldsForIntegration(item).length > 0;
   return (
     <div
       className="bylda-card flex cursor-pointer flex-col p-4 transition-all duration-200 hover:scale-[1.01]"
@@ -639,9 +667,11 @@ function IntegrationCard({
               ? "Webhook setup"
               : providerName
                 ? "Secure sign-in"
-                : credential
-                  ? "Encrypted key"
-                  : "Managed"}
+                : hasCredentialFallback
+                  ? item.inputType === "url"
+                    ? "Encrypted URL"
+                    : "Encrypted key"
+                  : "OAuth required"}
         </StatusPill>
       </div>
       <div className="flex-1">
@@ -678,7 +708,7 @@ function IntegrationCard({
             </>
           ) : isReadyMode ? (
             "Set up"
-          ) : providerName || credential ? (
+          ) : providerName || hasCredentialFallback ? (
             "Connect account"
           ) : (
             "Details"
@@ -724,19 +754,27 @@ function IntegrationsPage() {
 
   const filtered = searchCatalog(search, category);
   const popularItems = POPULAR_INTEGRATIONS.filter(() => !search && category === "All");
-  const isConnected = (key: string) => {
-    const primary = connected.some((entry) => entry.integration_key === key && entry.is_connected);
-    if (key !== "sendgrid") return primary;
+  const isConnected = (item: IntegrationDef) => {
+    const providerName = oauthProviderName(item.key);
+    const primary = connected.find(
+      (entry) => entry.integration_key === item.key && entry.is_connected,
+    );
+    if (item.key === "readymode") return !!primary;
+    if (providerName && primary?.connection_type !== "legacy_credential") {
+      return !!primary;
+    }
+    const requiredFields = credentialFieldsForIntegration(item).filter((field) => !field.optional);
     return (
-      primary &&
-      connected.some((entry) => entry.integration_key === "sendgrid_from" && entry.is_connected)
+      requiredFields.length > 0 &&
+      requiredFields.every((field) =>
+        connected.some((entry) => entry.integration_key === field.key && entry.is_connected),
+      )
     );
   };
   const refresh = () => {
     if (user) queryClient.invalidateQueries({ queryKey: ["user_integrations", user.id] });
   };
   const openConnector = (item: IntegrationDef) => {
-    if (credentialProvider(item.key)) setSearch("");
     setConnecting(item);
   };
   const connectedCount = connected.filter((entry) => entry.is_connected).length;
@@ -745,8 +783,8 @@ function IntegrationsPage() {
     <>
       <PageHeader
         eyebrow="Integrations"
-        title="Connect accounts, not API keys."
-        description="Sign in to the tools your team already uses. Bylda stores delegated access securely and keeps provider secrets off every user device."
+        title="Connect your sales stack."
+        description="Use secure account sign-in where OAuth is configured, or add encrypted API credentials for the rest of your tools."
       />
 
       <div
@@ -760,14 +798,14 @@ function IntegrationsPage() {
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: "var(--primary)" }} />
           <div>
             <div className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
-              OAuth connected accounts
+              Secure connections
             </div>
             <p
               className="mt-0.5 text-[11.5px] leading-relaxed"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Teammates authorize access on the provider’s website. Bylda requests minimum scopes,
-              validates every callback, and stores refresh tokens encrypted on the server.
+              OAuth connections use provider sign-in and minimum scopes. API keys, tokens, and
+              webhook URLs are encrypted on the server and are never displayed again.
             </p>
           </div>
         </div>
@@ -855,7 +893,7 @@ function IntegrationsPage() {
               <IntegrationCard
                 key={item.key}
                 item={item}
-                isConnected={isConnected(item.key)}
+                isConnected={isConnected(item)}
                 onClick={() => openConnector(item)}
               />
             ))}
@@ -878,7 +916,7 @@ function IntegrationsPage() {
             <Search className="mx-auto mb-3 h-8 w-8" style={{ color: "var(--muted-foreground)" }} />
             <div className="text-[13px] font-medium">No integrations found</div>
             <div className="mt-1 text-[12px]" style={{ color: "var(--muted-foreground)" }}>
-              Bylda only exposes managed account connections—never raw credential fields.
+              Try a provider name, category, or connection type.
             </div>
           </div>
         ) : (
@@ -887,7 +925,7 @@ function IntegrationsPage() {
               <IntegrationCard
                 key={item.key}
                 item={item}
-                isConnected={isConnected(item.key)}
+                isConnected={isConnected(item)}
                 onClick={() => openConnector(item)}
               />
             ))}
@@ -900,7 +938,6 @@ function IntegrationsPage() {
           item={connecting}
           connected={connected}
           onClose={() => {
-            if (credentialProvider(connecting.key)) setSearch("");
             setConnecting(null);
           }}
           onSaved={refresh}
