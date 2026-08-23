@@ -4,9 +4,11 @@
   // npx wrangler secret put CALL_TRANSCRIPTION_SECRET -c workers/bylda-ai-api/wrangler.jsonc
   "name": "bylda-ai-api",
   "account_id": "25b7202ade639506ffce966e37a116e1",
-  "compatibility_date": "2025-09-24",
+  "compatibility_date": "2026-08-07",
   "compatibility_flags": ["nodejs_compat"],
   "main": "worker.ts",
+  "workers_dev": true,
+  "observability": { "enabled": true, "logs": { "enabled": true } },
   "routes": [{ "pattern": "ai.usebylda.com", "custom_domain": true }],
   "ai": { "binding": "AI" },
   "vars": {
