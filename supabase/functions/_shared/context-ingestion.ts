@@ -218,13 +218,21 @@ export async function resolveCallEntities(
     }
   }
   if (!leadId) {
-    leadId = await mappedCanonicalId(admin, {
-      organizationId: input.organizationId,
-      provider: input.provider,
-      objectType: "opportunity",
-      externalId: input.externalLeadId,
-      canonicalType: "lead",
-    });
+    leadId =
+      (await mappedCanonicalId(admin, {
+        organizationId: input.organizationId,
+        provider: input.provider,
+        objectType: "opportunity",
+        externalId: input.externalLeadId,
+        canonicalType: "lead",
+      })) ??
+      (await mappedCanonicalId(admin, {
+        organizationId: input.organizationId,
+        provider: input.provider,
+        objectType: "deal",
+        externalId: input.externalLeadId,
+        canonicalType: "lead",
+      }));
     if (leadId) {
       confidence = 1;
       method = "external_lead_id";

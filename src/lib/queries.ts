@@ -484,20 +484,67 @@ export async function startIntegrationOAuth(integrationKey: string, options?: { 
 
 export type GoHighLevelSyncResult = {
   ok: boolean;
-  location_id: string;
+  location_id?: string;
   contacts_imported: number;
-  opportunities_imported: number;
+  opportunities_imported?: number;
+  deals_imported?: number;
   contacts_received: number;
-  opportunities_received: number;
+  opportunities_received?: number;
+  deals_received?: number;
+};
+
+export type CrmSyncProviderResult = {
+  provider: string;
+  companies_imported: number;
+  contacts_imported: number;
+  deals_imported: number;
+  companies_received: number;
+  contacts_received: number;
+  deals_received: number;
+  memory_chunks_imported?: number;
+  error?: string;
+};
+
+export type CrmSyncResult = {
+  ok: boolean;
+  results: CrmSyncProviderResult[];
+  contacts_imported: number;
+  deals_imported: number;
+  companies_imported: number;
+  contacts_received: number;
+  deals_received: number;
 };
 
 export async function syncGoHighLevel() {
-  const { data, error } = await supabase.functions.invoke("sync-gohighlevel", {
-    body: { action: "sync" },
-  });
-  if (error) throw error;
+  const result = await syncCrm("gohighlevel");
+  return {
+    ok: result.ok,
+    contacts_imported: result.contacts_imported,
+    opportunities_imported: result.deals_imported,
+    contacts_received: result.contacts_received,
+    opportunities_received: result.deals_received,
+  } satisfies GoHighLevelSyncResult;
+}
+
+export async function syncCrm(provider?: string | string[]) {
+  const body = Array.isArray(provider)
+    ? { providers: provider }
+    : provider
+      ? { provider }
+      : {};
+  const { data, error } = await supabase.functions.invoke("sync-crm", { body });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const errorBody = context
+      ? await context
+          .clone()
+          .json()
+          .catch(() => null)
+      : null;
+    throw new Error(errorBody?.error ?? error.message);
+  }
   if (data?.error) throw new Error(data.error);
-  return data as GoHighLevelSyncResult;
+  return data as CrmSyncResult;
 }
 
 export type SalesforceSyncResult = {

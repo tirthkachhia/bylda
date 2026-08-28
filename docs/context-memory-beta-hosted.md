@@ -71,6 +71,7 @@ Keep the existing production callback registered as well.
 bunx supabase functions deploy integration-oauth-start
 bunx supabase functions deploy integration-oauth-callback --no-verify-jwt
 bunx supabase functions deploy sync-gohighlevel
+bunx supabase functions deploy sync-crm
 bunx supabase functions deploy get-inbound-url
 bunx supabase functions deploy ingest-call-webhook --no-verify-jwt
 bunx supabase functions deploy context-package
@@ -93,8 +94,8 @@ http://localhost:8080/app/context-memory
 
 The beta workflow uses real data:
 
-1. Connect GoHighLevel under Integrations.
-2. Select “Sync real contacts and opportunities.”
+1. Connect HubSpot, Salesforce, Close, GoHighLevel, Pipedrive, Stripe, or Notion under Integrations.
+2. Select “Sync connected sources.”
 3. Copy the secure call webhook into a dialer/transcription provider.
 4. Select an imported deal or ingested call.
 5. Build and inspect the live Context Package.

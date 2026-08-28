@@ -42,13 +42,18 @@ function edgeUrl(fn: string): string {
 }
 
 async function authHeaders(skipAuth: boolean): Promise<Record<string, string>> {
+  const anonKey =
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (anonKey) headers.apikey = anonKey;
   if (!skipAuth) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new EdgeError("Not authenticated", 401, "NO_SESSION");
     headers.Authorization = `Bearer ${session.access_token}`;
+  } else if (anonKey) {
+    headers.Authorization = `Bearer ${anonKey}`;
   }
   return headers;
 }

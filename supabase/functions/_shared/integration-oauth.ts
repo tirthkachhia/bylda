@@ -53,6 +53,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
       "crm.objects.contacts.write",
       "crm.objects.deals.read",
       "crm.objects.deals.write",
+      "crm.objects.companies.read",
     ],
   },
   gohighlevel: {

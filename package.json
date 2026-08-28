@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:context": "bun test src/lib/__tests__/context-package.test.ts",
+    "test:context": "bun test src/lib/__tests__/context-package.test.ts src/lib/__tests__/crm-adapters.test.ts",
     "test:context:local": "bun scripts/context-memory-smoke.ts",
     "test:watch": "vitest",
     "format": "prettier --write ."

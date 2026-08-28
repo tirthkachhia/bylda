@@ -120,6 +120,14 @@ verify_jwt = true
 [functions.generate-crm-intelligence-profile]
 verify_jwt = true
 
+# Multi-CRM + connected-source ingest into canonical entities and memory.
+[functions.sync-crm]
+verify_jwt = true
+
+# Legacy GoHighLevel sync — kept for existing clients.
+[functions.sync-gohighlevel]
+verify_jwt = true
+
 # Dialers authenticate with a per-organization HMAC URL, not a Supabase JWT.
 [functions.ingest-call-webhook]
 verify_jwt = false

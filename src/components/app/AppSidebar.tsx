@@ -3,6 +3,7 @@ import {
   BarChart3,
   BookOpenText,
   BrainCircuit,
+  CalendarDays,
   Database,
   Link2,
   PhoneCall,
@@ -14,6 +15,7 @@ import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/brand/Logo";
 
 const NAV = [
+  { label: "Today", to: "/app", icon: CalendarDays },
   { label: "Calls", to: "/app/crm/calls", icon: PhoneCall },
   { label: "Deal memory", to: "/app/memory", icon: BookOpenText },
   { label: "Context beta", to: "/app/context-memory", icon: BrainCircuit },
@@ -36,7 +38,7 @@ export function AppSidebar() {
   return (
     <aside className="hidden w-[218px] shrink-0 flex-col border-r border-white/[0.08] bg-[#101216] text-white lg:flex">
       <div className="flex h-[68px] items-center border-b border-white/[0.08] px-5">
-        <Link to="/app/crm/calls">
+        <Link to="/app">
           <Logo className="text-white" markClassName="h-8 w-8 rounded-[9px]" />
         </Link>
       </div>
@@ -46,7 +48,10 @@ export function AppSidebar() {
         </div>
         <nav className="space-y-1">
           {NAV.map(({ label, to, icon: Icon }) => {
-            const active = path === to || (to !== "/app/crm/calls" && path.startsWith(`${to}/`));
+            const active =
+              to === "/app"
+                ? path === "/app" || path === "/app/"
+                : path === to || path.startsWith(`${to}/`);
             return (
               <Link
                 key={label}

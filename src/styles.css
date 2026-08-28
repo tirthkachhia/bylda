@@ -496,6 +496,18 @@
     font-weight: 700;
   }
 
+  .font-canvas-display {
+    font-family: "Instrument Serif", ui-serif, Georgia, serif;
+  }
+
+  .bylda-canvas h1,
+  .bylda-canvas h2,
+  .bylda-canvas h3 {
+    font-family: "Instrument Serif", ui-serif, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.03em;
+  }
+
   ::selection {
     background: color-mix(in oklab, var(--primary) 22%, transparent);
     color: var(--foreground);

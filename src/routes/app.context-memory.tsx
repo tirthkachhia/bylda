@@ -1,31 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Braces,
+  Building2,
   CheckCircle2,
   Clipboard,
-  Database,
-  ExternalLink,
   Loader2,
   PhoneCall,
   RefreshCw,
   Sparkles,
   Unplug,
+  Users,
+  Wallet,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/app/PageHeader";
+import { StatusPill } from "@/components/app/StatusPill";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { syncGoHighLevel, type GoHighLevelSyncResult } from "@/lib/queries";
+import { syncCrm, type CrmSyncResult } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/context-memory")({
   component: ContextMemoryBetaPage,
@@ -106,6 +102,16 @@ const EMPTY_STATS: BetaStats = {
   packagesBuilt: 0,
 };
 
+const CONTEXT_SOURCES = [
+  { key: "hubspot", label: "HubSpot", kind: "CRM", color: "#FF7A59", slug: "hubspot" },
+  { key: "salesforce", label: "Salesforce", kind: "CRM", color: "#00A1E0", slug: "salesforce" },
+  { key: "close_io", label: "Close", kind: "CRM", color: "#1CE783", slug: "close" },
+  { key: "gohighlevel", label: "GoHighLevel", kind: "CRM", color: "#F97316", slug: "gohighlevel" },
+  { key: "pipedrive", label: "Pipedrive", kind: "CRM", color: "#017737", slug: "pipedrive" },
+  { key: "stripe", label: "Stripe", kind: "Payments", color: "#635BFF", slug: "stripe" },
+  { key: "notion", label: "Notion", kind: "Notes", color: "#111111", slug: "notion" },
+] as const;
+
 async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
@@ -122,7 +128,7 @@ async function invokeFunction<T>(name: string, body: Record<string, unknown>): P
   return data as T;
 }
 
-function readableDate(value: string | null) {
+function readableDate(value: string | null | undefined) {
   if (!value) return "Unknown time";
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
@@ -132,11 +138,77 @@ function readableDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function textValue(value: unknown) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return "";
+}
+
+function money(value: unknown) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount === 0) return null;
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function stageTone(stage: string): "success" | "destructive" | "warning" | "primary" | "muted" {
+  const normalized = stage.toLowerCase();
+  if (normalized.includes("won")) return "success";
+  if (normalized.includes("lost")) return "destructive";
+  if (normalized.includes("new") || !stage) return "muted";
+  return "primary";
+}
+
+function personName(contact: Record<string, unknown>) {
+  return (
+    [textValue(contact.first_name), textValue(contact.last_name)].filter(Boolean).join(" ") ||
+    textValue(contact.email) ||
+    "Contact"
+  );
+}
+
+function SourceMark({
+  source,
+  size = 28,
+}: {
+  source: (typeof CONTEXT_SOURCES)[number];
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (source.slug && !failed) {
+    return (
+      <span
+        className="flex shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"
+        style={{ width: size, height: size }}
+      >
+        <img
+          src={`https://cdn.simpleicons.org/${source.slug}`}
+          alt=""
+          width={size - 10}
+          height={size - 10}
+          onError={() => setFailed(true)}
+        />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold text-white"
+      style={{ width: size, height: size, background: source.color }}
+    >
+      {source.label.slice(0, 1)}
+    </span>
+  );
+}
+
 function ContextMemoryBetaPage() {
   const { currentOrgId, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [ghlConnected, setGhlConnected] = useState(false);
+  const [connectedSources, setConnectedSources] = useState<string[]>([]);
   const [calls, setCalls] = useState<CallRow[]>([]);
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [stats, setStats] = useState<BetaStats>(EMPTY_STATS);
@@ -146,7 +218,8 @@ function ContextMemoryBetaPage() {
   const [syncing, setSyncing] = useState(false);
   const [assembling, setAssembling] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [lastSync, setLastSync] = useState<GoHighLevelSyncResult | null>(null);
+  const [lastSync, setLastSync] = useState<CrmSyncResult | null>(null);
+  const [showWebhook, setShowWebhook] = useState(false);
 
   const load = useCallback(async () => {
     if (!currentOrgId || !user?.id) {
@@ -169,11 +242,13 @@ function ContextMemoryBetaPage() {
       ] = await Promise.all([
         db
           .from("user_integrations")
-          .select("status")
+          .select("integration_key,status")
           .eq("user_id", user.id)
-          .eq("integration_key", "gohighlevel")
           .eq("status", "connected")
-          .maybeSingle(),
+          .in(
+            "integration_key",
+            CONTEXT_SOURCES.map((source) => source.key),
+          ),
         db
           .from("calls")
           .select("id,provider,provider_call_id,contact_id,lead_id,status,started_at,created_at")
@@ -216,6 +291,7 @@ function ContextMemoryBetaPage() {
       ]);
 
       const firstError = [
+        integrationResult.error,
         callsResult.error,
         leadsResult.error,
         rawResult.error,
@@ -228,7 +304,11 @@ function ContextMemoryBetaPage() {
 
       const nextCalls = (callsResult.data ?? []) as CallRow[];
       const nextLeads = (leadsResult.data ?? []) as LeadRow[];
-      setGhlConnected(Boolean(integrationResult.data));
+      setConnectedSources(
+        ((integrationResult.data ?? []) as Array<{ integration_key: string }>).map(
+          (row) => row.integration_key,
+        ),
+      );
       setCalls(nextCalls);
       setLeads(nextLeads);
       setStats({
@@ -241,8 +321,8 @@ function ContextMemoryBetaPage() {
       setCallWebhookUrl(inbound.call_url ?? null);
       setSelectedEntity((current) => {
         if (current) return current;
-        if (nextCalls[0]) return `call:${nextCalls[0].id}`;
         if (nextLeads[0]) return `lead:${nextLeads[0].id}`;
+        if (nextCalls[0]) return `call:${nextCalls[0].id}`;
         return "";
       });
     } catch (error) {
@@ -261,17 +341,27 @@ function ContextMemoryBetaPage() {
     return { type, id };
   }, [selectedEntity]);
 
-  const syncGhl = async () => {
+  const selectedLead = leads.find((lead) => `lead:${lead.id}` === selectedEntity);
+  const selectedCall = calls.find((call) => `call:${call.id}` === selectedEntity);
+  const connectedCount = connectedSources.length;
+
+  const syncSources = async () => {
     setSyncing(true);
     try {
-      const result = await syncGoHighLevel();
+      const result = await syncCrm(connectedSources);
       setLastSync(result);
-      toast.success("Real GoHighLevel data synchronized", {
-        description: `${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities imported.`,
+      const failed = result.results.filter((item) => item.error);
+      if (failed.length && failed.length === result.results.length) {
+        throw new Error(failed[0]?.error ?? "CRM sync failed");
+      }
+      toast.success("Pipeline refreshed", {
+        description: `${result.contacts_imported} contacts and ${result.deals_imported} deals pulled in${
+          failed.length ? `. ${failed.length} source(s) need a reconnect.` : "."
+        }`,
       });
       await load();
     } catch (error) {
-      toast.error("GoHighLevel sync failed", {
+      toast.error("Could not refresh your pipeline", {
         description:
           error instanceof Error ? error.message : "Reconnect the integration and retry.",
       });
@@ -280,21 +370,22 @@ function ContextMemoryBetaPage() {
     }
   };
 
-  const buildPackage = async () => {
-    if (!currentOrgId || !selected.id) return;
+  const buildPackage = async (entity = selectedEntity) => {
+    const [type, id] = entity.split(":");
+    if (!currentOrgId || !id) return;
     setAssembling(true);
     try {
       const response = await invokeFunction<{ context: ContextPackage }>("context-package", {
         organization_id: currentOrgId,
         task: "beta_context_inspection",
-        ...(selected.type === "call" ? { call_id: selected.id } : { lead_id: selected.id }),
+        ...(type === "call" ? { call_id: id } : { lead_id: id }),
         token_budget: 6000,
       });
       setContext(response.context);
-      toast.success("Context Package assembled from live data");
+      toast.success("Deal briefing is ready");
       await load();
     } catch (error) {
-      toast.error("Context assembly failed", {
+      toast.error("Could not build this briefing", {
         description: error instanceof Error ? error.message : "Check the beta backend deployment.",
       });
     } finally {
@@ -302,12 +393,17 @@ function ContextMemoryBetaPage() {
     }
   };
 
+  const openEntity = async (entity: string) => {
+    setSelectedEntity(entity);
+    await buildPackage(entity);
+  };
+
   const analyzeCall = async () => {
     if (selected.type !== "call" || !selected.id) return;
     setAnalyzing(true);
     try {
       await invokeFunction("analyze-call", { call_id: selected.id });
-      toast.success("Call analyzed with the assembled Context Package");
+      toast.success("Call notes added to this briefing");
       await buildPackage();
     } catch (error) {
       toast.error("Call analysis failed", {
@@ -324,250 +420,439 @@ function ContextMemoryBetaPage() {
   const copyWebhook = async () => {
     if (!callWebhookUrl) return;
     await navigator.clipboard.writeText(callWebhookUrl);
-    toast.success("Call webhook URL copied");
+    toast.success("Dialer webhook copied");
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading your pipeline memory…</p>
       </div>
     );
   }
 
+  const deal = context?.deal ?? null;
+  const account = context?.account ?? null;
+  const contacts = context?.contacts ?? [];
+  const facts = context?.current_state.memory_facts ?? [];
+  const history = context?.relevant_history ?? [];
+  const activity = context?.recent_activity ?? [];
+  const evidence = context?.retrieved_evidence ?? [];
+
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-5 md:p-8">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <Badge variant="secondary">Beta · Live data</Badge>
-            <span className="text-xs text-muted-foreground">GoHighLevel + call memory</span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Context Memory</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Synchronize your connected CRM, ingest real calls, and inspect exactly what Bylda
-            retrieves before intelligence runs.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => void load()}>
-          <RefreshCw className="h-4 w-4" />
-          Refresh live state
-        </Button>
-      </div>
+    <div className="mx-auto w-full max-w-[1400px] space-y-6 p-5 md:p-8">
+      <PageHeader
+        eyebrow="Context beta"
+        title="Deal memory"
+        description="See what Bylda already knows about a live deal before the next call — account, people, history, and the notes that should change how you sell."
+        actions={
+          <Button variant="outline" onClick={() => void load()}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        }
+      />
 
       {loadError && (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardContent className="flex items-start gap-3 p-4">
-            <Unplug className="mt-0.5 h-5 w-5 text-destructive" />
-            <div>
-              <div className="font-medium">Development backend is not ready</div>
-              <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Point localhost at the hosted development Supabase project after deploying the
-                context migration and functions.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+          <Unplug className="mt-0.5 h-5 w-5 text-destructive" />
+          <div>
+            <div className="font-medium">Backend is not ready yet</div>
+            <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
+          </div>
+        </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-5">
-        {[
-          ["Raw records", stats.rawObjects],
-          ["Identity links", stats.externalMappings],
-          ["Calls", stats.calls],
-          ["Memory chunks", stats.memoryChunks],
-          ["Packages built", stats.packagesBuilt],
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <CardContent className="p-4">
-              <div className="text-2xl font-semibold">{value}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{label}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Database className="h-4 w-4" />
-                1. Synchronize CRM
-              </CardTitle>
-              <CardDescription>
-                Uses the GoHighLevel account connected in Integrations.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <div>
-                  <div className="text-sm font-medium">GoHighLevel</div>
-                  <div className="text-xs text-muted-foreground">
-                    {ghlConnected ? "Connected account" : "Not connected"}
-                  </div>
-                </div>
-                {ghlConnected ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                ) : (
-                  <Button asChild size="sm" variant="outline">
-                    <Link to="/app/integrations">
-                      Connect <ExternalLink className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
-                )}
-              </div>
-              <Button className="w-full" disabled={!ghlConnected || syncing} onClick={syncGhl}>
-                {syncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-                Sync real contacts and opportunities
-              </Button>
-              {lastSync && (
-                <p className="text-xs text-muted-foreground">
-                  Last run received {lastSync.contacts_received} contacts and{" "}
-                  {lastSync.opportunities_received} opportunities.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <PhoneCall className="h-4 w-4" />
-                2. Send real calls
-              </CardTitle>
-              <CardDescription>
-                Configure your dialer or transcription provider to POST completed calls here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {callWebhookUrl ? (
-                <>
-                  <code className="block max-h-24 overflow-auto rounded-lg bg-muted p-3 text-[11px] leading-relaxed">
-                    {callWebhookUrl}
-                  </code>
-                  <Button className="w-full" variant="outline" onClick={copyWebhook}>
-                    <Clipboard />
-                    Copy secure call webhook
-                  </Button>
-                </>
-              ) : (
-                <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                  Set INBOUND_WEBHOOK_SECRET in the hosted development project to generate this URL.
-                </p>
-              )}
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                The payload must include a call ID and transcript. Phone numbers or provider CRM IDs
-                are used to link the call to the synchronized contact and deal.
+      <section className="glass-card relative overflow-hidden rounded-3xl p-5 md:p-6">
+        <div
+          className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full opacity-40 blur-3xl"
+          style={{ background: "color-mix(in oklab, var(--domain-customers) 45%, transparent)" }}
+        />
+        <div className="relative space-y-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <StatusPill tone="primary">Live CRM memory</StatusPill>
+              <h2 className="mt-3 text-xl font-semibold tracking-tight">
+                {connectedCount
+                  ? `${connectedCount} source${connectedCount === 1 ? "" : "s"} feeding your pipeline`
+                  : "Connect a CRM to start remembering deals"}
+              </h2>
+              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                HubSpot, Salesforce, Close, and the rest of your stack land in one briefing — not
+                another spreadsheet.
               </p>
-            </CardContent>
-          </Card>
+            </div>
+            <Button
+              size="lg"
+              disabled={!connectedCount || syncing}
+              onClick={() => void syncSources()}
+            >
+              {syncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+              Refresh pipeline
+            </Button>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4" />
-                3. Inspect context
-              </CardTitle>
-              <CardDescription>
-                Select an actual synchronized deal or ingested call.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a real entity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {calls.map((call) => (
-                    <SelectItem key={`call:${call.id}`} value={`call:${call.id}`}>
-                      Call · {call.provider ?? "unknown"} ·{" "}
-                      {readableDate(call.started_at ?? call.created_at)}
-                    </SelectItem>
-                  ))}
-                  {leads.map((lead) => (
-                    <SelectItem key={`lead:${lead.id}`} value={`lead:${lead.id}`}>
-                      Deal · {lead.name} · {lead.stage}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!calls.length && !leads.length && (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              { label: "Deals in memory", value: leads.length, hint: "Open opportunities" },
+              { label: "People linked", value: stats.externalMappings, hint: "CRM identities" },
+              { label: "Calls captured", value: stats.calls, hint: "From your dialer" },
+              { label: "Notes remembered", value: stats.memoryChunks, hint: "Transcripts & docs" },
+              { label: "Briefings built", value: stats.packagesBuilt, hint: "Ready for the next call" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/10 bg-background/40 p-4">
+                <div className="text-2xl font-semibold tracking-tight">{item.value}</div>
+                <div className="mt-1 text-sm font-medium">{item.label}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{item.hint}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {CONTEXT_SOURCES.map((source) => {
+              const connected = connectedSources.includes(source.key);
+              return (
+                <Link
+                  key={source.key}
+                  to="/app/integrations"
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                    connected
+                      ? "border-emerald-500/30 bg-emerald-500/10"
+                      : "border-border bg-background/50 hover:bg-muted/60",
+                  )}
+                >
+                  <SourceMark source={source} size={22} />
+                  <span className="font-medium">{source.label}</span>
+                  {connected ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Connect</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+
+          {lastSync && (
+            <p className="text-xs text-muted-foreground">
+              Last refresh brought in {lastSync.contacts_imported} contacts and{" "}
+              {lastSync.deals_imported} deals
+              {lastSync.results.some((item) => item.error)
+                ? ". One or more sources need a reconnect."
+                : "."}
+            </p>
+          )}
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+        <aside className="space-y-4">
+          <div className="rounded-3xl border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Choose a deal</div>
+                <p className="text-xs text-muted-foreground">Open the briefing Bylda will use.</p>
+              </div>
+              <Badge variant="secondary">{leads.length}</Badge>
+            </div>
+            <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
+              {leads.slice(0, 12).map((lead) => {
+                const active = selectedEntity === `lead:${lead.id}`;
+                return (
+                  <button
+                    key={lead.id}
+                    type="button"
+                    onClick={() => void openEntity(`lead:${lead.id}`)}
+                    className={cn(
+                      "w-full rounded-2xl border p-3 text-left transition-colors",
+                      active
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-transparent bg-muted/40 hover:bg-muted/70",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{lead.name}</div>
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {lead.company || "No account yet"}
+                        </div>
+                      </div>
+                      <StatusPill tone={stageTone(lead.stage)}>{lead.stage || "New"}</StatusPill>
+                    </div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      {lead.external_source ? lead.external_source.replace("_", " ") : "Bylda"} ·{" "}
+                      {readableDate(lead.updated_at)}
+                    </div>
+                  </button>
+                );
+              })}
+              {!leads.length && (
+                <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
+                  No deals yet. Connect a CRM and refresh the pipeline.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Recent calls</div>
+                <p className="text-xs text-muted-foreground">Link a conversation to the deal.</p>
+              </div>
+              <Badge variant="secondary">{calls.length}</Badge>
+            </div>
+            <div className="space-y-2">
+              {calls.slice(0, 5).map((call) => {
+                const active = selectedEntity === `call:${call.id}`;
+                return (
+                  <button
+                    key={call.id}
+                    type="button"
+                    onClick={() => void openEntity(`call:${call.id}`)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-2xl border p-3 text-left",
+                      active
+                        ? "border-primary/40 bg-primary/10"
+                        : "border-transparent bg-muted/40 hover:bg-muted/70",
+                    )}
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-background">
+                      <PhoneCall className="h-4 w-4 text-primary" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {call.provider ?? "Dialer"} call
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {readableDate(call.started_at ?? call.created_at)} · {call.status}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+              {!calls.length && (
                 <p className="text-xs text-muted-foreground">
-                  No real entities yet. Connect and synchronize GoHighLevel first.
+                  No calls in yet. Connect your dialer when you are ready.
                 </p>
               )}
-              <Button
-                className="w-full"
-                disabled={!selectedEntity || assembling}
-                onClick={buildPackage}
+            </div>
+
+            <div className="mt-4 border-t pt-3">
+              <button
+                type="button"
+                className="text-xs font-medium text-primary"
+                onClick={() => setShowWebhook((open) => !open)}
               >
-                {assembling ? <Loader2 className="animate-spin" /> : <Braces />}
-                Build Context Package
+                {showWebhook ? "Hide dialer setup" : "Connect a dialer"}
+              </button>
+              {showWebhook && (
+                <div className="mt-3 space-y-2">
+                  {callWebhookUrl ? (
+                    <>
+                      <code className="block max-h-20 overflow-auto rounded-xl bg-muted p-3 text-[11px] leading-relaxed">
+                        {callWebhookUrl}
+                      </code>
+                      <Button className="w-full" variant="outline" onClick={() => void copyWebhook()}>
+                        <Clipboard />
+                        Copy webhook
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Ask an admin to set the inbound webhook secret, then refresh.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </aside>
+
+        <section className="min-h-[720px] overflow-hidden rounded-3xl border bg-card">
+          <div className="flex flex-col gap-4 border-b p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-lg font-semibold tracking-tight">
+                {selectedLead?.name ||
+                  (selectedCall ? `${selectedCall.provider ?? "Dialer"} call` : "Deal briefing")}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {selectedLead
+                  ? `${selectedLead.company || "Account pending"} · last touched ${readableDate(selectedLead.updated_at)}`
+                  : selectedCall
+                    ? `Captured ${readableDate(selectedCall.started_at ?? selectedCall.created_at)}`
+                    : "Pick a deal on the left to see the pre-call picture."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={!selectedEntity || assembling} onClick={() => void buildPackage()}>
+                {assembling ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                Build briefing
               </Button>
               <Button
-                className="w-full"
                 variant="outline"
                 disabled={selected.type !== "call" || analyzing}
-                onClick={analyzeCall}
+                onClick={() => void analyzeCall()}
               >
-                {analyzing ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                Analyze selected call
+                {analyzing ? <Loader2 className="animate-spin" /> : <PhoneCall />}
+                Analyze call
               </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
 
-        <Card className="min-h-[720px]">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between gap-3 text-base">
-              <span>Live Context Package</span>
-              {context && <Badge variant="outline">v{context.package_version}</Badge>}
-            </CardTitle>
-            <CardDescription>
-              Structured CRM state, historical memory, provenance, and retrieval omissions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!context ? (
-              <div className="flex min-h-[560px] flex-col items-center justify-center rounded-xl border border-dashed text-center">
-                <Braces className="mb-3 h-9 w-9 text-muted-foreground/50" />
-                <div className="font-medium">No package assembled yet</div>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Choose a real deal or call. Bylda will retrieve only data belonging to your
-                  organization.
-                </p>
+          {!context ? (
+            <div className="flex min-h-[560px] flex-col items-center justify-center px-6 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                <Sparkles className="h-7 w-7 text-primary" />
               </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-lg border p-3">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Context version
-                    </div>
-                    <div className="mt-1 text-lg font-semibold">
-                      {context.receipt.context_version}
+              <div className="text-lg font-semibold">No briefing open yet</div>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                Choose a live deal. Bylda will pull the account, the people, and the last things
+                said — the same picture it uses before recommending a next step.
+              </p>
+            </div>
+          ) : (
+            <Tabs defaultValue="briefing" className="p-5">
+              <TabsList>
+                <TabsTrigger value="briefing">Briefing</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="technical">Technical</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="briefing" className="mt-5 space-y-5">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <BriefStat
+                    icon={Building2}
+                    label="Account"
+                    value={textValue(account?.name) || textValue(deal?.company) || "Not linked"}
+                  />
+                  <BriefStat
+                    icon={Wallet}
+                    label="Deal value"
+                    value={money(deal?.value) ?? "Not set"}
+                  />
+                  <BriefStat
+                    icon={Sparkles}
+                    label="Stage"
+                    value={textValue(deal?.stage) || selectedLead?.stage || "New"}
+                  />
+                  <BriefStat
+                    icon={Users}
+                    label="People"
+                    value={`${contacts.length || 0} on the deal`}
+                  />
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl border p-4">
+                    <h3 className="text-sm font-semibold">Who is involved</h3>
+                    <div className="mt-3 space-y-3">
+                      {contacts.length ? (
+                        contacts.map((contact, index) => (
+                          <div key={textValue(contact.id) || index} className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                              {personName(contact).slice(0, 1)}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-medium">{personName(contact)}</div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {textValue(contact.email) || textValue(contact.phone) || "No contact details"}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No people linked yet. Sync the CRM or attach a contact.
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="rounded-lg border p-3">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Sources used
-                    </div>
-                    <div className="mt-1 text-lg font-semibold">
-                      {context.receipt.source_references.length}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Estimated tokens
-                    </div>
-                    <div className="mt-1 text-lg font-semibold">
-                      {context.receipt.token_estimate}
+
+                  <div className="rounded-2xl border p-4">
+                    <h3 className="text-sm font-semibold">What Bylda already knows</h3>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {facts.length ? (
+                        facts.slice(0, 8).map((fact, index) => (
+                          <span
+                            key={textValue(fact.id) || index}
+                            className="rounded-full border bg-muted/50 px-3 py-1 text-xs"
+                          >
+                            {textValue(fact.fact_key) || "Note"}
+                            {textValue(fact.fact_value) ? ` · ${textValue(fact.fact_value)}` : ""}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No durable facts yet. Analyze a call or add a note after the next meeting.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
 
+                <div className="rounded-2xl border p-4">
+                  <h3 className="text-sm font-semibold">Remember this before the call</h3>
+                  <div className="mt-3 space-y-3">
+                    {(history.length ? history : evidence).slice(0, 6).map((item) => (
+                      <blockquote
+                        key={item.id}
+                        className="rounded-2xl bg-muted/40 px-4 py-3 text-sm leading-relaxed"
+                      >
+                        <p>{item.content}</p>
+                        <footer className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {item.source_type.replaceAll("_", " ")}
+                          {"occurred_at" in item ? ` · ${readableDate(item.occurred_at)}` : ""}
+                        </footer>
+                      </blockquote>
+                    ))}
+                    {!history.length && !evidence.length && (
+                      <p className="text-sm text-muted-foreground">
+                        No prior notes or transcripts for this deal yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="activity" className="mt-5 space-y-3">
+                {activity.length ? (
+                  activity.map((item, index) => (
+                    <div key={textValue(item.id) || index} className="rounded-2xl border p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-medium capitalize">
+                          {textValue(item.type) || "Update"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {readableDate(textValue(item.created_at) || null)}
+                        </div>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {textValue(item.content) || "No detail recorded."}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                    No CRM activity on this deal yet.
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="technical" className="mt-5 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <BriefStat label="Context version" value={String(context.receipt.context_version)} />
+                  <BriefStat
+                    label="Sources used"
+                    value={String(context.receipt.source_references.length)}
+                  />
+                  <BriefStat
+                    label="Estimated tokens"
+                    value={String(context.receipt.token_estimate)}
+                  />
+                </div>
                 {[
                   ["Account", context.account],
                   ["Deal", context.deal],
@@ -583,16 +868,36 @@ function ContextMemoryBetaPage() {
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {label as string}
                     </h3>
-                    <pre className="max-h-72 overflow-auto rounded-lg bg-[#101216] p-4 text-[11px] leading-relaxed text-[#d7e1ee]">
+                    <pre className="max-h-64 overflow-auto rounded-2xl bg-[#101216] p-4 text-[11px] leading-relaxed text-[#d7e1ee]">
                       {JSON.stringify(value, null, 2)}
                     </pre>
                   </section>
                 ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </TabsContent>
+            </Tabs>
+          )}
+        </section>
       </div>
+    </div>
+  );
+}
+
+function BriefStat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: typeof Building2;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border p-4">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {Icon && <Icon className="h-3.5 w-3.5" />}
+        {label}
+      </div>
+      <div className="mt-1 truncate text-base font-semibold">{value}</div>
     </div>
   );
 }

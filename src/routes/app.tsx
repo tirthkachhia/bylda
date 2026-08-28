@@ -24,6 +24,14 @@ function AppLayout() {
   useEffect(() => {
     saveLastAppPath(path);
   }, [path]);
+  const canvasHome = path === "/app" || path === "/app/";
+  if (canvasHome) {
+    return (
+      <div className="h-screen overflow-hidden bg-[#f7f9fd] text-[#111318]">
+        <Outlet />
+      </div>
+    );
+  }
   return (
     <div className="flex h-screen overflow-hidden bg-[#eeefeb] text-[#17191e]">
       <AppSidebar />

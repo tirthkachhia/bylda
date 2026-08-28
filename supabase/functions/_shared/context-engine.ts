@@ -344,7 +344,19 @@ export async function buildContextPackage(
     .order("occurred_at", { ascending: false })
     .limit(20);
 
-  const recentEvidence: EvidenceItem[] = (recentChunks ?? []).map((row) => ({
+  const { data: integrationChunks } = await admin
+    .from("context_memory_chunks")
+    .select("id,source_type,source_id,content,metadata,occurred_at")
+    .eq("organization_id", request.organizationId)
+    .in("source_type", ["notion_page", "integration_note"])
+    .is("lead_id", null)
+    .is("contact_id", null)
+    .is("company_id", null)
+    .is("call_id", null)
+    .order("occurred_at", { ascending: false })
+    .limit(8);
+
+  const recentEvidence: EvidenceItem[] = [...(recentChunks ?? []), ...(integrationChunks ?? [])].map((row) => ({
     id: String(row.id),
     source_type: String(row.source_type),
     source_id: row.source_id ? String(row.source_id) : null,
