@@ -110,6 +110,7 @@ function MemoryPage() {
   const [queryText, setQueryText] = useState("");
   const [queryAnswer, setQueryAnswer] = useState<string | null>(null);
   const [queryProvider, setQueryProvider] = useState<string | null>(null);
+  const [querySourcesSearched, setQuerySourcesSearched] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"business" | "sources" | "artifacts" | "query">(
     "business",
   );
@@ -142,19 +143,32 @@ function MemoryPage() {
 
   const queryMutation = useMutation({
     mutationFn: async ({ query, orgId }: { query: string; orgId: string }) => {
+      const aiUrl = import.meta.env.VITE_BYLDA_AI_URL || "https://ai.usebylda.com";
+      const send = (accessToken: string) =>
+        fetch(aiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ mode: "memory_query", message: query, org_id: orgId }),
+        });
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Sign in again to use Ask AI.");
+      if (!session?.access_token) throw new Error("Your session expired. Sign in again to use Ask AI.");
 
-      const response = await fetch(import.meta.env.VITE_BYLDA_AI_URL || "https://ai.usebylda.com", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ mode: "memory_query", message: query, org_id: orgId }),
-      });
+      let response = await send(session.access_token);
+      // A tab can stay open after its access token expires. Refresh once before
+      // surfacing an auth error so the chat behaves like a real persistent app.
+      if (response.status === 401) {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !data.session?.access_token) {
+          throw new Error("Your session expired. Sign in again, then resend your question.");
+        }
+        response = await send(data.session.access_token);
+      }
       const data = (await response.json()) as {
         answer?: string;
         error?: string;
@@ -173,9 +187,19 @@ function MemoryPage() {
     onSuccess: (data) => {
       setQueryAnswer(data.answer);
       setQueryProvider(data.provider ?? null);
+      setQuerySourcesSearched(data.sources_searched ?? 0);
     },
-    onError: () => toast.error("Failed to query memory. Please try again."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Ask AI could not respond. Try again."),
   });
+
+  const submitQuery = () => {
+    if (!currentOrgId || !queryText.trim() || queryMutation.isPending) return;
+    setQueryAnswer(null);
+    setQueryProvider(null);
+    setQuerySourcesSearched(null);
+    queryMutation.mutate({ query: queryText.trim(), orgId: currentOrgId });
+  };
 
   const handleIngestUrl = () => {
     if (!urlInput.trim()) return;
@@ -737,24 +761,24 @@ function MemoryPage() {
               onBlur={(e) => {
                 (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submitQuery();
+                }
+              }}
             />
             <div className="mt-3 flex items-center justify-between gap-3">
               <span className="text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
                 {indexedSources.length > 0
                   ? `Searching ${indexedSources.length} source${indexedSources.length !== 1 ? "s" : ""} · ${totalArtifacts} artifacts`
-                  : "Connect and index sources to enable querying"}
+                  : totalArtifacts > 0
+                    ? `Using ${totalArtifacts} available artifact${totalArtifacts !== 1 ? "s" : ""} · add sources for richer answers`
+                    : "Ask anything · connect sources for answers grounded in your business"}
               </span>
               <button
-                onClick={() => {
-                  if (currentOrgId && queryText.trim()) {
-                    setQueryAnswer(null);
-                    setQueryProvider(null);
-                    queryMutation.mutate({ query: queryText, orgId: currentOrgId });
-                  }
-                }}
-                disabled={
-                  indexedSources.length === 0 || !queryText.trim() || queryMutation.isPending
-                }
+                onClick={submitQuery}
+                disabled={!currentOrgId || !queryText.trim() || queryMutation.isPending}
                 className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12.5px] font-semibold text-white transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: "var(--primary)" }}
                 onMouseEnter={(e) => {
@@ -846,6 +870,11 @@ function MemoryPage() {
                   </span>
                 )}
               </div>
+              {querySourcesSearched === 0 && (
+                <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                  General guidance — connect a source or ingest call data for a workspace-grounded answer.
+                </p>
+              )}
               <div
                 className="text-[13px] leading-relaxed whitespace-pre-wrap"
                 style={{ color: "var(--foreground)" }}
@@ -855,7 +884,7 @@ function MemoryPage() {
             </div>
           )}
 
-          {/* No sources callout */}
+          {/* Sources improve grounding, but never block the chat box. */}
           {indexedSources.length === 0 && (
             <div
               className="flex items-center gap-4 rounded-xl p-5"
@@ -867,12 +896,12 @@ function MemoryPage() {
               />
               <div className="flex-1">
                 <p className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
-                  {sources.length === 0 ? "No sources connected" : "Sources not yet indexed"}
+                  {sources.length === 0 ? "Add context for sharper answers" : "Sources are still indexing"}
                 </p>
                 <p className="mt-0.5 text-[12px]" style={{ color: "var(--muted-foreground)" }}>
                   {sources.length === 0
-                    ? "Add at least one source on the Sources tab before querying."
-                    : "Indexing in progress. This usually takes a few minutes."}
+                    ? "Ask AI works now. Connect a source when you want answers grounded in your company data."
+                    : "You can keep chatting while indexing finishes."}
                 </p>
               </div>
               {sources.length === 0 && (

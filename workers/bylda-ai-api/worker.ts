@@ -85,7 +85,6 @@ async function runMemoryQuery(
   const params = new URLSearchParams({
     select: "title,content,content_preview,source_type,source_label",
     org_id: `eq.${request.orgId}`,
-    status: "eq.indexed",
     order: "updated_at.desc",
     limit: "60",
   });
@@ -103,15 +102,9 @@ async function runMemoryQuery(
     return json({ error: "Failed to fetch memory artifacts" }, 500);
   }
 
-  const artifacts = (await artifactsResponse.json()) as MemoryArtifact[];
-  if (artifacts.length === 0) {
-    return json({
-      answer: "No indexed content was found. Add and index a source before asking Bylda.",
-      sources_searched: 0,
-      provider: "cloudflare-workers-ai",
-      model: MODEL,
-    });
-  }
+  const artifacts = ((await artifactsResponse.json()) as MemoryArtifact[]).filter(
+    (artifact) => Boolean(artifact.content?.trim() || artifact.content_preview?.trim()),
+  );
 
   let contextBudget = 45000;
   const context = artifacts
@@ -126,6 +119,10 @@ async function runMemoryQuery(
     .filter(Boolean)
     .join("\n\n");
 
+  const groundingInstruction = artifacts.length
+    ? `Answer using the company memory below. Cite evidence inline with the source name and document title. If the memory does not contain the answer, say so before offering general guidance.\n\n--- COMPANY MEMORY ---\n${context}\n--- END MEMORY ---`
+    : "No company memory is available yet. Answer as a helpful revenue intelligence assistant, clearly label assumptions, and tell the user which CRM or call data would make the answer specific to their business.";
+
   try {
     const result = (await env.AI.run(MODEL, {
       max_tokens: 1200,
@@ -133,7 +130,7 @@ async function runMemoryQuery(
       messages: [
         {
           role: "system",
-          content: `${SYSTEM_PROMPT}\n\nAnswer using only the indexed company memory below. Cite sources inline with the source name and document title.\n\n--- COMPANY MEMORY ---\n${context}\n--- END MEMORY ---`,
+          content: `${SYSTEM_PROMPT}\n\n${groundingInstruction}`,
         },
         { role: "user", content: request.message },
       ],
