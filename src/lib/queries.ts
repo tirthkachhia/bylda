@@ -524,14 +524,81 @@ export type CallIngestUrlResult = {
   accepted_content_type?: string;
 };
 
-export async function getCallIngestUrl() {
+export async function getCallIngestUrl(orgId?: string) {
   const { data, error } = await supabase.functions.invoke("get-call-ingest-url", {
-    body: {},
+    body: orgId ? { org_id: orgId } : {},
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as CallIngestUrlResult;
 }
+
+export type ReadyModeStatus = {
+  callReceived: boolean;
+  transcriptStored: boolean;
+  analysisReady: boolean;
+  lastCallAt: string | null;
+  transcriptionStatus: string | null;
+};
+
+export const readyModeStatusQuery = (orgId: string) =>
+  queryOptions({
+    queryKey: ["readymode-status", orgId],
+    queryFn: async (): Promise<ReadyModeStatus> => {
+      if (!orgId || isGuest()) {
+        return {
+          callReceived: false,
+          transcriptStored: false,
+          analysisReady: false,
+          lastCallAt: null,
+          transcriptionStatus: null,
+        };
+      }
+      // These call-intelligence tables predate the generated client types in
+      // this branch, so keep the narrow result shape local to this query.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data: call, error: callError } = await db
+        .from("calls")
+        .select("id,created_at,started_at,metadata")
+        .eq("organization_id", orgId)
+        .eq("provider", "readymode")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (callError) throw callError;
+      if (!call) {
+        return {
+          callReceived: false,
+          transcriptStored: false,
+          analysisReady: false,
+          lastCallAt: null,
+          transcriptionStatus: null,
+        };
+      }
+
+      const [{ data: transcript, error: transcriptError }, { data: insight, error: insightError }] =
+        await Promise.all([
+          db.from("call_transcripts").select("id").eq("call_id", call.id).maybeSingle(),
+          db.from("call_insights").select("id").eq("call_id", call.id).maybeSingle(),
+        ]);
+      if (transcriptError) throw transcriptError;
+      if (insightError) throw insightError;
+      const metadata =
+        call.metadata && typeof call.metadata === "object"
+          ? (call.metadata as Record<string, unknown>)
+          : {};
+      return {
+        callReceived: true,
+        transcriptStored: !!transcript,
+        analysisReady: !!insight,
+        lastCallAt: call.started_at ?? call.created_at ?? null,
+        transcriptionStatus:
+          typeof metadata.transcription_status === "string" ? metadata.transcription_status : null,
+      };
+    },
+    staleTime: 10_000,
+  });
 
 export async function disconnectIntegration(userId: string, integrationKey: string) {
   const { error } = await supabase
