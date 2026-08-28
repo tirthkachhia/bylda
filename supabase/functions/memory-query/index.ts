@@ -8,6 +8,7 @@ const MEMORY_QUERY_MODEL = "claude-sonnet-4-5";
 
 type ArtifactRow = {
   title: string;
+  content: string | null;
   content_preview: string | null;
   source_type: string;
   source_label: string | null;
@@ -42,7 +43,7 @@ Deno.serve(async (req: Request) => {
   const db = supabase as any;
   const { data: artifacts, error: artifactsErr } = await db
     .from("memory_artifacts")
-    .select("title, content_preview, source_type, source_label")
+    .select("title, content, content_preview, source_type, source_label")
     .eq("org_id", orgId)
     .eq("status", "indexed")
     .order("updated_at", { ascending: false })
@@ -63,12 +64,17 @@ Deno.serve(async (req: Request) => {
   }
 
   // Build context from artifacts
+  let contextBudget = 45000;
   const context = docs
     .map((a) => {
+      if (contextBudget <= 0) return "";
       const source = a.source_label ?? a.source_type;
-      const preview = a.content_preview ?? "(no preview)";
-      return `### [${source}] ${a.title}\n${preview}`;
+      const body = a.content ?? a.content_preview ?? "(no preview)";
+      const excerpt = body.slice(0, Math.min(5000, contextBudget));
+      contextBudget -= excerpt.length;
+      return `### [${source}] ${a.title}\n${excerpt}`;
     })
+    .filter(Boolean)
     .join("\n\n");
 
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
