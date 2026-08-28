@@ -25,6 +25,10 @@ verify_jwt = true
 [functions.integration-oauth-callback]
 verify_jwt = false
 
+# Imports contacts and opportunities from a user-authorized Salesforce org.
+[functions.sync-salesforce]
+verify_jwt = true
+
 [functions.paypal-connect-start]
 verify_jwt = true
 
@@ -112,9 +116,17 @@ verify_jwt = true
 [functions.context-package]
 verify_jwt = true
 
+# Builds the org-specific extraction/write-back profile from the short CRM setup interview.
+[functions.generate-crm-intelligence-profile]
+verify_jwt = true
+
 # Dialers authenticate with a per-organization HMAC URL, not a Supabase JWT.
 [functions.ingest-call-webhook]
 verify_jwt = false
+
+# Authenticated workspace members can request their signed dialer intake URL.
+[functions.get-call-ingest-url]
+verify_jwt = true
 
 # Unified inbox AI reply generation.
 [functions.conversation-ai]

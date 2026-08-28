@@ -7,6 +7,7 @@ import {
   Link2,
   PhoneCall,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -18,6 +19,7 @@ const NAV = [
   { label: "Context beta", to: "/app/context-memory", icon: BrainCircuit },
   { label: "CRM records", to: "/app/contacts", icon: Database },
   { label: "Forecast", to: "/app/bylda/reports", icon: BarChart3 },
+  { label: "CRM intelligence", to: "/app/crm/setup", icon: Sparkles },
 ] as const;
 
 export function AppSidebar() {

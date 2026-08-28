@@ -4,6 +4,7 @@ import {
   buildCrmWritebackPreview,
   buildVerticalSystemPrompt,
   filterCrmContext,
+  hydrateSalesVerticalProfile,
   normalizeCallExtraction,
   normalizeVerticalFields,
   resolveSalesVertical,
@@ -124,5 +125,87 @@ describe("vertical separation", () => {
         solar_roof_age: "12",
       }),
     ).toEqual({ line_of_business: "Auto", renewal_date: "2026-10-01" });
+  });
+});
+
+describe("questionnaire-generated CRM profiles", () => {
+  it("hydrates a safe custom field list and applies its confidence threshold", () => {
+    const custom = hydrateSalesVerticalProfile(
+      {
+        label: "Independent insurance enrollment",
+        objective: "Qualify the coverage need and book a licensed review.",
+        insightQuestions: ["What coverage gap is the family solving?"],
+        complianceRules: ["Require licensed review before enrollment."],
+        autoWriteMinConfidence: 0.9,
+        fields: [
+          {
+            key: "call_outcome",
+            label: "Call outcome",
+            description: "The supported result.",
+            crmTarget: "lead.custom_fields.bylda_call_outcome",
+            required: true,
+            sensitivity: "standard",
+          },
+          {
+            key: "next_step",
+            label: "Next step",
+            description: "The agreed follow-up.",
+            crmTarget: "lead.custom_fields.bylda_next_step",
+            required: true,
+            sensitivity: "standard",
+          },
+          {
+            key: "licensed_review",
+            label: "Licensed review",
+            description: "The scheduled licensed-agent review.",
+            crmTarget: "lead.custom_fields.bylda_licensed_review",
+            required: true,
+            sensitivity: "standard",
+          },
+        ],
+      },
+      SALES_VERTICAL_PROFILES.insurance,
+    );
+    const preview = buildCrmWritebackPreview(custom, [
+      {
+        key: "licensed_review",
+        label: "Licensed review",
+        value: "Tuesday at 2 PM",
+        confidence: 0.86,
+        evidence_quote: "Tuesday at two works",
+      },
+    ]);
+    expect(custom.label).toBe("Independent insurance enrollment");
+    expect(preview[0]).toMatchObject({ eligible: false });
+    expect(preview[0].reason).toContain("90%");
+  });
+
+  it("rejects unsafe model-provided CRM targets", () => {
+    const profile = hydrateSalesVerticalProfile(
+      {
+        fields: [
+          {
+            key: "one",
+            label: "One",
+            description: "One",
+            crmTarget: "users.password",
+          },
+          {
+            key: "two",
+            label: "Two",
+            description: "Two",
+            crmTarget: "lead.custom_fields.bylda_two",
+          },
+          {
+            key: "three",
+            label: "Three",
+            description: "Three",
+            crmTarget: "lead.custom_fields.bylda_three",
+          },
+        ],
+      },
+      SALES_VERTICAL_PROFILES.solar,
+    );
+    expect(profile).toBe(SALES_VERTICAL_PROFILES.solar);
   });
 });

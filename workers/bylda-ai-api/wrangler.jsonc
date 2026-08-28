@@ -1,13 +1,19 @@
 {
   // Inference runs directly on Cloudflare Workers AI; no external model key is required.
+  // Set the recording-pipeline secret with:
+  // npx wrangler secret put CALL_TRANSCRIPTION_SECRET -c workers/bylda-ai-api/wrangler.jsonc
   "name": "bylda-ai-api",
-  "compatibility_date": "2025-09-24",
+  "account_id": "25b7202ade639506ffce966e37a116e1",
+  "compatibility_date": "2026-08-07",
   "compatibility_flags": ["nodejs_compat"],
   "main": "worker.ts",
+  "workers_dev": true,
+  "observability": { "enabled": true, "logs": { "enabled": true } },
   "routes": [{ "pattern": "ai.usebylda.com", "custom_domain": true }],
   "ai": { "binding": "AI" },
   "vars": {
     "SUPABASE_URL": "https://ipidfqwlszuhjgjygbvx.supabase.co",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwaWRmcXdsc3p1aGpnanlnYnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzU4OTUsImV4cCI6MjA5MjQxMTg5NX0.4F3q4epd_H8xn2JB5-RtSSy81U9zJBS7HO2KahD4HIc",
+    "TRANSCRIPTION_ALLOWED_HOSTS": "readymode.com,amazonaws.com,cloudfront.net,storage.googleapis.com",
   },
 }

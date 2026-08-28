@@ -1879,6 +1879,59 @@ export type Database = {
           },
         ];
       };
+      crm_intelligence_profiles: {
+        Row: {
+          auto_write_min_confidence: number;
+          base_sales_profile: string;
+          created_at: string;
+          created_by: string | null;
+          generated_at: string;
+          generated_profile: Json;
+          id: string;
+          organization_id: string;
+          questionnaire_answers: Json;
+          status: string;
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          auto_write_min_confidence?: number;
+          base_sales_profile?: string;
+          created_at?: string;
+          created_by?: string | null;
+          generated_at?: string;
+          generated_profile?: Json;
+          id?: string;
+          organization_id: string;
+          questionnaire_answers?: Json;
+          status?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          auto_write_min_confidence?: number;
+          base_sales_profile?: string;
+          created_at?: string;
+          created_by?: string | null;
+          generated_at?: string;
+          generated_profile?: Json;
+          id?: string;
+          organization_id?: string;
+          questionnaire_answers?: Json;
+          status?: string;
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "crm_intelligence_profiles_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: true;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       decisions: {
         Row: {
           created_at: string | null;

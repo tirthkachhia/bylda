@@ -101,6 +101,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
     authorizeUrl: "https://login.salesforce.com/services/oauth2/authorize",
     tokenUrl: "https://login.salesforce.com/services/oauth2/token",
     scopes: ["api", "refresh_token"],
+    authorizeExtras: { prompt: "login consent" },
   },
   stripe: {
     key: "stripe",
@@ -278,12 +279,33 @@ export async function sha256(value: string) {
     .join("");
 }
 
-export async function sha256Base64Url(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+function base64Url(bytes: Uint8Array) {
+  return btoa(String.fromCharCode(...bytes))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
+}
+
+export async function sha256Base64Url(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return base64Url(new Uint8Array(digest));
+}
+
+export async function pkceVerifier(state: string, clientSecret: string) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(clientSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(state));
+  return base64Url(new Uint8Array(signature));
+}
+
+export async function pkceChallenge(verifier: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  return base64Url(new Uint8Array(digest));
 }
 
 export function randomState() {

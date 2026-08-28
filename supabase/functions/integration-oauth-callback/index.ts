@@ -3,6 +3,7 @@ import {
   CALLBACK_URL,
   OAUTH_PROVIDERS,
   clientCredentials,
+  pkceVerifier,
   sha256,
   type OAuthProvider,
   type OAuthProviderKey,
@@ -34,6 +35,7 @@ type TokenPayload = Record<string, unknown> & {
   workspace_id?: string;
   workspace_name?: string;
   organization_id?: string;
+  instance_url?: string;
   stripe_user_id?: string;
   dc?: string;
   accountname?: string;
@@ -109,9 +111,7 @@ function tokenRequest(
     if (provider.tokenFieldStyle !== "stripe") body.set("redirect_uri", CALLBACK_URL);
   }
   body.set("code", code);
-  if (provider.tokenFieldStyle === "airtable" && codeVerifier) {
-    body.set("code_verifier", codeVerifier);
-  }
+  if (codeVerifier) body.set("code_verifier", codeVerifier);
   return {
     headers,
     body:
@@ -135,6 +135,17 @@ function accountMetadata(provider: OAuthProviderKey, payload: TokenPayload) {
     return {
       id: String(payload.workspace_id ?? payload.owner?.user?.id ?? ""),
       label: String(payload.workspace_name ?? payload.owner?.user?.name ?? "Notion workspace"),
+    };
+  }
+  if (provider === "salesforce") {
+    const identityParts =
+      String(payload.id ?? "")
+        .split("/id/")[1]
+        ?.split("/") ?? [];
+    const organizationId = String(payload.organization_id ?? identityParts[0] ?? "");
+    return {
+      id: organizationId,
+      label: organizationId ? `Salesforce organization ${organizationId}` : "Salesforce account",
     };
   }
   if (provider === "stripe") {
@@ -248,13 +259,11 @@ Deno.serve(async (req) => {
     );
   }
 
-  const request = tokenRequest(
-    provider,
-    code,
-    clientId,
-    clientSecret,
-    oauthState.oauth_code_verifier,
-  );
+  const codeVerifier =
+    oauthState.provider === "salesforce"
+      ? await pkceVerifier(state, clientSecret)
+      : oauthState.oauth_code_verifier;
+  const request = tokenRequest(provider, code, clientId, clientSecret, codeVerifier);
   const tokenResponse = await fetch(provider.tokenUrl, {
     method: "POST",
     headers: request.headers,
@@ -391,6 +400,8 @@ Deno.serve(async (req) => {
     external_account_id: account.id,
     location_id: providerPayload.locationId ?? null,
     company_id: providerPayload.companyId ?? null,
+    instance_url: providerPayload.instance_url ?? null,
+    identity_url: providerPayload.id ?? null,
     data_center: providerPayload.dc ?? null,
     api_endpoint: providerPayload.api_endpoint ?? null,
     cloud_id: providerPayload.atlassian_site?.id ?? null,

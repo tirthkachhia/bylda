@@ -13,6 +13,7 @@ import {
   buildVerticalExtractionTool,
   buildVerticalSystemPrompt,
   filterCrmContext,
+  hydrateSalesVerticalProfile,
   normalizeCallExtraction,
   resolveSalesVertical,
 } from "../_shared/sales-verticals.ts";
@@ -135,7 +136,9 @@ Deno.serve(async (req: Request) => {
 
   // The Context Engine is the single source for business, entity, historical,
   // permission and evidence context. The current transcript remains a separate
-  // primary evidence input so it cannot be confused with prior state.
+  // primary evidence input so it cannot be confused with prior state. The CRM
+  // intelligence profile hydrates the sales vertical so extraction follows the
+  // org's interview answers instead of only the inferred industry.
   let contextPackage: Awaited<ReturnType<typeof buildContextPackage>>;
   try {
     contextPackage = await buildContextPackage(admin, {
@@ -150,12 +153,19 @@ Deno.serve(async (req: Request) => {
     await updateAnalysisJob("failed", message);
     return json({ error: message }, 500);
   }
+  const { data: customProfile } = await admin
+    .from("crm_intelligence_profiles")
+    .select("generated_profile")
+    .eq("organization_id", call.organization_id)
+    .eq("status", "active")
+    .maybeSingle();
   const identity =
     contextPackage.business.profile.identity &&
     typeof contextPackage.business.profile.identity === "object"
       ? (contextPackage.business.profile.identity as Record<string, unknown>)
       : {};
-  const vertical = resolveSalesVertical(identity.industry, identity.niche);
+  const inferredVertical = resolveSalesVertical(identity.industry, identity.niche);
+  const vertical = hydrateSalesVerticalProfile(customProfile?.generated_profile, inferredVertical);
   if (contextPackage.deal) {
     contextPackage.deal.custom_fields = filterCrmContext(
       vertical,

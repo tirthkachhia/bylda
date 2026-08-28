@@ -49,6 +49,29 @@ export interface IntegrationDef {
   fields?: IntegrationField[];
 }
 
+/**
+ * Returns the encrypted credential fields for connectors that do not use OAuth.
+ * Keeping this derived from the catalog means every API-key, bearer-token, URL,
+ * and multi-field connector automatically gets a secure setup form.
+ */
+export function credentialFieldsForIntegration(item: IntegrationDef): IntegrationField[] {
+  if (item.inputType === "oauth") return [];
+  if (item.fields?.length) return item.fields;
+  return [
+    {
+      key: item.key,
+      label:
+        item.inputType === "url"
+          ? "Webhook or connection URL"
+          : item.inputType === "bearer"
+            ? "Bearer token"
+            : item.hint,
+      hint: item.hint,
+      inputType: item.inputType === "url" ? "url" : "key",
+    },
+  ];
+}
+
 export const CATALOG: IntegrationDef[] = [
   // ── CRM & Sales ──────────────────────────────────────────
   {
@@ -89,11 +112,19 @@ export const CATALOG: IntegrationDef[] = [
     key: "salesforce",
     name: "Salesforce",
     category: "CRM & Sales",
-    description: "The world's #1 CRM platform.",
+    description: "Sync Salesforce contacts and opportunities into Bylda.",
     iconSlug: "salesforce",
-    inputType: "key",
-    hint: "OAuth coming soon",
-    comingSoon: true,
+    inputType: "oauth",
+    hint: "Secure Salesforce sign-in",
+    popular: true,
+  },
+  {
+    key: "readymode",
+    name: "ReadyMode",
+    category: "CRM & Sales",
+    description: "Send completed calls and recordings to Bylda for transcription and CRM insights.",
+    inputType: "oauth",
+    hint: "Secure call webhook",
     popular: true,
   },
   {
