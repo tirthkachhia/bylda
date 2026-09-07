@@ -9,6 +9,12 @@ interface WorkersAI {
 
 type TextGenerationResult = {
   response?: string;
+  output_text?: string;
+  output?: Array<{
+    type?: string;
+    content?: Array<{ type?: string; text?: string }>;
+  }>;
+  choices?: Array<{ message?: { content?: string } }>;
   usage?: Record<string, number>;
 };
 
@@ -49,6 +55,24 @@ const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 const SYSTEM_PROMPT = `You are Bylda, the revenue intelligence assistant for sales teams.
 
 Help users understand sales calls, deal history, buyer signals, CRM records, follow-ups, and pipeline risk. Ground every claim in the context provided. Be concise, specific, and operational. Never invent facts that are not present in the user's data. When evidence is incomplete, say what is missing.`;
+
+function modelText(result: TextGenerationResult): string {
+  if (typeof result.response === "string" && result.response.trim()) return result.response.trim();
+  if (typeof result.output_text === "string" && result.output_text.trim()) {
+    return result.output_text.trim();
+  }
+
+  const responsesApiText = result.output
+    ?.flatMap((item) => item.content ?? [])
+    .filter((part) => part.type === "output_text" || typeof part.text === "string")
+    .map((part) => part.text ?? "")
+    .join("")
+    .trim();
+  if (responsesApiText) return responsesApiText;
+
+  const chatCompletionText = result.choices?.[0]?.message?.content?.trim();
+  return chatCompletionText || "";
+}
 
 function cors() {
   return {
@@ -135,8 +159,13 @@ async function runMemoryQuery(
         { role: "user", content: request.message },
       ],
     } satisfies TextGenerationInput)) as TextGenerationResult;
+    const answer = modelText(result);
+    if (!answer) {
+      console.error("[bylda-ai-api] Workers AI returned no text", JSON.stringify(result));
+      return json({ error: "AI returned an empty response" }, 502);
+    }
     return json({
-      answer: result.response ?? "No response generated.",
+      answer,
       sources_searched: artifacts.length,
       provider: "cloudflare-workers-ai",
       model: MODEL,
@@ -173,8 +202,13 @@ async function runChat(
         { role: "user", content: body.message },
       ],
     } satisfies TextGenerationInput)) as TextGenerationResult;
+    const answer = modelText(result);
+    if (!answer) {
+      console.error("[bylda-ai-api] Workers AI returned no text", JSON.stringify(result));
+      return json({ error: "AI returned an empty response" }, 502);
+    }
     return json({
-      answer: result.response ?? "No response generated.",
+      answer,
       provider: "cloudflare-workers-ai",
       model: MODEL,
       usage: result.usage,
