@@ -34,6 +34,7 @@ import {
   readyModeStatusQuery,
   saveIntegration,
   startIntegrationOAuth,
+  syncGoHighLevel,
   syncSalesforce,
   type MaskedIntegration,
 } from "@/lib/queries";
@@ -261,14 +262,22 @@ function ConnectModal({
 
   const syncCrm = async () => {
     if (blockIfGuest("Sign up to sync CRM data.")) return;
-    if (!user || item.key !== "salesforce") return;
+    if (!user || !["salesforce", "gohighlevel"].includes(item.key)) return;
     setWorking(true);
     setError(null);
     try {
-      const result = await syncSalesforce();
-      toast.success(
-        `Salesforce synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
-      );
+      if (item.key === "gohighlevel") {
+        const result = await syncGoHighLevel();
+        toast.success(
+          `GoHighLevel synced: ${result.contacts_imported} contacts, ${result.opportunities_imported ?? 0} opportunities, ${result.calls_imported} calls, and ${result.transcripts_imported} transcripts`,
+        );
+        if (result.conversation_warning) toast.warning(result.conversation_warning);
+      } else {
+        const result = await syncSalesforce();
+        toast.success(
+          `Salesforce synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
+        );
+      }
       onSaved();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not sync Salesforce data");
@@ -551,10 +560,12 @@ function ConnectModal({
                 </Button>
               )}
             </div>
-            {connection && item.key === "salesforce" && (
+            {connection && ["salesforce", "gohighlevel"].includes(item.key) && (
               <Button variant="outline" className="w-full" onClick={syncCrm} disabled={working}>
                 <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${working ? "animate-spin" : ""}`} />
-                Sync contacts and opportunities
+                {item.key === "gohighlevel"
+                  ? "Sync contacts, opportunities, calls, and transcripts"
+                  : "Sync contacts and opportunities"}
               </Button>
             )}
             {hasCredentialFallback && !connection && (
@@ -673,6 +684,12 @@ function ConnectModal({
                 </Button>
               )}
             </div>
+            {connection && item.key === "gohighlevel" && (
+              <Button variant="outline" className="w-full" onClick={syncCrm} disabled={working}>
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${working ? "animate-spin" : ""}`} />
+                Sync contacts, opportunities, calls, and transcripts
+              </Button>
+            )}
             {providerName && !connection && (
               <Button
                 variant="ghost"
@@ -836,6 +853,17 @@ function IntegrationsPage() {
           })
           .catch((error) => {
             toast.error(error instanceof Error ? error.message : "Salesforce sync failed");
+          });
+      } else if (provider === "gohighlevel") {
+        void syncGoHighLevel()
+          .then((result) => {
+            toast.success(
+              `GoHighLevel synced: ${result.contacts_imported} contacts, ${result.calls_imported} calls, and ${result.transcripts_imported} transcripts`,
+            );
+            if (result.conversation_warning) toast.warning(result.conversation_warning);
+          })
+          .catch((error) => {
+            toast.error(error instanceof Error ? error.message : "GoHighLevel sync failed");
           });
       }
     } else if (status === "cancelled") toast.info("Account connection cancelled");

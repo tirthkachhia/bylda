@@ -48,6 +48,59 @@ type GhlOpportunity = {
   updatedAt?: string;
 };
 
+type GhlCallMessage = {
+  id: string;
+  contactId?: string;
+  conversationId?: string;
+  dateAdded?: string;
+  direction?: "inbound" | "outbound";
+  status?: string;
+  messageType?: string;
+  userId?: string;
+  from?: string;
+  to?: string;
+  meta?: { callDuration?: number | string; callStatus?: string };
+};
+
+type TranscriptSegment = {
+  mediaChannel?: number | string;
+  sentenceIndex?: number | string;
+  startTime?: number | string;
+  endTime?: number | string;
+  transcript?: string;
+  confidence?: number | string;
+};
+
+function transcriptSegments(payload: unknown): TranscriptSegment[] {
+  if (Array.isArray(payload)) return payload as TranscriptSegment[];
+  if (!payload || typeof payload !== "object") return [];
+  const record = payload as Record<string, unknown>;
+  for (const key of ["transcriptions", "transcription", "sentences", "data", "results"]) {
+    const value = record[key];
+    if (Array.isArray(value)) return value as TranscriptSegment[];
+    if (value && typeof value === "object") return [value as TranscriptSegment];
+  }
+  return typeof record.transcript === "string" ? [record as TranscriptSegment] : [];
+}
+
+function transcriptText(segments: TranscriptSegment[]) {
+  return [...segments]
+    .sort((a, b) => Number(a.sentenceIndex ?? 0) - Number(b.sentenceIndex ?? 0))
+    .map((segment) => segment.transcript?.trim() ?? "")
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function callStatus(message: GhlCallMessage) {
+  const value = String(message.meta?.callStatus ?? message.status ?? "").toLowerCase();
+  if (value.includes("voicemail")) return "voicemail";
+  if (value.includes("miss") || value.includes("no-answer") || value.includes("no_answer"))
+    return "missed";
+  if (value.includes("fail") || value.includes("busy") || value.includes("cancel")) return "failed";
+  return "completed";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -429,6 +482,160 @@ Deno.serve(async (req) => {
       }
     }
 
+    // HighLevel exposes completed phone calls as Conversation messages. Import
+    // those records and attach HighLevel's transcript when available. Repeated
+    // syncs are safe because provider message IDs are unique per organization.
+    let callsReceived = 0;
+    let callsImported = 0;
+    let transcriptsImported = 0;
+    let analysesQueued = 0;
+    let callSyncWarning: string | null = null;
+    const callMessagesResponse = await fetch(
+      `https://services.leadconnectorhq.com/conversations/messages/export?locationId=${encodeURIComponent(locationId)}&channel=Call&limit=100&sortBy=createdAt&sortOrder=desc`,
+      { headers },
+    );
+
+    if (callMessagesResponse.ok) {
+      const callPayload = (await callMessagesResponse.json()) as {
+        messages?: GhlCallMessage[];
+      };
+      const messages = (callPayload.messages ?? []).filter((message) => Boolean(message.id));
+      callsReceived = messages.length;
+
+      const { data: leadMappings } = await admin
+        .from("leads")
+        .select("id,external_data")
+        .eq("organization_id", orgId)
+        .eq("external_source", "gohighlevel");
+      const leadByContactId = new Map<string, string>();
+      for (const row of leadMappings ?? []) {
+        const externalData =
+          row.external_data && typeof row.external_data === "object"
+            ? (row.external_data as Record<string, unknown>)
+            : {};
+        if (externalData.contact_id) {
+          leadByContactId.set(String(externalData.contact_id), String(row.id));
+        }
+      }
+
+      const callRows = messages.map((message) => ({
+        organization_id: orgId,
+        contact_id: message.contactId
+          ? (contactIdByExternal.get(message.contactId)?.id ?? null)
+          : null,
+        lead_id: message.contactId ? (leadByContactId.get(message.contactId) ?? null) : null,
+        direction: message.direction === "inbound" ? "inbound" : "outbound",
+        status: callStatus(message),
+        duration: Number.isFinite(Number(message.meta?.callDuration))
+          ? Math.max(0, Math.round(Number(message.meta?.callDuration)))
+          : null,
+        disposition: message.meta?.callStatus ?? message.status ?? null,
+        from_number: message.from ?? null,
+        to_number: message.to ?? null,
+        provider: "gohighlevel",
+        provider_call_id: message.id,
+        started_at: message.dateAdded ?? null,
+        metadata: {
+          ingestion: "gohighlevel-conversations-sync",
+          location_id: locationId,
+          conversation_id: message.conversationId ?? null,
+          message_type: message.messageType ?? null,
+          ghl_user_id: message.userId ?? null,
+          synced_at: new Date().toISOString(),
+        },
+      }));
+
+      if (callRows.length) {
+        const { data: storedCalls, error: callsError } = await admin
+          .from("calls")
+          .upsert(callRows, { onConflict: "organization_id,provider,provider_call_id" })
+          .select("id,provider_call_id");
+        if (callsError) throw new Error(`Call import failed: ${callsError.message}`);
+        callsImported = storedCalls?.length ?? callRows.length;
+        const callIdByMessage = new Map(
+          (storedCalls ?? []).map((row) => [String(row.provider_call_id), String(row.id)]),
+        );
+
+        for (let offset = 0; offset < messages.length; offset += 5) {
+          const batch = messages.slice(offset, offset + 5);
+          const transcriptResults = await Promise.all(
+            batch.map(async (message) => {
+              const callId = callIdByMessage.get(message.id);
+              if (!callId || callStatus(message) !== "completed") return null;
+              const response = await fetch(
+                `https://services.leadconnectorhq.com/conversations/locations/${encodeURIComponent(locationId)}/messages/${encodeURIComponent(message.id)}/transcription`,
+                { headers },
+              );
+              if (!response.ok) return null;
+              const segments = transcriptSegments(await response.json().catch(() => null));
+              const text = transcriptText(segments);
+              return text ? { callId, text, segments } : null;
+            }),
+          );
+
+          for (const result of transcriptResults.filter(
+            (item): item is { callId: string; text: string; segments: TranscriptSegment[] } =>
+              item !== null,
+          )) {
+            const { error: transcriptError } = await admin.from("call_transcripts").upsert(
+              {
+                call_id: result.callId,
+                organization_id: orgId,
+                transcript_text: result.text,
+                speaker_segments: result.segments,
+              },
+              { onConflict: "call_id" },
+            );
+            if (transcriptError) {
+              console.error("[sync-gohighlevel] transcript", transcriptError.message);
+              continue;
+            }
+            transcriptsImported += 1;
+
+            const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+            const analysisRequest = fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-call`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${serviceKey}`,
+                  apikey: serviceKey,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ call_id: result.callId }),
+              },
+            ).then(async (response) => {
+              if (!response.ok) {
+                console.error(
+                  "[sync-gohighlevel] analysis",
+                  response.status,
+                  await response.text(),
+                );
+              }
+            });
+            const edgeRuntime = (
+              globalThis as unknown as {
+                EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void };
+              }
+            ).EdgeRuntime;
+            if (edgeRuntime) edgeRuntime.waitUntil(analysisRequest);
+            else await analysisRequest;
+            analysesQueued += 1;
+          }
+        }
+      }
+    } else if (callMessagesResponse.status === 401 || callMessagesResponse.status === 403) {
+      callSyncWarning =
+        "Reconnect GoHighLevel and approve Conversations read access to import calls and transcripts.";
+    } else {
+      callSyncWarning = `HighLevel call sync returned HTTP ${callMessagesResponse.status}.`;
+      console.error(
+        "[sync-gohighlevel] calls",
+        callMessagesResponse.status,
+        (await callMessagesResponse.text()).slice(0, 500),
+      );
+    }
+
     await emitDomainEvent(admin, {
       organizationId: orgId,
       eventKey: `gohighlevel:${locationId}:sync:${new Date().toISOString().slice(0, 13)}`,
@@ -440,6 +647,8 @@ Deno.serve(async (req) => {
         location_id: locationId,
         contacts_imported: contactsImported,
         opportunities_imported: opportunitiesImported,
+        calls_imported: callsImported,
+        transcripts_imported: transcriptsImported,
       },
     });
 
@@ -450,6 +659,11 @@ Deno.serve(async (req) => {
       contacts_imported: contactsImported,
       opportunities_received: opportunities.length,
       opportunities_imported: opportunitiesImported,
+      calls_received: callsReceived,
+      calls_imported: callsImported,
+      transcripts_imported: transcriptsImported,
+      analyses_queued: analysesQueued,
+      call_sync_warning: callSyncWarning,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GoHighLevel sync failed";

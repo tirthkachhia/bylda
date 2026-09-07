@@ -67,6 +67,8 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
       "contacts.write",
       "opportunities.readonly",
       "opportunities.write",
+      "conversations.readonly",
+      "conversations/message.readonly",
     ],
     tokenFieldStyle: "gohighlevel",
   },

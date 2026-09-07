@@ -10,6 +10,7 @@ import {
 } from "../_shared/crm-adapters.ts";
 import { ingestCrmSnapshot, type CrmIngestResult } from "../_shared/context-crm-ingest.ts";
 import { emitDomainEvent, sha256Hex, storeRawObject } from "../_shared/context-ingestion.ts";
+import { syncGoHighLevelCalls } from "../_shared/gohighlevel-calls.ts";
 import { loadConnectedOAuth, type StoredOAuth } from "../_shared/integration-credentials.ts";
 
 const corsHeaders = {
@@ -130,13 +131,24 @@ async function syncProvider(
     notion: "Notion",
     stripe: "Stripe",
   };
-  return ingestCrmSnapshot(admin, {
+  const ingested = await ingestCrmSnapshot(admin, {
     organizationId: input.organizationId,
     userId: input.userId,
     provider: input.provider,
     sourceLabel: labels[input.provider],
     snapshot,
   });
+  if (input.provider !== "gohighlevel") return ingested;
+
+  const conversations = await syncGoHighLevelCalls(admin, {
+    organizationId: input.organizationId,
+    oauth: input.oauth,
+  });
+  return {
+    ...ingested,
+    ...conversations,
+    conversation_warning: conversations.warning,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -200,19 +212,34 @@ Deno.serve(async (req) => {
     .filter(isSyncProvider);
   const targets = requested.length ? requested.filter(isSyncProvider) : connected;
   if (!targets.length) {
-    return json({ error: "Connect HubSpot, Salesforce, Close, or another supported source first" }, 400);
+    return json(
+      { error: "Connect HubSpot, Salesforce, Close, or another supported source first" },
+      400,
+    );
   }
 
-  const results: Array<CrmIngestResult & { memory_chunks_imported?: number; error?: string }> = [];
+  const results: Array<
+    CrmIngestResult & {
+      memory_chunks_imported?: number;
+      calls_received?: number;
+      calls_imported?: number;
+      transcripts_imported?: number;
+      analyses_queued?: number;
+      conversation_warning?: string | null;
+      error?: string;
+    }
+  > = [];
   for (const provider of targets) {
     try {
       const oauth = await loadConnectedOAuth(admin, user.id, provider, encKey);
-      results.push(await syncProvider(admin, {
-        organizationId: orgId,
-        userId: user.id,
-        provider,
-        oauth,
-      }));
+      results.push(
+        await syncProvider(admin, {
+          organizationId: orgId,
+          userId: user.id,
+          provider,
+          oauth,
+        }),
+      );
     } catch (error) {
       results.push({
         provider,
@@ -228,13 +255,23 @@ Deno.serve(async (req) => {
   }
 
   const failed = results.filter((result) => result.error);
-  return json({
-    ok: failed.length === 0,
-    results,
-    contacts_imported: results.reduce((sum, result) => sum + result.contacts_imported, 0),
-    deals_imported: results.reduce((sum, result) => sum + result.deals_imported, 0),
-    companies_imported: results.reduce((sum, result) => sum + result.companies_imported, 0),
-    contacts_received: results.reduce((sum, result) => sum + result.contacts_received, 0),
-    deals_received: results.reduce((sum, result) => sum + result.deals_received, 0),
-  }, failed.length && failed.length === results.length ? 502 : 200);
+  return json(
+    {
+      ok: failed.length === 0,
+      results,
+      contacts_imported: results.reduce((sum, result) => sum + result.contacts_imported, 0),
+      deals_imported: results.reduce((sum, result) => sum + result.deals_imported, 0),
+      companies_imported: results.reduce((sum, result) => sum + result.companies_imported, 0),
+      contacts_received: results.reduce((sum, result) => sum + result.contacts_received, 0),
+      deals_received: results.reduce((sum, result) => sum + result.deals_received, 0),
+      calls_received: results.reduce((sum, result) => sum + (result.calls_received ?? 0), 0),
+      calls_imported: results.reduce((sum, result) => sum + (result.calls_imported ?? 0), 0),
+      transcripts_imported: results.reduce(
+        (sum, result) => sum + (result.transcripts_imported ?? 0),
+        0,
+      ),
+      analyses_queued: results.reduce((sum, result) => sum + (result.analyses_queued ?? 0), 0),
+    },
+    failed.length && failed.length === results.length ? 502 : 200,
+  );
 });

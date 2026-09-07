@@ -128,6 +128,9 @@ verify_jwt = true
 [functions.sync-gohighlevel]
 verify_jwt = true
 
+[functions.write-call-to-gohighlevel]
+verify_jwt = true
+
 # Dialers authenticate with a per-organization HMAC URL, not a Supabase JWT.
 [functions.ingest-call-webhook]
 verify_jwt = false

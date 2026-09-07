@@ -491,6 +491,11 @@ export type GoHighLevelSyncResult = {
   contacts_received: number;
   opportunities_received?: number;
   deals_received?: number;
+  calls_received: number;
+  calls_imported: number;
+  transcripts_imported: number;
+  analyses_queued: number;
+  conversation_warning?: string | null;
 };
 
 export type CrmSyncProviderResult = {
@@ -502,6 +507,11 @@ export type CrmSyncProviderResult = {
   contacts_received: number;
   deals_received: number;
   memory_chunks_imported?: number;
+  calls_received?: number;
+  calls_imported?: number;
+  transcripts_imported?: number;
+  analyses_queued?: number;
+  conversation_warning?: string | null;
   error?: string;
 };
 
@@ -513,25 +523,49 @@ export type CrmSyncResult = {
   companies_imported: number;
   contacts_received: number;
   deals_received: number;
+  calls_received: number;
+  calls_imported: number;
+  transcripts_imported: number;
+  analyses_queued: number;
 };
 
 export async function syncGoHighLevel() {
   const result = await syncCrm("gohighlevel");
+  const provider = result.results.find((item) => item.provider === "gohighlevel");
   return {
     ok: result.ok,
     contacts_imported: result.contacts_imported,
     opportunities_imported: result.deals_imported,
     contacts_received: result.contacts_received,
     opportunities_received: result.deals_received,
+    calls_received: result.calls_received,
+    calls_imported: result.calls_imported,
+    transcripts_imported: result.transcripts_imported,
+    analyses_queued: result.analyses_queued,
+    conversation_warning: provider?.conversation_warning,
   } satisfies GoHighLevelSyncResult;
 }
 
+export async function writeCallToGoHighLevel(insightId: string) {
+  const { data, error } = await supabase.functions.invoke("write-call-to-gohighlevel", {
+    body: { insight_id: insightId },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    const errorBody = context
+      ? await context
+          .clone()
+          .json()
+          .catch(() => null)
+      : null;
+    throw new Error(errorBody?.error ?? error.message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data as { ok: true; already_written?: boolean };
+}
+
 export async function syncCrm(provider?: string | string[]) {
-  const body = Array.isArray(provider)
-    ? { providers: provider }
-    : provider
-      ? { provider }
-      : {};
+  const body = Array.isArray(provider) ? { providers: provider } : provider ? { provider } : {};
   const { data, error } = await supabase.functions.invoke("sync-crm", { body });
   if (error) {
     const context = (error as { context?: Response }).context;

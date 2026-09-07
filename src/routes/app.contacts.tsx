@@ -146,12 +146,12 @@ function scoreColor(score: number) {
 }
 
 /* ─── Supabase helpers ─── */
-async function fetchContacts(userId: string): Promise<Contact[]> {
+async function fetchContacts(orgId: string): Promise<Contact[]> {
   if (guestStore.get().isGuest) return GUEST_CONTACTS as unknown as Contact[];
   const { data } = await db
     .from("contacts")
     .select("*")
-    .eq("user_id", userId)
+    .eq("org_id", orgId)
     .order("created_at", { ascending: false });
   return (data ?? []) as Contact[];
 }
@@ -227,9 +227,9 @@ function ContactsPage() {
   const [bulkAction, setBulkAction] = useState<"" | "status" | "trigger">("");
 
   const contactsQ = useQuery({
-    queryKey: ["contacts", user?.id],
-    queryFn: () => fetchContacts(user!.id),
-    enabled: !!user?.id,
+    queryKey: ["contacts", currentOrgId],
+    queryFn: () => fetchContacts(currentOrgId!),
+    enabled: !!user?.id && !!currentOrgId,
   });
 
   const allContacts = contactsQ.data ?? [];
@@ -293,13 +293,13 @@ function ContactsPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ContactStatus }) =>
       updateContactStatus(id, status),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["contacts", user?.id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contacts", currentOrgId] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteContact(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["contacts", user?.id] });
+      qc.invalidateQueries({ queryKey: ["contacts", currentOrgId] });
       setDetailContact(null);
     },
   });
@@ -334,7 +334,7 @@ function ContactsPage() {
   // Import contacts from a CSV. Headers are matched case-insensitively; tags may
   // be pipe- or comma-separated. Each row is scored on insert.
   const importCsv = (file: File) => {
-    if (!user) return;
+    if (!user || !currentOrgId) return;
     setBusy("import");
     Papa.parse<Record<string, string>>(file, {
       header: true,
@@ -350,6 +350,7 @@ function ContactsPage() {
                 .filter(Boolean);
               const base = {
                 user_id: user.id,
+                org_id: currentOrgId,
                 first_name: r.first_name || r.firstname || null,
                 last_name: r.last_name || r.lastname || null,
                 email: r.email || null,
@@ -370,7 +371,7 @@ function ContactsPage() {
           const { error } = await db.from("contacts").insert(rows);
           if (error) throw error;
           toast.success(`Imported ${rows.length} contact${rows.length === 1 ? "" : "s"}.`);
-          qc.invalidateQueries({ queryKey: ["contacts", user.id] });
+          qc.invalidateQueries({ queryKey: ["contacts", currentOrgId] });
         } catch (e) {
           toast.error(e instanceof Error ? e.message : "Import failed.");
         } finally {
@@ -396,7 +397,7 @@ function ContactsPage() {
         changed.map((c) => db.from("contacts").update({ lead_score: c.next }).eq("id", c.id)),
       );
       toast.success(`Recomputed scores for ${changed.length} contacts.`);
-      qc.invalidateQueries({ queryKey: ["contacts", user.id] });
+      qc.invalidateQueries({ queryKey: ["contacts", currentOrgId] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not recompute scores.");
     } finally {
@@ -641,7 +642,7 @@ function ContactsPage() {
                 onChange={async (e) => {
                   const status = e.target.value as ContactStatus;
                   await Promise.all([...selected].map((id) => updateContactStatus(id, status)));
-                  qc.invalidateQueries({ queryKey: ["contacts", user?.id] });
+                  qc.invalidateQueries({ queryKey: ["contacts", currentOrgId] });
                   setSelected(new Set());
                   setBulkAction("");
                 }}
@@ -1028,7 +1029,7 @@ function ContactsPage() {
           userId={user.id}
           onClose={() => setShowAddModal(false)}
           onSaved={() => {
-            qc.invalidateQueries({ queryKey: ["contacts", user?.id] });
+            qc.invalidateQueries({ queryKey: ["contacts", currentOrgId] });
             setShowAddModal(false);
           }}
         />

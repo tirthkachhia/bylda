@@ -282,10 +282,11 @@ Deno.serve(async (req: Request) => {
     const memoryUserId = organization?.owner_id as string | undefined;
     if (!memoryUserId) throw new Error("Organization owner not found");
 
+    const primaryContact = contextPackage.contacts[0];
     const subject =
-      (leadRecord?.name as string | undefined) ||
-      [contactRecord?.first_name, contactRecord?.last_name].filter(Boolean).join(" ") ||
-      (contactRecord?.company as string | undefined) ||
+      (contextPackage.deal?.name as string | undefined) ||
+      [primaryContact?.first_name, primaryContact?.last_name].filter(Boolean).join(" ") ||
+      (primaryContact?.company as string | undefined) ||
       null;
     const artifact = buildCallMemoryArtifact({
       callId,
