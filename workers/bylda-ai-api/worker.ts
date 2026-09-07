@@ -47,6 +47,22 @@ type MemoryArtifact = {
   source_label: string | null;
 };
 
+type CrmContextSource = {
+  label: string;
+  table: string;
+  orgColumn: "org_id" | "organization_id";
+  select: string;
+  order?: string;
+  limit: number;
+};
+
+type CrmContextResult = {
+  label: string;
+  total: number | null;
+  rows: Array<Record<string, unknown>>;
+  error?: string;
+};
+
 const ALLOWED_ORIGIN = "https://app.usebylda.com";
 const MODEL = "@cf/openai/gpt-oss-20b";
 const TRANSCRIPTION_MODEL = "@cf/openai/whisper-large-v3-turbo";
@@ -55,6 +71,78 @@ const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 const SYSTEM_PROMPT = `You are Bylda, the revenue intelligence assistant for sales teams.
 
 Help users understand sales calls, deal history, buyer signals, CRM records, follow-ups, and pipeline risk. Ground every claim in the context provided. Be concise, specific, and operational. Never invent facts that are not present in the user's data. When evidence is incomplete, say what is missing.`;
+
+const CRM_CONTEXT_SOURCES: CrmContextSource[] = [
+  {
+    label: "CRM contacts",
+    table: "contacts",
+    orgColumn: "org_id",
+    select:
+      "id,first_name,last_name,email,phone,company,status,source,tags,notes,last_contacted_at,created_at,updated_at",
+    order: "updated_at.desc",
+    limit: 50,
+  },
+  {
+    label: "Deals and opportunities",
+    table: "leads",
+    orgColumn: "organization_id",
+    select:
+      "id,name,email,phone,company,stage,source,notes,value,probability,close_date,tags,score,priority,owner_name,last_activity_at,external_source,created_at,updated_at",
+    order: "updated_at.desc",
+    limit: 50,
+  },
+  {
+    label: "Sales calls",
+    table: "calls",
+    orgColumn: "organization_id",
+    select:
+      "id,contact_id,lead_id,user_id,direction,status,duration,disposition,outcome_tag,provider,started_at,created_at",
+    order: "started_at.desc",
+    limit: 40,
+  },
+  {
+    label: "Call transcripts",
+    table: "call_transcripts",
+    orgColumn: "organization_id",
+    select: "id,call_id,transcript_text,sentiment_score,created_at",
+    order: "created_at.desc",
+    limit: 20,
+  },
+  {
+    label: "Call insights",
+    table: "call_insights",
+    orgColumn: "organization_id",
+    select:
+      "id,call_id,objections,competitor_mentions,talk_ratio,next_steps_extracted,summary,created_at",
+    order: "created_at.desc",
+    limit: 30,
+  },
+  {
+    label: "CRM activities",
+    table: "crm_activities",
+    orgColumn: "organization_id",
+    select: "id,deal_id,type,content,metadata,user_id,created_at",
+    order: "created_at.desc",
+    limit: 40,
+  },
+  {
+    label: "Tasks and follow-ups",
+    table: "tasks",
+    orgColumn: "organization_id",
+    select:
+      "id,title,description,status,priority,due_date,task_type,completed_at,contact_id,lead_id,assigned_to,created_at",
+    order: "created_at.desc",
+    limit: 40,
+  },
+  {
+    label: "Companies",
+    table: "companies",
+    orgColumn: "organization_id",
+    select: "id,name,domain,website,industry,size,location,notes,created_at,updated_at",
+    order: "updated_at.desc",
+    limit: 30,
+  },
+];
 
 function modelText(result: TextGenerationResult): string {
   if (typeof result.response === "string" && result.response.trim()) return result.response.trim();
@@ -101,6 +189,54 @@ async function validateJWT(token: string, env: Env): Promise<boolean> {
   }
 }
 
+async function fetchCrmContextSource(
+  source: CrmContextSource,
+  orgId: string,
+  token: string,
+  env: Env,
+): Promise<CrmContextResult> {
+  const params = new URLSearchParams({
+    select: source.select,
+    [source.orgColumn]: `eq.${orgId}`,
+    limit: String(source.limit),
+  });
+  if (source.order) params.set("order", source.order);
+
+  try {
+    const response = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/${source.table}?${params.toString()}`,
+      {
+        headers: {
+          apikey: env.SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+          Prefer: "count=exact",
+          Range: `0-${source.limit - 1}`,
+        },
+      },
+    );
+    if (!response.ok) {
+      console.error(
+        `[bylda-ai-api] ${source.table} fetch failed`,
+        response.status,
+        await response.text(),
+      );
+      return { label: source.label, total: null, rows: [], error: `HTTP ${response.status}` };
+    }
+
+    const contentRange = response.headers.get("content-range");
+    const totalText = contentRange?.split("/")[1];
+    const total = totalText && totalText !== "*" ? Number(totalText) : null;
+    return {
+      label: source.label,
+      total: Number.isFinite(total) ? total : null,
+      rows: (await response.json()) as Array<Record<string, unknown>>,
+    };
+  } catch (error) {
+    console.error(`[bylda-ai-api] ${source.table} fetch error`, error);
+    return { label: source.label, total: null, rows: [], error: "request_failed" };
+  }
+}
+
 async function runMemoryQuery(
   request: { message: string; orgId: string },
   token: string,
@@ -123,29 +259,62 @@ async function runMemoryQuery(
   );
   if (!artifactsResponse.ok) {
     console.error("[bylda-ai-api] artifact fetch failed", artifactsResponse.status);
-    return json({ error: "Failed to fetch memory artifacts" }, 500);
   }
 
-  const artifacts = ((await artifactsResponse.json()) as MemoryArtifact[]).filter(
+  const artifacts = (artifactsResponse.ok
+    ? ((await artifactsResponse.json()) as MemoryArtifact[])
+    : []
+  ).filter(
     (artifact) => Boolean(artifact.content?.trim() || artifact.content_preview?.trim()),
   );
 
-  let contextBudget = 45000;
-  const context = artifacts
+  const crmContext = await Promise.all(
+    CRM_CONTEXT_SOURCES.map((source) =>
+      fetchCrmContextSource(source, request.orgId, token, env),
+    ),
+  );
+
+  let memoryBudget = 12000;
+  const memoryContext = artifacts
     .map((artifact) => {
-      if (contextBudget <= 0) return "";
+      if (memoryBudget <= 0) return "";
       const source = artifact.source_label ?? artifact.source_type;
       const body = artifact.content ?? artifact.content_preview ?? "(no preview)";
-      const excerpt = body.slice(0, Math.min(5000, contextBudget));
-      contextBudget -= excerpt.length;
+      const excerpt = body.slice(0, Math.min(4000, memoryBudget));
+      memoryBudget -= excerpt.length;
       return `### [${source}] ${artifact.title}\n${excerpt}`;
     })
     .filter(Boolean)
     .join("\n\n");
 
-  const groundingInstruction = artifacts.length
-    ? `Answer using the company memory below. Cite evidence inline with the source name and document title. If the memory does not contain the answer, say so before offering general guidance.\n\n--- COMPANY MEMORY ---\n${context}\n--- END MEMORY ---`
-    : "No company memory is available yet. Answer as a helpful revenue intelligence assistant, clearly label assumptions, and tell the user which CRM or call data would make the answer specific to their business.";
+  let crmBudget = 38000;
+  const crmContextText = crmContext
+    .map((source) => {
+      if (crmBudget <= 0) return "";
+      const serialized = JSON.stringify(source.rows);
+      const excerpt = serialized.slice(0, Math.min(8000, crmBudget));
+      crmBudget -= excerpt.length;
+      const total = source.total === null ? "unknown" : String(source.total);
+      const status = source.error ? `; unavailable: ${source.error}` : "";
+      return `### ${source.label} (total visible records: ${total}; included below: ${source.rows.length}${status})\n${excerpt}`;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+
+  const availableCrmSources = crmContext.filter(
+    (source) => !source.error && (source.total !== 0 || source.rows.length > 0),
+  );
+
+  const combinedContext = [
+    crmContextText ? `--- LIVE CRM DATA ---\n${crmContextText}\n--- END LIVE CRM DATA ---` : "",
+    memoryContext ? `--- COMPANY MEMORY ---\n${memoryContext}\n--- END COMPANY MEMORY ---` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const groundingInstruction = combinedContext
+    ? `Use the live CRM data and company memory below whenever the question concerns this business. CRM totals are exact when a numeric total is supplied, while record arrays may be samples of the most recent records. Cite the relevant section label and record name or ID for specific claims. Never claim that a record exists unless it appears below. If the supplied business data cannot answer the question, say what is missing, then provide clearly labeled general guidance. For questions unrelated to this business, answer normally and do not force CRM citations.\n\n${combinedContext}`
+    : "No company CRM data or memory is available yet. Answer general questions normally. For business-specific questions, clearly say that Bylda has no accessible records and identify what data would be needed.";
 
   try {
     const result = (await env.AI.run(MODEL, {
@@ -166,7 +335,13 @@ async function runMemoryQuery(
     }
     return json({
       answer,
-      sources_searched: artifacts.length,
+      sources_searched: artifacts.length + availableCrmSources.length,
+      crm_context_used: availableCrmSources.length > 0,
+      crm_sources: availableCrmSources.map((source) => ({
+        name: source.label,
+        total: source.total,
+        included: source.rows.length,
+      })),
       provider: "cloudflare-workers-ai",
       model: MODEL,
       usage: result.usage,
