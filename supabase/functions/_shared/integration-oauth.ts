@@ -60,7 +60,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
     key: "gohighlevel",
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
-    authorizeUrl: "https://marketplace.leadconnectorhq.com/oauth/chooselocation",
+    authorizeUrl: "https://marketplace.gohighlevel.com/v2/oauth/chooselocation",
     tokenUrl: "https://services.leadconnectorhq.com/oauth/token",
     scopes: [
       "contacts.readonly",

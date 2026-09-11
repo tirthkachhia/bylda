@@ -113,6 +113,12 @@ Deno.serve(async (req) => {
   url.searchParams.set("redirect_uri", CALLBACK_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", state);
+  if (provider.key === "gohighlevel") {
+    // HighLevel's generated installation URL requires the Marketplace app
+    // version id. Current client ids are prefixed by that version id.
+    const versionId = Deno.env.get("GHL_VERSION_ID") ?? clientId.split("-")[0];
+    url.searchParams.set("version_id", versionId);
+  }
   if (provider.key === "salesforce") {
     const verifier = await pkceVerifier(state, clientSecret);
     url.searchParams.set("code_challenge", await pkceChallenge(verifier));
