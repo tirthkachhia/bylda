@@ -191,6 +191,7 @@ Deno.serve(async (req) => {
     ]);
     let token = storedCredential;
     let locationId = storedLocationId;
+    let grantedScopes: string[] = [];
     if (storedCredential.startsWith("{")) {
       try {
         const oauth = JSON.parse(storedCredential) as {
@@ -203,6 +204,7 @@ Deno.serve(async (req) => {
         };
         token = oauth.access_token ?? "";
         locationId = oauth.location_id ?? storedLocationId;
+        grantedScopes = Array.isArray(oauth.scope) ? oauth.scope : [];
         const expiresAt = oauth.expires_at ? new Date(oauth.expires_at).getTime() : 0;
         if (expiresAt > 0 && expiresAt <= Date.now() + 60_000) {
           const clientId = Deno.env.get("GHL_CLIENT_ID");
@@ -675,8 +677,11 @@ Deno.serve(async (req) => {
         }
       }
     } else if (callMessagesResponse.status === 401 || callMessagesResponse.status === 403) {
-      callSyncWarning =
-        "Reconnect GoHighLevel and approve Conversations read access to import calls and transcripts.";
+      const requiredScopes = ["conversations.readonly", "conversations/message.readonly"];
+      const missingScopes = requiredScopes.filter((scope) => !grantedScopes.includes(scope));
+      callSyncWarning = missingScopes.length
+        ? `Reconnect GoHighLevel: the saved token is missing ${missingScopes.join(" and ")}.`
+        : "GoHighLevel denied conversation access even though the saved token lists both required scopes. Confirm Bylda is installed for this sub-account.";
     } else {
       callSyncWarning = `HighLevel call sync returned HTTP ${callMessagesResponse.status}.`;
       console.error(
