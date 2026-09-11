@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { invokeEdgeStream } from "@/lib/invokeEdge";
+import { supabase } from "@/integrations/supabase/client";
 import { CanvasShell } from "./CanvasShell";
 import { CrmSetupGate } from "./CrmSetupGate";
 import { ConnectSources } from "./ConnectSources";
@@ -146,78 +146,35 @@ export function OperatorCanvas() {
     setHistory((stack) => [...stack, { view, entityId }]);
 
     try {
-      const crmSnapshot = {
-        opportunity_count: data.deals.length,
-        call_count: data.calls.length,
-        open_task_count: data.tasks.filter((task) => task.status !== "completed").length,
-        connected_sources: [
-          data.connections.gohighlevel ? "GoHighLevel" : null,
-          data.connections.readymode ? "ReadyMode" : null,
-        ].filter(Boolean),
-        opportunities: data.deals.slice(0, 25).map((item) => ({
-          name: item.name,
-          company: item.company,
-          stage: item.stage,
-          value: item.value,
-          notes: item.notes,
-          source: item.externalSource ?? item.source,
-          updated_at: item.updatedAt,
-        })),
-        recent_calls: data.calls.slice(0, 15).map((item) => ({
-          contact: item.contactName,
-          company: item.company,
-          status: item.status,
-          summary: item.summary,
-          objections: item.objections,
-          next_steps: item.nextSteps,
-          transcript: item.transcript?.slice(0, 4000) ?? null,
-          provider: item.provider,
-        })),
-        open_tasks: data.tasks
-          .filter((task) => task.status !== "completed")
-          .slice(0, 20)
-          .map((task) => ({ title: task.title, due_date: task.dueDate, priority: task.priority })),
-      };
-      const response = await invokeEdgeStream(
-        "bylda-chat",
-        {
+      if (!currentOrgId) throw new Error("No workspace is selected.");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session expired. Sign in again.");
+
+      const response = await fetch("https://ai.usebylda.com", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "memory_query",
           message: query,
+          org_id: currentOrgId,
           user_context: {
             name: profile?.full_name ?? user?.email?.split("@")[0] ?? "",
-            workspace_type: "sales intelligence and CRM",
-            crm_snapshot: JSON.stringify(crmSnapshot),
           },
-          org_id: currentOrgId ?? undefined,
-        },
-        { timeoutMs: 45_000 },
-      );
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("The AI response stream was unavailable.");
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let answer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const payload = line.slice(6).trim();
-          if (!payload || payload === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(payload) as { text?: string };
-            if (!parsed.text) continue;
-            answer += parsed.text;
-            setAsk({ query, answer });
-          } catch {
-            // Ignore a malformed event without discarding the rest of the stream.
-          }
-        }
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as {
+        answer?: string;
+        error?: string;
+      } | null;
+      if (!response.ok || !result?.answer) {
+        throw new Error(result?.error ?? `AI request failed (HTTP ${response.status}).`);
       }
-      if (!answer.trim()) throw new Error("Bylda returned an empty response.");
+      setAsk({ query, answer: result.answer });
     } catch (error) {
       setAsk({
         query,
