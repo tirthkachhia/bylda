@@ -280,6 +280,6 @@ Deno.serve(async (req) => {
       ),
       analyses_queued: results.reduce((sum, result) => sum + (result.analyses_queued ?? 0), 0),
     },
-    allFailed ? 502 : 200,
+    200,
   );
 });
