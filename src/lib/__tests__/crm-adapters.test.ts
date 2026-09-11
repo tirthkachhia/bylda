@@ -3,6 +3,7 @@ import { mapDealStage } from "../../../supabase/functions/_shared/context-crm-in
 import {
   mapCloseLead,
   mapCloseOpportunity,
+  mapGoHighLevelConversationContact,
   mapHubSpotContact,
   mapHubSpotDeal,
   mapSalesforceContact,
@@ -113,6 +114,26 @@ describe("CRM provider adapters", () => {
       value: 2500,
       externalCompanyId: "lead_1",
       stage: "Demo",
+    });
+  });
+
+  it("maps GoHighLevel conversation participants into canonical contacts", () => {
+    const contact = mapGoHighLevelConversationContact({
+      id: "conversation_1",
+      contactId: "ghl_contact_1",
+      fullName: "Taylor Jordan",
+      contactName: "Jordan Solar",
+      email: "taylor@example.com",
+      phone: "+14045550199",
+    });
+
+    expect(contact).toMatchObject({
+      externalId: "ghl_contact_1",
+      firstName: "Taylor",
+      lastName: "Jordan",
+      companyName: "Jordan Solar",
+      email: "taylor@example.com",
+      phone: "+14045550199",
     });
   });
 

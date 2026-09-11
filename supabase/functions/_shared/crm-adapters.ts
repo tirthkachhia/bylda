@@ -300,6 +300,25 @@ export function mapGoHighLevelContact(row: unknown): CanonicalContact | null {
   };
 }
 
+export function mapGoHighLevelConversationContact(row: unknown): CanonicalContact | null {
+  const item = record(row);
+  const id = text(item.contactId);
+  if (!id) return null;
+  const fullName = text(item.fullName) ?? text(item.contactName);
+  const names = splitName(fullName);
+  const contactName = text(item.contactName);
+  return {
+    externalId: id,
+    firstName: names.firstName,
+    lastName: names.lastName,
+    email: text(item.email),
+    phone: text(item.phone),
+    companyName: contactName && contactName !== fullName ? contactName : null,
+    source: "GoHighLevel conversation",
+    payload: item,
+  };
+}
+
 export function mapGoHighLevelOpportunity(
   row: unknown,
 ): CanonicalDeal | null {
@@ -598,7 +617,7 @@ export async function fetchGoHighLevelSnapshot(oauth: StoredOAuth): Promise<CrmS
     Authorization: `Bearer ${oauth.accessToken}`,
     Version: "v3",
   };
-  const [contactsResponse, opportunitiesResponse] = await Promise.all([
+  const [contactsResponse, opportunitiesResponse, conversationsResponse] = await Promise.all([
     fetch("https://services.leadconnectorhq.com/contacts/search", {
       method: "POST",
       headers,
@@ -606,6 +625,10 @@ export async function fetchGoHighLevelSnapshot(oauth: StoredOAuth): Promise<CrmS
     }),
     fetch(
       `https://services.leadconnectorhq.com/opportunities/search?locationId=${encodeURIComponent(oauth.locationId)}&limit=${PAGE_LIMIT}`,
+      { headers },
+    ),
+    fetch(
+      `https://services.leadconnectorhq.com/conversations/search?locationId=${encodeURIComponent(oauth.locationId)}&limit=${PAGE_LIMIT}&sort=desc&sortBy=last_message_date`,
       { headers },
     ),
   ]);
@@ -617,28 +640,42 @@ export async function fetchGoHighLevelSnapshot(oauth: StoredOAuth): Promise<CrmS
   const opportunitiesPayload = opportunitiesResponse.ok
     ? record(await opportunitiesResponse.json())
     : { opportunities: [] };
+  const conversationsPayload = conversationsResponse.ok
+    ? record(await conversationsResponse.json())
+    : { conversations: [] };
   const contacts = (contactsPayload.contacts ?? contactsPayload.results ?? []) as unknown[];
   const opportunities = (opportunitiesPayload.opportunities ??
     opportunitiesPayload.results ??
     []) as unknown[];
-  const companyNames = new Map<string, CanonicalCompany>();
-  const mappedContacts = contacts
+  const conversationContacts = (conversationsPayload.conversations ?? []) as unknown[];
+  const contactsByExternalId = new Map<string, CanonicalContact>();
+  for (const contact of contacts
     .map(mapGoHighLevelContact)
-    .filter((row): row is CanonicalContact => Boolean(row))
-    .map((contact) => {
-      if (contact.companyName) {
-        const key = contact.companyName.toLowerCase();
-        if (!companyNames.has(key)) {
-          companyNames.set(key, {
-            externalId: `name:${key}`,
-            name: contact.companyName,
-            payload: { name: contact.companyName, source: "gohighlevel" },
-          });
-        }
-        contact.externalCompanyId = `name:${key}`;
+    .filter((row): row is CanonicalContact => Boolean(row))) {
+    contactsByExternalId.set(contact.externalId, contact);
+  }
+  for (const contact of conversationContacts
+    .map(mapGoHighLevelConversationContact)
+    .filter((row): row is CanonicalContact => Boolean(row))) {
+    if (!contactsByExternalId.has(contact.externalId)) {
+      contactsByExternalId.set(contact.externalId, contact);
+    }
+  }
+  const companyNames = new Map<string, CanonicalCompany>();
+  const mappedContacts = [...contactsByExternalId.values()].map((contact) => {
+    if (contact.companyName) {
+      const key = contact.companyName.toLowerCase();
+      if (!companyNames.has(key)) {
+        companyNames.set(key, {
+          externalId: `name:${key}`,
+          name: contact.companyName,
+          payload: { name: contact.companyName, source: "gohighlevel" },
+        });
       }
-      return contact;
-    });
+      contact.externalCompanyId = `name:${key}`;
+    }
+    return contact;
+  });
   return {
     companies: [...companyNames.values()],
     contacts: mappedContacts,
