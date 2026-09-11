@@ -12,6 +12,12 @@ import {
 } from "../../../supabase/functions/_shared/crm-adapters.ts";
 
 describe("CRM provider adapters", () => {
+  it("normalizes provider-specific stages into the Bylda enum", () => {
+    expect(mapDealStage("open")).toBe("Qualified");
+    expect(mapDealStage("negotiation")).toBe("Proposal");
+    expect(mapDealStage("unknown-provider-stage")).toBe("New");
+  });
+
   it("maps HubSpot contacts and deals onto the canonical sales model", () => {
     const contact = mapHubSpotContact({
       id: "51",

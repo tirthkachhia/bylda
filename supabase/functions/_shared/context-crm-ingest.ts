@@ -65,11 +65,15 @@ export function mapDealStage(value: unknown): string {
   if (!stage) return "New";
   const normalized = stage.toLowerCase().replace(/[_-]+/g, " ");
   const compact = normalized.replace(/\s+/g, "");
-  if (compact === "won" || compact.endsWith("closedwon") || /\bwon\b/.test(normalized)) return "Won";
+  if (compact === "won" || compact.endsWith("closedwon") || /\bwon\b/.test(normalized))
+    return "Won";
   if (compact === "lost" || compact.endsWith("closedlost") || /\blost\b/.test(normalized)) {
     return "Lost";
   }
-  return stage;
+  if (/\b(proposal|quote|quoted|negotiat|contract)\b/.test(normalized)) return "Proposal";
+  if (/\b(qualified|open|active|in progress|pipeline)\b/.test(normalized)) return "Qualified";
+  if (/\b(contacted|engaged|attempting|replied)\b/.test(normalized)) return "Contacted";
+  return "New";
 }
 
 async function storeRaw(
@@ -358,7 +362,12 @@ export async function ingestCrmSnapshot(
           canonicalType: "lead",
           canonicalId: String(row.id),
         }),
-        markRawObjectProcessed(admin, rawIds.get(`deal:${externalId}`) ?? null, "lead", String(row.id)),
+        markRawObjectProcessed(
+          admin,
+          rawIds.get(`deal:${externalId}`) ?? null,
+          "lead",
+          String(row.id),
+        ),
       ]);
     }
   }
