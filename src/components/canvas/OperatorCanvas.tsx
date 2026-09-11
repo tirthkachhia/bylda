@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { invokeEdgeStream } from "@/lib/invokeEdge";
 import { CanvasShell } from "./CanvasShell";
 import { CrmSetupGate } from "./CrmSetupGate";
 import { ConnectSources } from "./ConnectSources";
@@ -112,7 +113,7 @@ export function OperatorCanvas() {
   const deal = data.deals.find((item) => item.id === current.entityId) ?? data.deals[0];
   const call = data.calls.find((item) => item.id === current.entityId) ?? data.calls[0];
 
-  const askBylda = (query: string) => {
+  const askBylda = async (query: string) => {
     const text = query.toLowerCase();
     const matchedDeal = data.deals.find((item) =>
       text.includes(item.company.split(" ")[0].toLowerCase()),
@@ -122,39 +123,107 @@ export function OperatorCanvas() {
     );
     let view: CanvasView = "brief";
     let entityId: string | undefined;
-    let answer = "I’d start with the brief. The top items are already ranked.";
 
     if (/prep|upcoming|call in/.test(text)) {
       view = matchedCall ? "call" : "upcoming";
       entityId = matchedCall?.id;
-      answer = matchedCall
-        ? `You’re talking to ${matchedCall.company}. Biggest thing to solve: who owns the final decision.`
-        : "Here are the conversations I’d prep next.";
     } else if (/follow.?up|draft/.test(text)) {
       view = "followups";
-      answer = "I drafted the follow-ups from the latest calls. Copy and send from your inbox.";
     } else if (/risk|slipping|attention/.test(text)) {
       view = "risks";
-      answer = "I’d look at these. The reasons are on the cards — not a health score.";
     } else if (/task|todo|action/.test(text)) {
       view = "nba";
-      answer = data.actions[0]
-        ? `I’d start with this: ${data.actions[0].title}`
-        : "Here’s the action queue.";
     } else if (/pipeline/.test(text)) {
       view = "pipeline";
-      answer = "Pipeline scan is up. Phase 1 is intelligence, not drag-and-drop CRM.";
     } else if (matchedDeal) {
       view = "deal";
       entityId = matchedDeal.id;
-      answer = matchedDeal.notes || `Here’s ${matchedDeal.company}.`;
     } else if (/deal|focus|acme|northstar|apex/.test(text)) {
       view = "deals";
-      answer = "I’d start with these. Two are closeable, two are slipping for fixable reasons.";
     }
 
-    setAsk({ query, answer });
+    setAsk({ query, answer: "Reading your live CRM context…" });
     setHistory((stack) => [...stack, { view, entityId }]);
+
+    try {
+      const crmSnapshot = {
+        opportunity_count: data.deals.length,
+        call_count: data.calls.length,
+        open_task_count: data.tasks.filter((task) => task.status !== "completed").length,
+        connected_sources: [
+          data.connections.gohighlevel ? "GoHighLevel" : null,
+          data.connections.readymode ? "ReadyMode" : null,
+        ].filter(Boolean),
+        opportunities: data.deals.slice(0, 25).map((item) => ({
+          name: item.name,
+          company: item.company,
+          stage: item.stage,
+          value: item.value,
+          notes: item.notes,
+          source: item.externalSource ?? item.source,
+          updated_at: item.updatedAt,
+        })),
+        recent_calls: data.calls.slice(0, 15).map((item) => ({
+          contact: item.contactName,
+          company: item.company,
+          status: item.status,
+          summary: item.summary,
+          objections: item.objections,
+          next_steps: item.nextSteps,
+          transcript: item.transcript?.slice(0, 4000) ?? null,
+          provider: item.provider,
+        })),
+        open_tasks: data.tasks
+          .filter((task) => task.status !== "completed")
+          .slice(0, 20)
+          .map((task) => ({ title: task.title, due_date: task.dueDate, priority: task.priority })),
+      };
+      const response = await invokeEdgeStream(
+        "bylda-chat",
+        {
+          message: query,
+          user_context: {
+            name: profile?.full_name ?? user?.email?.split("@")[0] ?? "",
+            workspace_type: "sales intelligence and CRM",
+            crm_snapshot: JSON.stringify(crmSnapshot),
+          },
+          org_id: currentOrgId ?? undefined,
+        },
+        { timeoutMs: 45_000 },
+      );
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("The AI response stream was unavailable.");
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let answer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6).trim();
+          if (!payload || payload === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(payload) as { text?: string };
+            if (!parsed.text) continue;
+            answer += parsed.text;
+            setAsk({ query, answer });
+          } catch {
+            // Ignore a malformed event without discarding the rest of the stream.
+          }
+        }
+      }
+      if (!answer.trim()) throw new Error("Bylda returned an empty response.");
+    } catch (error) {
+      setAsk({
+        query,
+        answer: error instanceof Error ? error.message : "Bylda could not answer right now.",
+      });
+    }
   };
 
   const title = useMemo(() => {
@@ -241,10 +310,15 @@ export function OperatorCanvas() {
       body: item.risk || item.objections[0],
     }));
   const objections = data.calls.flatMap((item) =>
-    item.objections.map((objection) => ({ title: objection, body: `${item.company} · ${item.contactName}` })),
+    item.objections.map((objection) => ({
+      title: objection,
+      body: `${item.company} · ${item.contactName}`,
+    })),
   );
   const signals = data.calls
-    .filter((item) => /vp|implement|budget|legal|procurement/i.test(`${item.summary} ${item.transcript}`))
+    .filter((item) =>
+      /vp|implement|budget|legal|procurement/i.test(`${item.summary} ${item.transcript}`),
+    )
     .map((item) => ({
       title: item.company,
       body: item.summary || "Buying movement showed up on the call.",
@@ -252,183 +326,212 @@ export function OperatorCanvas() {
 
   return (
     <>
-    <CanvasShell
-      title={title}
-      canBack={history.length > 1}
-      currentView={current.view}
-      alert={data.usingDemo ? "Demo workspace" : null}
-      onBack={() => setHistory((stack) => (stack.length > 1 ? stack.slice(0, -1) : stack))}
-      onHome={() => {
-        setHistory([{ view: "brief" }]);
-        setAsk(null);
-      }}
-      onAsk={askBylda}
-      onOpen={(view) => open(view)}
-    >
-      {ask && <AskBanner query={ask.query} answer={ask.answer} />}
-      {skipped && !data.profile && current.view === "brief" && (
-        <div className="mx-auto mb-4 flex w-full max-w-[1080px] items-center justify-between rounded-[22px] border border-black/[0.08] bg-white px-4 py-3">
-          <p className="text-[13px] text-[#60656e]">
-            I can still help, but I’ll be sharper after those four questions.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                localStorage.removeItem(skipKey(currentOrgId));
-              } catch {
-                /* ignore */
-              }
-              setSkipped(false);
-            }}
-            className="shrink-0 text-[12px] font-semibold text-[#3275d8]"
-          >
-            Answer them
-          </button>
-        </div>
-      )}
-      {current.view === "brief" && (
-        <MorningBrief
-          deals={data.deals}
-          calls={data.calls}
-          tasks={data.tasks}
-          actions={data.actions}
-          connections={data.connections}
-          onOpen={open}
-          onSync={() => void data.syncGoHighLevelPipeline()}
+      <CanvasShell
+        title={title}
+        canBack={history.length > 1}
+        currentView={current.view}
+        alert={data.usingDemo ? "Demo workspace" : null}
+        onBack={() => setHistory((stack) => (stack.length > 1 ? stack.slice(0, -1) : stack))}
+        onHome={() => {
+          setHistory([{ view: "brief" }]);
+          setAsk(null);
+        }}
+        onAsk={askBylda}
+        onOpen={(view) => open(view)}
+      >
+        {ask && <AskBanner query={ask.query} answer={ask.answer} />}
+        {skipped && !data.profile && current.view === "brief" && (
+          <div className="mx-auto mb-4 flex w-full max-w-[1080px] items-center justify-between rounded-[22px] border border-black/[0.08] bg-white px-4 py-3">
+            <p className="text-[13px] text-[#60656e]">
+              I can still help, but I’ll be sharper after those four questions.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.removeItem(skipKey(currentOrgId));
+                } catch {
+                  /* ignore */
+                }
+                setSkipped(false);
+              }}
+              className="shrink-0 text-[12px] font-semibold text-[#3275d8]"
+            >
+              Answer them
+            </button>
+          </div>
+        )}
+        {current.view === "brief" && (
+          <MorningBrief
+            deals={data.deals}
+            calls={data.calls}
+            tasks={data.tasks}
+            actions={data.actions}
+            connections={data.connections}
+            onOpen={open}
+            onSync={() => void data.syncGoHighLevelPipeline()}
+          />
+        )}
+        {current.view === "upcoming" && (
+          <UpcomingView calls={data.calls} onOpen={(id) => open("call", id)} />
+        )}
+        {current.view === "actions" && (
+          <ActionsView
+            actions={data.actions}
+            tasks={data.tasks}
+            onDeal={(id) => open("deal", id)}
+            onCall={(id) => open("call", id)}
+            onComplete={data.completeTask}
+          />
+        )}
+        {current.view === "changes" && <ChangesView deals={data.deals} calls={data.calls} />}
+        {current.view === "deals" && (
+          <DealsView deals={data.deals} onOpen={(id) => open("deal", id)} />
+        )}
+        {current.view === "pipeline" && (
+          <PipelineView deals={data.deals} onOpen={(id) => open("deal", id)} />
+        )}
+        {current.view === "deal" && deal && (
+          <DealWorkspace deal={deal} calls={data.calls} onCall={(id) => open("call", id)} />
+        )}
+        {current.view === "risks" && (
+          <SimpleSignalView
+            title="Risks & signals"
+            intro="Every risk says why, and what to do. No red-yellow-green score."
+            items={
+              risks.length
+                ? risks
+                : [
+                    {
+                      title: "Nothing material is on fire.",
+                      body: "Next meetings are booked and commitments are on track.",
+                    },
+                  ]
+            }
+          />
+        )}
+        {current.view === "stakeholders" && (
+          <SimpleSignalView
+            title="Stakeholders"
+            intro="Who matters. Inferred roles stay labeled as guesses."
+            items={data.calls.slice(0, 5).map((item) => ({
+              title: item.contactName,
+              body: `${item.company} · last conversation ${item.startedAt ? "recently" : "unscheduled"}`,
+            }))}
+          />
+        )}
+        {current.view === "commitments" && (
+          <SimpleSignalView
+            title="Commitments"
+            intro="Promises from the conversation — not generic tasks."
+            items={
+              data.calls.flatMap((item) =>
+                item.nextSteps.map((step) => ({
+                  title: step,
+                  body: `${item.company} · ${item.contactName}`,
+                })),
+              ).length
+                ? data.calls.flatMap((item) =>
+                    item.nextSteps.map((step) => ({
+                      title: step,
+                      body: `${item.company} · ${item.contactName}`,
+                    })),
+                  )
+                : [
+                    {
+                      title: "No dated promises yet.",
+                      body: "When a call names an owner and a date, it shows up here.",
+                    },
+                  ]
+            }
+          />
+        )}
+        {current.view === "calls" && (
+          <CallsView calls={data.calls} onOpen={(id) => open("call", id)} />
+        )}
+        {current.view === "call" && call && (
+          <CallWorkspace call={call} onApprove={data.approveWriteback} userId={user?.id} />
+        )}
+        {current.view === "objections" && (
+          <SimpleSignalView
+            title="Objections"
+            intro="Customer resistance, with the wording from the call."
+            items={
+              objections.length
+                ? objections
+                : [
+                    {
+                      title: "No open objections yet.",
+                      body: "They’ll show here the moment a call names one.",
+                    },
+                  ]
+            }
+          />
+        )}
+        {current.view === "signals" && (
+          <SimpleSignalView
+            title="Buying signals"
+            intro="Concrete movement. Not ‘positive tone’."
+            items={
+              signals.length
+                ? signals
+                : [
+                    {
+                      title: "No strong buying signals yet.",
+                      body: "Implementation questions, VP joins, and dated next steps land here.",
+                    },
+                  ]
+            }
+          />
+        )}
+        {current.view === "coaching" && (
+          <SimpleSignalView
+            title="Coaching"
+            intro="One or two notes. Experienced reps shouldn’t feel graded."
+            items={
+              data.calls.filter((item) => item.coaching).length
+                ? data.calls
+                    .filter((item) => item.coaching)
+                    .map((item) => ({ title: item.company, body: item.coaching as string }))
+                : [
+                    {
+                      title: "No coaching notes yet.",
+                      body: "After a live call, you’ll get one or two evidence-backed observations — not a score explosion.",
+                    },
+                  ]
+            }
+          />
+        )}
+        {current.view === "nba" && (
+          <ActionsView
+            actions={data.actions}
+            tasks={data.tasks}
+            onDeal={(id) => open("deal", id)}
+            onCall={(id) => open("call", id)}
+            onComplete={data.completeTask}
+          />
+        )}
+        {current.view === "followups" && <FollowUpsView calls={data.calls} />}
+        {current.view === "tasks" && (
+          <TasksView tasks={data.tasks} onComplete={data.completeTask} />
+        )}
+        {current.view === "approvals" && (
+          <ApprovalsView calls={data.calls} onApprove={data.approveWriteback} userId={user?.id} />
+        )}
+        {current.view === "performance" && (
+          <PerformanceView deals={data.deals} calls={data.calls} tasks={data.tasks} />
+        )}
+        {current.view === "team" && <StaticTeamView />}
+        {current.view === "patterns" && <PatternsView calls={data.calls} />}
+      </CanvasShell>
+      {showPricing && (
+        <PricingGate
+          orgId={currentOrgId}
+          email={user?.email ?? profile?.email}
+          name={profile?.full_name}
+          onClose={() => setShowPricing(false)}
         />
       )}
-      {current.view === "upcoming" && (
-        <UpcomingView calls={data.calls} onOpen={(id) => open("call", id)} />
-      )}
-      {current.view === "actions" && (
-        <ActionsView
-          actions={data.actions}
-          tasks={data.tasks}
-          onDeal={(id) => open("deal", id)}
-          onCall={(id) => open("call", id)}
-          onComplete={data.completeTask}
-        />
-      )}
-      {current.view === "changes" && <ChangesView deals={data.deals} calls={data.calls} />}
-      {current.view === "deals" && <DealsView deals={data.deals} onOpen={(id) => open("deal", id)} />}
-      {current.view === "pipeline" && (
-        <PipelineView deals={data.deals} onOpen={(id) => open("deal", id)} />
-      )}
-      {current.view === "deal" && deal && (
-        <DealWorkspace deal={deal} calls={data.calls} onCall={(id) => open("call", id)} />
-      )}
-      {current.view === "risks" && (
-        <SimpleSignalView
-          title="Risks & signals"
-          intro="Every risk says why, and what to do. No red-yellow-green score."
-          items={
-            risks.length
-              ? risks
-              : [{ title: "Nothing material is on fire.", body: "Next meetings are booked and commitments are on track." }]
-          }
-        />
-      )}
-      {current.view === "stakeholders" && (
-        <SimpleSignalView
-          title="Stakeholders"
-          intro="Who matters. Inferred roles stay labeled as guesses."
-          items={data.calls.slice(0, 5).map((item) => ({
-            title: item.contactName,
-            body: `${item.company} · last conversation ${item.startedAt ? "recently" : "unscheduled"}`,
-          }))}
-        />
-      )}
-      {current.view === "commitments" && (
-        <SimpleSignalView
-          title="Commitments"
-          intro="Promises from the conversation — not generic tasks."
-          items={
-            data.calls.flatMap((item) =>
-              item.nextSteps.map((step) => ({ title: step, body: `${item.company} · ${item.contactName}` })),
-            ).length
-              ? data.calls.flatMap((item) =>
-                  item.nextSteps.map((step) => ({
-                    title: step,
-                    body: `${item.company} · ${item.contactName}`,
-                  })),
-                )
-              : [{ title: "No dated promises yet.", body: "When a call names an owner and a date, it shows up here." }]
-          }
-        />
-      )}
-      {current.view === "calls" && <CallsView calls={data.calls} onOpen={(id) => open("call", id)} />}
-      {current.view === "call" && call && (
-        <CallWorkspace call={call} onApprove={data.approveWriteback} userId={user?.id} />
-      )}
-      {current.view === "objections" && (
-        <SimpleSignalView
-          title="Objections"
-          intro="Customer resistance, with the wording from the call."
-          items={
-            objections.length
-              ? objections
-              : [{ title: "No open objections yet.", body: "They’ll show here the moment a call names one." }]
-          }
-        />
-      )}
-      {current.view === "signals" && (
-        <SimpleSignalView
-          title="Buying signals"
-          intro="Concrete movement. Not ‘positive tone’."
-          items={
-            signals.length
-              ? signals
-              : [{ title: "No strong buying signals yet.", body: "Implementation questions, VP joins, and dated next steps land here." }]
-          }
-        />
-      )}
-      {current.view === "coaching" && (
-        <SimpleSignalView
-          title="Coaching"
-          intro="One or two notes. Experienced reps shouldn’t feel graded."
-          items={
-            data.calls.filter((item) => item.coaching).length
-              ? data.calls
-                  .filter((item) => item.coaching)
-                  .map((item) => ({ title: item.company, body: item.coaching as string }))
-              : [
-                  {
-                    title: "No coaching notes yet.",
-                    body: "After a live call, you’ll get one or two evidence-backed observations — not a score explosion.",
-                  },
-                ]
-          }
-        />
-      )}
-      {current.view === "nba" && (
-        <ActionsView
-          actions={data.actions}
-          tasks={data.tasks}
-          onDeal={(id) => open("deal", id)}
-          onCall={(id) => open("call", id)}
-          onComplete={data.completeTask}
-        />
-      )}
-      {current.view === "followups" && <FollowUpsView calls={data.calls} />}
-      {current.view === "tasks" && <TasksView tasks={data.tasks} onComplete={data.completeTask} />}
-      {current.view === "approvals" && (
-        <ApprovalsView calls={data.calls} onApprove={data.approveWriteback} userId={user?.id} />
-      )}
-      {current.view === "performance" && (
-        <PerformanceView deals={data.deals} calls={data.calls} tasks={data.tasks} />
-      )}
-      {current.view === "team" && <StaticTeamView />}
-      {current.view === "patterns" && <PatternsView calls={data.calls} />}
-    </CanvasShell>
-    {showPricing && (
-      <PricingGate
-        orgId={currentOrgId}
-        email={user?.email ?? profile?.email}
-        name={profile?.full_name}
-        onClose={() => setShowPricing(false)}
-      />
-    )}
     </>
   );
 }
