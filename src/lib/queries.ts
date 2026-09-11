@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdge } from "@/lib/invokeEdge";
 import {
   guestStore,
   GUEST_USER,
@@ -566,19 +567,7 @@ export async function writeCallToGoHighLevel(insightId: string) {
 
 export async function syncCrm(provider?: string | string[]) {
   const body = Array.isArray(provider) ? { providers: provider } : provider ? { provider } : {};
-  const { data, error } = await supabase.functions.invoke("sync-crm", { body });
-  if (error) {
-    const context = (error as { context?: Response }).context;
-    const errorBody = context
-      ? await context
-          .clone()
-          .json()
-          .catch(() => null)
-      : null;
-    throw new Error(errorBody?.error ?? error.message);
-  }
-  if (data?.error) throw new Error(data.error);
-  return data as CrmSyncResult;
+  return invokeEdge<CrmSyncResult>("sync-crm", body, { timeoutMs: 90_000, retries: 0 });
 }
 
 export type SalesforceSyncResult = {
