@@ -71,6 +71,47 @@ type TranscriptSegment = {
   confidence?: number | string;
 };
 
+async function fetchCallMessagesV3(
+  headers: Record<string, string>,
+  locationId: string,
+): Promise<{ response: Response; messages: GhlCallMessage[] }> {
+  const searchResponse = await fetch(
+    `https://services.leadconnectorhq.com/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=100&sort=desc&sortBy=last_message_date&lastMessageType=TYPE_CALL`,
+    { headers },
+  );
+  if (!searchResponse.ok) return { response: searchResponse, messages: [] };
+
+  const searchPayload = (await searchResponse.json().catch(() => ({}))) as {
+    conversations?: Array<{ id?: string }>;
+  };
+  const conversationIds = (searchPayload.conversations ?? [])
+    .map((conversation) => conversation.id)
+    .filter((id): id is string => Boolean(id));
+  const messages: GhlCallMessage[] = [];
+
+  for (let offset = 0; offset < conversationIds.length; offset += 5) {
+    const batches = await Promise.all(
+      conversationIds.slice(offset, offset + 5).map(async (conversationId) => {
+        const response = await fetch(
+          `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=100&type=TYPE_CALL`,
+          { headers },
+        );
+        if (!response.ok) return [];
+        const payload = (await response.json().catch(() => ({}))) as {
+          messages?: { messages?: GhlCallMessage[] };
+        };
+        return payload.messages?.messages ?? [];
+      }),
+    );
+    messages.push(...batches.flat());
+  }
+
+  return {
+    response: searchResponse,
+    messages: [...new Map(messages.filter((message) => message.id).map((message) => [message.id, message])).values()],
+  };
+}
+
 function transcriptSegments(payload: unknown): TranscriptSegment[] {
   if (Array.isArray(payload)) return payload as TranscriptSegment[];
   if (!payload || typeof payload !== "object") return [];
@@ -490,7 +531,7 @@ Deno.serve(async (req) => {
     let transcriptsImported = 0;
     let analysesQueued = 0;
     let callSyncWarning: string | null = null;
-    const callMessagesResponse = await fetch(
+    let callMessagesResponse = await fetch(
       `https://services.leadconnectorhq.com/conversations/messages/export?locationId=${encodeURIComponent(locationId)}&channel=Call&limit=100&sortBy=createdAt&sortOrder=desc`,
       {
         // HighLevel's export endpoint remains on the legacy API version even
@@ -498,12 +539,17 @@ Deno.serve(async (req) => {
         headers: { ...headers, Version: "2021-04-15" },
       },
     );
+    let callPayload: { messages?: GhlCallMessage[] } | null = null;
+    if (callMessagesResponse.ok) {
+      callPayload = (await callMessagesResponse.json()) as { messages?: GhlCallMessage[] };
+    } else if (callMessagesResponse.status === 401 || callMessagesResponse.status === 403) {
+      const fallback = await fetchCallMessagesV3(headers, locationId);
+      callMessagesResponse = fallback.response;
+      callPayload = { messages: fallback.messages };
+    }
 
     if (callMessagesResponse.ok) {
-      const callPayload = (await callMessagesResponse.json()) as {
-        messages?: GhlCallMessage[];
-      };
-      const messages = (callPayload.messages ?? []).filter((message) => Boolean(message.id));
+      const messages = (callPayload?.messages ?? []).filter((message) => Boolean(message.id));
       callsReceived = messages.length;
 
       const { data: leadMappings } = await admin

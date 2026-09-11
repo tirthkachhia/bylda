@@ -78,6 +78,47 @@ function apiHeaders(oauth: StoredOAuth) {
   };
 }
 
+async function fetchCallMessagesV3(
+  headers: Record<string, string>,
+  locationId: string,
+): Promise<{ response: Response; messages: GhlCallMessage[] }> {
+  const searchResponse = await fetch(
+    `https://services.leadconnectorhq.com/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=100&sort=desc&sortBy=last_message_date&lastMessageType=TYPE_CALL`,
+    { headers },
+  );
+  if (!searchResponse.ok) return { response: searchResponse, messages: [] };
+
+  const searchPayload = (await searchResponse.json().catch(() => ({}))) as {
+    conversations?: Array<{ id?: string }>;
+  };
+  const conversationIds = (searchPayload.conversations ?? [])
+    .map((conversation) => conversation.id)
+    .filter((id): id is string => Boolean(id));
+  const messages: GhlCallMessage[] = [];
+
+  for (let offset = 0; offset < conversationIds.length; offset += 5) {
+    const batches = await Promise.all(
+      conversationIds.slice(offset, offset + 5).map(async (conversationId) => {
+        const response = await fetch(
+          `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=100&type=TYPE_CALL`,
+          { headers },
+        );
+        if (!response.ok) return [];
+        const payload = (await response.json().catch(() => ({}))) as {
+          messages?: { messages?: GhlCallMessage[] };
+        };
+        return payload.messages?.messages ?? [];
+      }),
+    );
+    messages.push(...batches.flat());
+  }
+
+  return {
+    response: searchResponse,
+    messages: [...new Map(messages.filter((message) => message.id).map((message) => [message.id, message])).values()],
+  };
+}
+
 async function queueAnalysis(callId: string) {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const request = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-call`, {
@@ -116,7 +157,7 @@ export async function syncGoHighLevelCalls(
   }
 
   const headers = apiHeaders(input.oauth);
-  const messagesResponse = await fetch(
+  let messagesResponse = await fetch(
     `https://services.leadconnectorhq.com/conversations/messages/export?locationId=${encodeURIComponent(input.oauth.locationId)}&channel=Call&limit=100&sortBy=createdAt&sortOrder=desc`,
     {
       // Message export is currently versioned separately from the v3
@@ -124,6 +165,14 @@ export async function syncGoHighLevelCalls(
       headers: { ...headers, Version: "2021-04-15" },
     },
   );
+  let messagePayload: { messages?: GhlCallMessage[] } | null = null;
+  if (messagesResponse.ok) {
+    messagePayload = (await messagesResponse.json()) as { messages?: GhlCallMessage[] };
+  } else if (messagesResponse.status === 401 || messagesResponse.status === 403) {
+    const fallback = await fetchCallMessagesV3(headers, input.oauth.locationId);
+    messagesResponse = fallback.response;
+    messagePayload = { messages: fallback.messages };
+  }
   if (messagesResponse.status === 401 || messagesResponse.status === 403) {
     return {
       ...empty,
@@ -135,7 +184,7 @@ export async function syncGoHighLevelCalls(
     return { ...empty, warning: `HighLevel call sync returned HTTP ${messagesResponse.status}.` };
   }
 
-  const payload = (await messagesResponse.json()) as { messages?: GhlCallMessage[] };
+  const payload = messagePayload ?? { messages: [] };
   const messages = (payload.messages ?? []).filter((message) => Boolean(message.id));
   const storedByMessage = new Map<string, string>();
   for (const message of messages) {
