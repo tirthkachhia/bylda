@@ -255,9 +255,17 @@ Deno.serve(async (req) => {
   }
 
   const failed = results.filter((result) => result.error);
+  const allFailed = failed.length > 0 && failed.length === results.length;
   return json(
     {
       ok: failed.length === 0,
+      ...(allFailed
+        ? {
+            error: failed
+              .map((result) => `${result.provider}: ${result.error ?? "sync failed"}`)
+              .join("; "),
+          }
+        : {}),
       results,
       contacts_imported: results.reduce((sum, result) => sum + result.contacts_imported, 0),
       deals_imported: results.reduce((sum, result) => sum + result.deals_imported, 0),
@@ -272,6 +280,6 @@ Deno.serve(async (req) => {
       ),
       analyses_queued: results.reduce((sum, result) => sum + (result.analyses_queued ?? 0), 0),
     },
-    failed.length && failed.length === results.length ? 502 : 200,
+    allFailed ? 502 : 200,
   );
 });
