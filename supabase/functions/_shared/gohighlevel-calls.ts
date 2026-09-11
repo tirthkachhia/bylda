@@ -89,25 +89,36 @@ async function fetchCallMessagesV3(
   if (!searchResponse.ok) return { response: searchResponse, messages: [] };
 
   const searchPayload = (await searchResponse.json().catch(() => ({}))) as {
-    conversations?: Array<{ id?: string }>;
+    conversations?: Array<{ id?: string; contactId?: string; phone?: string }>;
   };
-  const conversationIds = (searchPayload.conversations ?? [])
-    .map((conversation) => conversation.id)
-    .filter((id): id is string => Boolean(id));
+  const conversations = (searchPayload.conversations ?? []).filter(
+    (conversation): conversation is { id: string; contactId?: string; phone?: string } =>
+      Boolean(conversation.id),
+  );
   const messages: GhlCallMessage[] = [];
 
-  for (let offset = 0; offset < conversationIds.length; offset += 5) {
+  for (let offset = 0; offset < conversations.length; offset += 5) {
     const batches = await Promise.all(
-      conversationIds.slice(offset, offset + 5).map(async (conversationId) => {
+      conversations.slice(offset, offset + 5).map(async (conversation) => {
         const response = await fetch(
-          `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=100&type=TYPE_CALL`,
+          `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversation.id)}/messages?limit=100&type=TYPE_CALL`,
           { headers },
         );
         if (!response.ok) return [];
         const payload = (await response.json().catch(() => ({}))) as {
           messages?: { messages?: GhlCallMessage[] };
         };
-        return payload.messages?.messages ?? [];
+        return (payload.messages?.messages ?? []).map((message) => ({
+          ...message,
+          conversationId: message.conversationId ?? conversation.id,
+          contactId: message.contactId ?? conversation.contactId,
+          from:
+            message.from ??
+            (message.direction === "inbound" ? conversation.phone : undefined),
+          to:
+            message.to ??
+            (message.direction === "outbound" ? conversation.phone : undefined),
+        }));
       }),
     );
     messages.push(...batches.flat());
