@@ -70,7 +70,7 @@ export function mapDealStage(value: unknown): string {
   if (compact === "lost" || compact.endsWith("closedlost") || /\blost\b/.test(normalized)) {
     return "Lost";
   }
-  if (/\b(proposal|quote|quoted|negotiat|contract)\b/.test(normalized)) return "Proposal";
+  if (/\b(proposal|quote|quoted|negotiat\w*|contract)\b/.test(normalized)) return "Proposal";
   if (/\b(qualified|open|active|in progress|pipeline)\b/.test(normalized)) return "Qualified";
   if (/\b(contacted|engaged|attempting|replied)\b/.test(normalized)) return "Contacted";
   return "New";
