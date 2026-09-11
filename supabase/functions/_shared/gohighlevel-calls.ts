@@ -21,6 +21,12 @@ type GhlCallMessage = {
   meta?: { callDuration?: number | string; callStatus?: string };
 };
 
+type GhlConversation = {
+  id?: string;
+  contactId?: string;
+  phone?: string;
+};
+
 type TranscriptSegment = {
   mediaChannel?: number | string;
   sentenceIndex?: number | string;
@@ -130,6 +136,56 @@ async function fetchCallMessagesV3(
   };
 }
 
+async function enrichCallMessagesWithConversationContacts(
+  headers: Record<string, string>,
+  messages: GhlCallMessage[],
+): Promise<GhlCallMessage[]> {
+  const conversationIds = [
+    ...new Set(
+      messages
+        .filter((message) => !message.contactId)
+        .map((message) => message.conversationId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (!conversationIds.length) return messages;
+
+  const conversationsById = new Map<string, GhlConversation>();
+  for (let offset = 0; offset < conversationIds.length; offset += 5) {
+    const conversations = await Promise.all(
+      conversationIds.slice(offset, offset + 5).map(async (conversationId) => {
+        const response = await fetch(
+          `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}`,
+          { headers },
+        );
+        if (!response.ok) return null;
+        const conversation = (await response.json().catch(() => null)) as GhlConversation | null;
+        return conversation ? { ...conversation, id: conversation.id ?? conversationId } : null;
+      }),
+    );
+    for (const conversation of conversations) {
+      if (conversation?.id) conversationsById.set(conversation.id, conversation);
+    }
+  }
+
+  return messages.map((message) => {
+    const conversation = message.conversationId
+      ? conversationsById.get(message.conversationId)
+      : undefined;
+    if (!conversation) return message;
+    return {
+      ...message,
+      contactId: message.contactId ?? conversation.contactId,
+      from:
+        message.from ??
+        (message.direction === "inbound" ? conversation.phone : undefined),
+      to:
+        message.to ??
+        (message.direction === "outbound" ? conversation.phone : undefined),
+    };
+  });
+}
+
 async function queueAnalysis(callId: string) {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const request = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-call`, {
@@ -204,7 +260,10 @@ export async function syncGoHighLevelCalls(
   }
 
   const payload = messagePayload ?? { messages: [] };
-  const messages = (payload.messages ?? []).filter((message) => Boolean(message.id));
+  const messages = await enrichCallMessagesWithConversationContacts(
+    headers,
+    (payload.messages ?? []).filter((message) => Boolean(message.id)),
+  );
   const storedByMessage = new Map<string, string>();
   for (const message of messages) {
     const raw = message as unknown as Record<string, unknown>;
