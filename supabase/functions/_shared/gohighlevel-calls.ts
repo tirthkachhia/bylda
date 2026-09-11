@@ -174,10 +174,18 @@ export async function syncGoHighLevelCalls(
     messagePayload = { messages: fallback.messages };
   }
   if (messagesResponse.status === 401 || messagesResponse.status === 403) {
+    const grantedScopes = Array.isArray(input.oauth.raw.scope)
+      ? input.oauth.raw.scope.map(String)
+      : String(input.oauth.raw.scope ?? "")
+          .split(/[ ,]+/)
+          .filter(Boolean);
+    const requiredScopes = ["conversations.readonly", "conversations/message.readonly"];
+    const missingScopes = requiredScopes.filter((scope) => !grantedScopes.includes(scope));
     return {
       ...empty,
-      warning:
-        "Reconnect GoHighLevel and approve Conversations read access to import calls and transcripts.",
+      warning: missingScopes.length
+        ? `Reconnect GoHighLevel: the saved token is missing ${missingScopes.join(" and ")}.`
+        : "GoHighLevel denied conversation access even though the saved token lists both required scopes. Confirm Bylda is installed for this sub-account.",
     };
   }
   if (!messagesResponse.ok) {
