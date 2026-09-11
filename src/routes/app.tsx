@@ -1,23 +1,40 @@
-import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Bell, Menu, Search } from "lucide-react";
 import { useEffect } from "react";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { Logo } from "@/components/brand/Logo";
-import { supabase } from "@/integrations/supabase/client";
-import { guestStore } from "@/lib/guest";
+import { useAuth } from "@/lib/auth";
 import { saveLastAppPath } from "@/lib/session-restore";
 
 export const Route = createFileRoute("/app")({
-  beforeLoad: async ({ location }) => {
-    if (guestStore.get().isGuest) return;
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session)
-      throw redirect({ to: "/auth/sign-in", search: { redirect: location.href } as never });
-  },
-  component: AppLayout,
+  component: ProtectedAppLayout,
 });
+
+function ProtectedAppLayout() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useRouterState({ select: (state) => state.location });
+
+  useEffect(() => {
+    if (loading || user) return;
+    const redirectTo = `${location.pathname}${location.searchStr}${location.hash}`;
+    void navigate({
+      to: "/auth/sign-in",
+      search: { redirect: redirectTo } as never,
+      replace: true,
+    });
+  }, [loading, location.hash, location.pathname, location.searchStr, navigate, user]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f9fd] text-sm text-[#6d737b]">
+        Loading your workspace…
+      </div>
+    );
+  }
+
+  return <AppLayout />;
+}
 
 function AppLayout() {
   const path = useRouterState({ select: (state) => state.location.pathname });
