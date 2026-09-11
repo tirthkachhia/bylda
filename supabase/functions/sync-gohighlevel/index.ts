@@ -492,7 +492,11 @@ Deno.serve(async (req) => {
     let callSyncWarning: string | null = null;
     const callMessagesResponse = await fetch(
       `https://services.leadconnectorhq.com/conversations/messages/export?locationId=${encodeURIComponent(locationId)}&channel=Call&limit=100&sortBy=createdAt&sortOrder=desc`,
-      { headers },
+      {
+        // HighLevel's export endpoint remains on the legacy API version even
+        // though the per-message transcription endpoint uses v3.
+        headers: { ...headers, Version: "2021-04-15" },
+      },
     );
 
     if (callMessagesResponse.ok) {

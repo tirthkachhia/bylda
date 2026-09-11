@@ -118,7 +118,11 @@ export async function syncGoHighLevelCalls(
   const headers = apiHeaders(input.oauth);
   const messagesResponse = await fetch(
     `https://services.leadconnectorhq.com/conversations/messages/export?locationId=${encodeURIComponent(input.oauth.locationId)}&channel=Call&limit=100&sortBy=createdAt&sortOrder=desc`,
-    { headers },
+    {
+      // Message export is currently versioned separately from the v3
+      // transcription endpoint.
+      headers: { ...headers, Version: "2021-04-15" },
+    },
   );
   if (messagesResponse.status === 401 || messagesResponse.status === 403) {
     return {
