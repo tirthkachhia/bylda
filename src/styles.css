@@ -2,6 +2,7 @@
 @source "../src";
 @import "tw-animate-css";
 @import "./styles/blueprint.css";
+@import "./styles/bylda.css";
 
 @custom-variant dark (&:not(.light, .light *));
 @custom-variant light (&:is(.light, .light *));

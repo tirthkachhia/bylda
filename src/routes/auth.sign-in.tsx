@@ -6,11 +6,20 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/brand/Logo";
 import { toast } from "sonner";
+import { safeAppRedirect } from "@/lib/safe-redirect";
 
-export const Route = createFileRoute("/auth/sign-in")({ component: SignIn });
+export const Route = createFileRoute("/auth/sign-in")({
+  // `redirect` is where the /app guard sent the visitor from. Untrusted input: it is only
+  // ever used through `safeAppRedirect`.
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
+  component: SignIn,
+});
 
 function SignIn() {
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +32,7 @@ function SignIn() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/app" });
+    void navigate({ href: safeAppRedirect(redirect) });
   };
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your revenue workspace.">

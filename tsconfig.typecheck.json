@@ -1,0 +1,19 @@
+// Typecheck project for the frontend only. Run via `bun run typecheck`.
+//
+// The default tsconfig's `include` is already src-only, but several test files
+// import helpers from `supabase/functions/_shared/**`. That pulls Deno edge
+// code into a Node tsconfig, where it fails with `Cannot find name 'Deno'` and
+// `Cannot find module 'npm:@supabase/supabase-js@2.45.0'` — real for Node,
+// meaningless for Deno, and unfixable without editing backend code, which
+// BACKEND_BOUNDARY.md forbids.
+//
+// The excluded tests run fine under `bun run test` (Vitest resolves them).
+//
+// This does NOT get the count to zero. `src/components/canvas/CrmSetupGate.tsx`
+// is production code and imports `_shared/sales-verticals`, so 2 Deno-side
+// errors remain, on top of 6 pre-existing errors in src. Expect exactly 8 —
+// see CLAUDE.md §11. A 9th is yours.
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["src/lib/__tests__/**", "src/**/*.test.ts", "src/**/*.test.tsx"]
+}
