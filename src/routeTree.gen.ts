@@ -9,236 +9,96 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as AppRouteImport } from './routes/app'
-import { Route as DemoRouteImport } from './routes/demo'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as AppAcademyRouteImport } from './routes/app.academy'
-import { Route as AppActivityRouteImport } from './routes/app.activity'
-import { Route as AppAdminRouteImport } from './routes/app.admin'
-import { Route as AppAiDashboardRouteImport } from './routes/app.ai-dashboard'
-import { Route as AppAssetsRouteImport } from './routes/app.assets'
-import { Route as AppAutomationsRouteImport } from './routes/app.automations'
-import { Route as AppBillingRouteImport } from './routes/app.billing'
-import { Route as AppBuilderRouteImport } from './routes/app.builder'
-import { Route as AppByldaFullRouteImport } from './routes/app.bylda-full'
-import { Route as AppByldaHomeRouteImport } from './routes/app.bylda-home'
-import { Route as AppByldaOsRouteImport } from './routes/app.bylda-os'
-import { Route as AppCommandCenterRouteImport } from './routes/app.command-center'
-import { Route as AppContactsRouteImport } from './routes/app.contacts'
-import { Route as AppContextMemoryRouteImport } from './routes/app.context-memory'
-import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
-import { Route as AppGalaxyRouteImport } from './routes/app.galaxy'
-import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
-import { Route as AppLaunchControlRouteImport } from './routes/app.launch-control'
-import { Route as AppLaunchpadPathRouteImport } from './routes/app.launchpad-path'
-import { Route as AppLeadsRouteImport } from './routes/app.leads'
-import { Route as AppMemoryRouteImport } from './routes/app.memory'
-import { Route as AppMentorRouteImport } from './routes/app.mentor'
-import { Route as AppMissionBriefingRouteImport } from './routes/app.mission-briefing'
-import { Route as AppMissionControlRouteImport } from './routes/app.mission-control'
-import { Route as AppMonitoringRouteImport } from './routes/app.monitoring'
-import { Route as AppPlaybookRouteImport } from './routes/app.playbook'
-import { Route as AppReputationRouteImport } from './routes/app.reputation'
-import { Route as AppResearchRouteImport } from './routes/app.research'
-import { Route as AppRoadmapRouteImport } from './routes/app.roadmap'
-import { Route as AppScaleRouteImport } from './routes/app.scale'
-import { Route as AppSettingsRouteImport } from './routes/app.settings'
-import { Route as AppSopLibraryRouteImport } from './routes/app.sop-library'
-import { Route as AppTemplatesRouteImport } from './routes/app.templates'
-import { Route as AppTutorialsRouteImport } from './routes/app.tutorials'
-import { Route as AppWorkflowTemplatesRouteImport } from './routes/app.workflow-templates'
-import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
-import { Route as AuthInviteRouteImport } from './routes/auth.invite'
-import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
-import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
-import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
-import { Route as BookSlugRouteImport } from './routes/book.$slug'
-import { Route as DevComponentsRouteImport } from './routes/dev/components'
-import { Route as DevScreensRouteImport } from './routes/dev/screens'
-import { Route as DocManagerBriefEmailRouteImport } from './routes/doc/manager-brief-email'
-import { Route as DocRepBriefPushRouteImport } from './routes/doc/rep-brief-push'
-import { Route as DocWeeklyPrintRouteImport } from './routes/doc/weekly-print'
 import { Route as FFormIdRouteImport } from './routes/f.$formId'
-import { Route as MAlertsRouteImport } from './routes/m/alerts'
-import { Route as MAskRouteImport } from './routes/m/ask'
-import { Route as MBriefRouteImport } from './routes/m/brief'
-import { Route as MManagerBriefRouteImport } from './routes/m/manager-brief'
-import { Route as WelcomeAnalysisRouteImport } from './routes/welcome/analysis'
-import { Route as WelcomeConnectRouteImport } from './routes/welcome/connect'
-import { Route as WelcomeFirstInsightRouteImport } from './routes/welcome/first-insight'
-import { Route as WelcomeForgotRouteImport } from './routes/welcome/forgot'
-import { Route as WelcomeInviteRouteImport } from './routes/welcome/invite'
-import { Route as WelcomeInviteTeamRouteImport } from './routes/welcome/invite-team'
-import { Route as WelcomeSignInRouteImport } from './routes/welcome/sign-in'
-import { Route as WelcomeSignUpRouteImport } from './routes/welcome/sign-up'
-import { Route as WelcomeTeachRouteImport } from './routes/welcome/teach'
-import { Route as WelcomeVerifyRouteImport } from './routes/welcome/verify'
-import { Route as WelcomeWorkspaceRouteImport } from './routes/welcome/workspace'
-import { Route as AppAcademyModuleRouteImport } from './routes/app.academy.$module'
-import { Route as AppBillingReturnRouteImport } from './routes/app.billing.return'
-import { Route as AppByldaOsSlugRouteImport } from './routes/app.bylda-os.$slug'
-import { Route as AppByldaIndexRouteImport } from './routes/app.bylda.index'
-import { Route as AppByldaClientsRouteImport } from './routes/app.bylda.clients'
-import { Route as AppByldaCrmRouteImport } from './routes/app.bylda.crm'
-import { Route as AppByldaLeadsRouteImport } from './routes/app.bylda.leads'
-import { Route as AppByldaReportsRouteImport } from './routes/app.bylda.reports'
-import { Route as AppByldaWorkflowsRouteImport } from './routes/app.bylda.workflows'
-import { Route as AppCallsIndexRouteImport } from './routes/app/calls/index'
-import { Route as AppCallsAllRouteImport } from './routes/app/calls/all'
-import { Route as AppCallsCompareRouteImport } from './routes/app/calls/compare'
-import { Route as AppCallsMineRouteImport } from './routes/app/calls/mine'
-import { Route as AppCallsUploadRouteImport } from './routes/app/calls/upload'
-import { Route as AppCoachingIndexRouteImport } from './routes/app/coaching/index'
-import { Route as AppCoachingAssignRouteImport } from './routes/app/coaching/assign'
-import { Route as AppCoachingCompletedRouteImport } from './routes/app/coaching/completed'
-import { Route as AppCoachingFollowUpRouteImport } from './routes/app/coaching/follow-up'
-import { Route as AppCoachingMineRouteImport } from './routes/app/coaching/mine'
-import { Route as AppConnectionsIndexRouteImport } from './routes/app/connections/index'
-import { Route as AppConnectionsChannelsRouteImport } from './routes/app/connections/channels'
-import { Route as AppConnectionsHubspotRouteImport } from './routes/app/connections/hubspot'
-import { Route as AppCrmAccountsRouteImport } from './routes/app.crm.accounts'
-import { Route as AppCrmAutomationsRouteImport } from './routes/app.crm.automations'
-import { Route as AppCrmCalendarRouteImport } from './routes/app.crm.calendar'
-import { Route as AppCrmCallsRouteImport } from './routes/app.crm.calls'
-import { Route as AppCrmCampaignsRouteImport } from './routes/app.crm.campaigns'
-import { Route as AppCrmCompaniesRouteImport } from './routes/app.crm.companies'
-import { Route as AppCrmConversationsRouteImport } from './routes/app.crm.conversations'
-import { Route as AppCrmDuplicatesRouteImport } from './routes/app.crm.duplicates'
-import { Route as AppCrmFormsRouteImport } from './routes/app.crm.forms'
-import { Route as AppCrmSetupRouteImport } from './routes/app.crm.setup'
-import { Route as AppCrmTasksRouteImport } from './routes/app.crm.tasks'
-import { Route as AppCrmWaitlistRouteImport } from './routes/app.crm.waitlist'
-import { Route as AppDmThreadIdRouteImport } from './routes/app/dm/$threadId'
-import { Route as AppDmCoachRouteImport } from './routes/app/dm/coach'
-import { Route as AppHomeIndexRouteImport } from './routes/app/home/index'
-import { Route as AppHomeAdminRouteImport } from './routes/app/home/admin'
-import { Route as AppHomeCallsRouteImport } from './routes/app/home/calls'
-import { Route as AppHomeCoachingRouteImport } from './routes/app/home/coaching'
-import { Route as AppHomeMentionsRouteImport } from './routes/app/home/mentions'
-import { Route as AppHomeReportsRouteImport } from './routes/app/home/reports'
-import { Route as AppHomeTeamUpdatesRouteImport } from './routes/app/home/team-updates'
-import { Route as AppIntelligenceIndexRouteImport } from './routes/app/intelligence/index'
-import { Route as AppIntelligenceGraphRouteImport } from './routes/app/intelligence/graph'
-import { Route as AppIntelligenceMatrixRouteImport } from './routes/app/intelligence/matrix'
-import { Route as AppIntelligenceMethodologyRouteImport } from './routes/app/intelligence/methodology'
-import { Route as AppIntelligenceObjectionsRouteImport } from './routes/app/intelligence/objections'
-import { Route as AppIntelligenceOutcomesRouteImport } from './routes/app/intelligence/outcomes'
-import { Route as AppIntelligencePatternsRouteImport } from './routes/app/intelligence/patterns'
-import { Route as AppIntelligenceProspectsRouteImport } from './routes/app/intelligence/prospects'
-import { Route as AppIntelligenceRepsRouteImport } from './routes/app/intelligence/reps'
-import { Route as AppIntelligenceTeamBehaviorsRouteImport } from './routes/app/intelligence/team-behaviors'
+import { Route as BookSlugRouteImport } from './routes/book.$slug'
+import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
+import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as AuthInviteRouteImport } from './routes/auth.invite'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as AppWorkflowTemplatesRouteImport } from './routes/app.workflow-templates'
+import { Route as AppTutorialsRouteImport } from './routes/app.tutorials'
+import { Route as AppTemplatesRouteImport } from './routes/app.templates'
+import { Route as AppSopLibraryRouteImport } from './routes/app.sop-library'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppScaleRouteImport } from './routes/app.scale'
+import { Route as AppRoadmapRouteImport } from './routes/app.roadmap'
+import { Route as AppResearchRouteImport } from './routes/app.research'
+import { Route as AppReputationRouteImport } from './routes/app.reputation'
+import { Route as AppPlaybookRouteImport } from './routes/app.playbook'
+import { Route as AppMonitoringRouteImport } from './routes/app.monitoring'
+import { Route as AppMissionControlRouteImport } from './routes/app.mission-control'
+import { Route as AppMissionBriefingRouteImport } from './routes/app.mission-briefing'
+import { Route as AppMentorRouteImport } from './routes/app.mentor'
+import { Route as AppMemoryRouteImport } from './routes/app.memory'
+import { Route as AppLeadsRouteImport } from './routes/app.leads'
+import { Route as AppLaunchpadPathRouteImport } from './routes/app.launchpad-path'
+import { Route as AppLaunchControlRouteImport } from './routes/app.launch-control'
+import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
+import { Route as AppGalaxyRouteImport } from './routes/app.galaxy'
+import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
+import { Route as AppContextMemoryRouteImport } from './routes/app.context-memory'
+import { Route as AppContactsRouteImport } from './routes/app.contacts'
+import { Route as AppCommandCenterRouteImport } from './routes/app.command-center'
+import { Route as AppByldaOsRouteImport } from './routes/app.bylda-os'
+import { Route as AppByldaHomeRouteImport } from './routes/app.bylda-home'
+import { Route as AppByldaFullRouteImport } from './routes/app.bylda-full'
+import { Route as AppBuilderRouteImport } from './routes/app.builder'
+import { Route as AppBillingRouteImport } from './routes/app.billing'
+import { Route as AppAutomationsRouteImport } from './routes/app.automations'
+import { Route as AppAssetsRouteImport } from './routes/app.assets'
+import { Route as AppAiDashboardRouteImport } from './routes/app.ai-dashboard'
+import { Route as AppAdminRouteImport } from './routes/app.admin'
+import { Route as AppActivityRouteImport } from './routes/app.activity'
+import { Route as AppAcademyRouteImport } from './routes/app.academy'
 import { Route as AppLaunchpadIndexRouteImport } from './routes/app.launchpad.index'
-import { Route as AppLaunchpadToolRouteImport } from './routes/app.launchpad.$tool'
-import { Route as AppLaunchpadByldaRouteImport } from './routes/app.launchpad.bylda'
-import { Route as AppLaunchpadCourseRouteImport } from './routes/app.launchpad.course'
-import { Route as AppLaunchpadFirstCustomersRouteImport } from './routes/app.launchpad.first-customers'
-import { Route as AppLaunchpadHistoryRouteImport } from './routes/app.launchpad.history'
-import { Route as AppLaunchpadMentorsRouteImport } from './routes/app.launchpad.mentors'
-import { Route as AppLaunchpadMissionsRouteImport } from './routes/app.launchpad.missions'
-import { Route as AppMethodologyIndexRouteImport } from './routes/app/methodology/index'
-import { Route as AppMethodologyObjectionsRouteImport } from './routes/app/methodology/objections'
-import { Route as AppMethodologySuccessCriteriaRouteImport } from './routes/app/methodology/success-criteria'
-import { Route as AppNotificationsIndexRouteImport } from './routes/app/notifications/index'
-import { Route as AppOutcomesCategoryRouteImport } from './routes/app.outcomes.$category'
-import { Route as AppRepIndexRouteImport } from './routes/app/rep/index'
-import { Route as AppRepProgressRouteImport } from './routes/app/rep/progress'
-import { Route as AppReportsIndexRouteImport } from './routes/app/reports/index'
-import { Route as AppReportsDailyRouteImport } from './routes/app/reports/daily'
-import { Route as AppReportsOutlineRouteImport } from './routes/app/reports/outline'
-import { Route as AppReportsWeeklyRouteImport } from './routes/app/reports/weekly'
-import { Route as AppRoomsIndexRouteImport } from './routes/app/rooms/index'
-import { Route as AppRoomsNewRouteImport } from './routes/app/rooms/new'
-import { Route as AppScaleAutomationsRouteImport } from './routes/app.scale.automations'
-import { Route as AppScaleCampaignsRouteImport } from './routes/app.scale.campaigns'
-import { Route as AppScalePipelineRouteImport } from './routes/app.scale.pipeline'
-import { Route as AppScaleReportsRouteImport } from './routes/app.scale.reports'
+import { Route as AppByldaIndexRouteImport } from './routes/app.bylda.index'
 import { Route as AppScaleTeamRouteImport } from './routes/app.scale.team'
-import { Route as AppSearchIndexRouteImport } from './routes/app/search/index'
-import { Route as AppStatesIndexRouteImport } from './routes/app/states/index'
-import { Route as AppTeamIndexRouteImport } from './routes/app/team/index'
-import { Route as AppTeamCompareRouteImport } from './routes/app/team/compare'
-import { Route as AppWorkspaceIndexRouteImport } from './routes/app/workspace/index'
-import { Route as AppWorkspaceAnalysisRouteImport } from './routes/app/workspace/analysis'
-import { Route as AppWorkspaceApiKeysRouteImport } from './routes/app/workspace/api-keys'
-import { Route as AppWorkspaceAuditLogRouteImport } from './routes/app/workspace/audit-log'
-import { Route as AppWorkspaceBillingRouteImport } from './routes/app/workspace/billing'
-import { Route as AppWorkspaceNotificationsRouteImport } from './routes/app/workspace/notifications'
-import { Route as AppWorkspaceProfileRouteImport } from './routes/app/workspace/profile'
-import { Route as AppWorkspaceRetentionRouteImport } from './routes/app/workspace/retention'
-import { Route as AppWorkspaceRolesRouteImport } from './routes/app/workspace/roles'
-import { Route as AppWorkspaceTeamsRouteImport } from './routes/app/workspace/teams'
-import { Route as AppWorkspaceUsageRouteImport } from './routes/app/workspace/usage'
-import { Route as AppWorkspaceUsersRouteImport } from './routes/app/workspace/users'
-import { Route as MCallsCallIdRouteImport } from './routes/m/calls/$callId'
-import { Route as MCoachingFocusIdRouteImport } from './routes/m/coaching/$focusId'
-import { Route as MDmThreadIdRouteImport } from './routes/m/dm/$threadId'
-import { Route as MMomentsMomentIdRouteImport } from './routes/m/moments/$momentId'
-import { Route as MRoomsRoomIdRouteImport } from './routes/m/rooms/$roomId'
-import { Route as AppCallsCallIdIndexRouteImport } from './routes/app/calls/$callId/index'
-import { Route as AppCallsCallIdAnalysisRouteImport } from './routes/app/calls/$callId/analysis'
-import { Route as AppCallsCallIdCoachingRouteImport } from './routes/app/calls/$callId/coaching'
-import { Route as AppCallsCallIdTranscriptRouteImport } from './routes/app/calls/$callId/transcript'
-import { Route as AppCoachingFocusIdIndexRouteImport } from './routes/app/coaching/$focusId/index'
-import { Route as AppCoachingFocusIdDiscussionRouteImport } from './routes/app/coaching/$focusId/discussion'
-import { Route as AppCoachingFocusIdEvidenceRouteImport } from './routes/app/coaching/$focusId/evidence'
-import { Route as AppCoachingFocusIdOverviewRouteImport } from './routes/app/coaching/$focusId/overview'
-import { Route as AppCoachingFocusIdProgressRouteImport } from './routes/app/coaching/$focusId/progress'
-import { Route as AppCoachingFocusIdResultRouteImport } from './routes/app/coaching/$focusId/result'
-import { Route as AppIntelligenceBehaviorsBehaviorKeyRouteImport } from './routes/app/intelligence/behaviors/$behaviorKey'
+import { Route as AppScaleReportsRouteImport } from './routes/app.scale.reports'
+import { Route as AppScalePipelineRouteImport } from './routes/app.scale.pipeline'
+import { Route as AppScaleCampaignsRouteImport } from './routes/app.scale.campaigns'
+import { Route as AppScaleAutomationsRouteImport } from './routes/app.scale.automations'
+import { Route as AppOutcomesCategoryRouteImport } from './routes/app.outcomes.$category'
+import { Route as AppLaunchpadMissionsRouteImport } from './routes/app.launchpad.missions'
+import { Route as AppLaunchpadMentorsRouteImport } from './routes/app.launchpad.mentors'
+import { Route as AppLaunchpadHistoryRouteImport } from './routes/app.launchpad.history'
+import { Route as AppLaunchpadFirstCustomersRouteImport } from './routes/app.launchpad.first-customers'
+import { Route as AppLaunchpadCourseRouteImport } from './routes/app.launchpad.course'
+import { Route as AppLaunchpadByldaRouteImport } from './routes/app.launchpad.bylda'
+import { Route as AppLaunchpadToolRouteImport } from './routes/app.launchpad.$tool'
+import { Route as AppCrmWaitlistRouteImport } from './routes/app.crm.waitlist'
+import { Route as AppCrmTasksRouteImport } from './routes/app.crm.tasks'
+import { Route as AppCrmSetupRouteImport } from './routes/app.crm.setup'
+import { Route as AppCrmFormsRouteImport } from './routes/app.crm.forms'
+import { Route as AppCrmDuplicatesRouteImport } from './routes/app.crm.duplicates'
+import { Route as AppCrmConversationsRouteImport } from './routes/app.crm.conversations'
+import { Route as AppCrmCompaniesRouteImport } from './routes/app.crm.companies'
+import { Route as AppCrmCampaignsRouteImport } from './routes/app.crm.campaigns'
+import { Route as AppCrmCallsRouteImport } from './routes/app.crm.calls'
+import { Route as AppCrmCalendarRouteImport } from './routes/app.crm.calendar'
+import { Route as AppCrmAutomationsRouteImport } from './routes/app.crm.automations'
+import { Route as AppCrmAccountsRouteImport } from './routes/app.crm.accounts'
+import { Route as AppByldaWorkflowsRouteImport } from './routes/app.bylda.workflows'
+import { Route as AppByldaReportsRouteImport } from './routes/app.bylda.reports'
+import { Route as AppByldaLeadsRouteImport } from './routes/app.bylda.leads'
+import { Route as AppByldaCrmRouteImport } from './routes/app.bylda.crm'
+import { Route as AppByldaClientsRouteImport } from './routes/app.bylda.clients'
+import { Route as AppByldaOsSlugRouteImport } from './routes/app.bylda-os.$slug'
+import { Route as AppBillingReturnRouteImport } from './routes/app.billing.return'
+import { Route as AppAcademyModuleRouteImport } from './routes/app.academy.$module'
 import { Route as AppLaunchpadOutputsIdRouteImport } from './routes/app.launchpad.outputs.$id'
-import { Route as AppMethodologyMethodologyIdIndexRouteImport } from './routes/app/methodology/$methodologyId/index'
-import { Route as AppRepCallsCallIdRouteImport } from './routes/app/rep/calls/$callId'
-import { Route as AppReportsBehaviorBehaviorKeyRouteImport } from './routes/app/reports/behavior/$behaviorKey'
-import { Route as AppReportsRepRepIdRouteImport } from './routes/app/reports/rep/$repId'
-import { Route as AppReportsTeamTeamIdRouteImport } from './routes/app/reports/team/$teamId'
-import { Route as AppRoomsRoomIdIndexRouteImport } from './routes/app/rooms/$roomId/index'
-import { Route as AppRoomsRoomIdAboutRouteImport } from './routes/app/rooms/$roomId/about'
-import { Route as AppRoomsRoomIdCallsRouteImport } from './routes/app/rooms/$roomId/calls'
-import { Route as AppRoomsRoomIdFilesRouteImport } from './routes/app/rooms/$roomId/files'
-import { Route as AppRoomsRoomIdInsightsRouteImport } from './routes/app/rooms/$roomId/insights'
-import { Route as AppRoomsRoomIdReportsRouteImport } from './routes/app/rooms/$roomId/reports'
-import { Route as AppTeamTeamIdIndexRouteImport } from './routes/app/team/$teamId/index'
-import { Route as AppTeamTeamIdBehaviorsRouteImport } from './routes/app/team/$teamId/behaviors'
-import { Route as AppTeamTeamIdCallsRouteImport } from './routes/app/team/$teamId/calls'
-import { Route as AppTeamTeamIdCoachingRouteImport } from './routes/app/team/$teamId/coaching'
-import { Route as AppTeamTeamIdRepsRouteImport } from './routes/app/team/$teamId/reps'
-import { Route as AppTeamTeamIdSettingsRouteImport } from './routes/app/team/$teamId/settings'
-import { Route as AppMethodologyMethodologyIdRulesIndexRouteImport } from './routes/app/methodology/$methodologyId/rules/index'
-import { Route as AppMethodologyMethodologyIdRulesRuleKeyRouteImport } from './routes/app/methodology/$methodologyId/rules/$ruleKey'
-import { Route as AppTeamRepsRepIdIndexRouteImport } from './routes/app/team/reps/$repId/index'
-import { Route as AppTeamRepsRepIdCallsRouteImport } from './routes/app/team/reps/$repId/calls'
-import { Route as AppTeamRepsRepIdCoachingRouteImport } from './routes/app/team/reps/$repId/coaching'
-import { Route as AppTeamRepsRepIdOverviewRouteImport } from './routes/app/team/reps/$repId/overview'
-import { Route as AppTeamRepsRepIdTrendsRouteImport } from './routes/app/team/reps/$repId/trends'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/app',
-  path: '/app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoRoute = DemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -246,9 +106,29 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -256,204 +136,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAcademyRoute = AppAcademyRouteImport.update({
-  id: '/academy',
-  path: '/academy',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppActivityRoute = AppActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminRoute = AppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAiDashboardRoute = AppAiDashboardRouteImport.update({
-  id: '/ai-dashboard',
-  path: '/ai-dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAssetsRoute = AppAssetsRouteImport.update({
-  id: '/assets',
-  path: '/assets',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAutomationsRoute = AppAutomationsRouteImport.update({
-  id: '/automations',
-  path: '/automations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBillingRoute = AppBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBuilderRoute = AppBuilderRouteImport.update({
-  id: '/builder',
-  path: '/builder',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaFullRoute = AppByldaFullRouteImport.update({
-  id: '/bylda-full',
-  path: '/bylda-full',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaHomeRoute = AppByldaHomeRouteImport.update({
-  id: '/bylda-home',
-  path: '/bylda-home',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaOsRoute = AppByldaOsRouteImport.update({
-  id: '/bylda-os',
-  path: '/bylda-os',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCommandCenterRoute = AppCommandCenterRouteImport.update({
-  id: '/command-center',
-  path: '/command-center',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppContactsRoute = AppContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppContextMemoryRoute = AppContextMemoryRouteImport.update({
-  id: '/context-memory',
-  path: '/context-memory',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGalaxyRoute = AppGalaxyRouteImport.update({
-  id: '/galaxy',
-  path: '/galaxy',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
-  id: '/integrations',
-  path: '/integrations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchControlRoute = AppLaunchControlRouteImport.update({
-  id: '/launch-control',
-  path: '/launch-control',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchpadPathRoute = AppLaunchpadPathRouteImport.update({
-  id: '/launchpad-path',
-  path: '/launchpad-path',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLeadsRoute = AppLeadsRouteImport.update({
-  id: '/leads',
-  path: '/leads',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMemoryRoute = AppMemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMentorRoute = AppMentorRouteImport.update({
-  id: '/mentor',
-  path: '/mentor',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMissionBriefingRoute = AppMissionBriefingRouteImport.update({
-  id: '/mission-briefing',
-  path: '/mission-briefing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMissionControlRoute = AppMissionControlRouteImport.update({
-  id: '/mission-control',
-  path: '/mission-control',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMonitoringRoute = AppMonitoringRouteImport.update({
-  id: '/monitoring',
-  path: '/monitoring',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPlaybookRoute = AppPlaybookRouteImport.update({
-  id: '/playbook',
-  path: '/playbook',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReputationRoute = AppReputationRouteImport.update({
-  id: '/reputation',
-  path: '/reputation',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppResearchRoute = AppResearchRouteImport.update({
-  id: '/research',
-  path: '/research',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoadmapRoute = AppRoadmapRouteImport.update({
-  id: '/roadmap',
-  path: '/roadmap',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppScaleRoute = AppScaleRouteImport.update({
-  id: '/scale',
-  path: '/scale',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSopLibraryRoute = AppSopLibraryRouteImport.update({
-  id: '/sop-library',
-  path: '/sop-library',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTemplatesRoute = AppTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTutorialsRoute = AppTutorialsRouteImport.update({
-  id: '/tutorials',
-  path: '/tutorials',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppWorkflowTemplatesRoute = AppWorkflowTemplatesRouteImport.update({
-  id: '/workflow-templates',
-  path: '/workflow-templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/auth/forgot-password',
-  path: '/auth/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthInviteRoute = AuthInviteRouteImport.update({
-  id: '/auth/invite',
-  path: '/auth/invite',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/auth/reset-password',
-  path: '/auth/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthSignInRoute = AuthSignInRouteImport.update({
-  id: '/auth/sign-in',
-  path: '/auth/sign-in',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthSignUpRoute = AuthSignUpRouteImport.update({
-  id: '/auth/sign-up',
-  path: '/auth/sign-up',
+const FFormIdRoute = FFormIdRouteImport.update({
+  id: '/f/$formId',
+  path: '/f/$formId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookSlugRoute = BookSlugRouteImport.update({
@@ -461,398 +146,259 @@ const BookSlugRoute = BookSlugRouteImport.update({
   path: '/book/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DevComponentsRoute = DevComponentsRouteImport.update({
-  id: '/dev/components',
-  path: '/dev/components',
+const AuthSignUpRoute = AuthSignUpRouteImport.update({
+  id: '/auth/sign-up',
+  path: '/auth/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DevScreensRoute = DevScreensRouteImport.update({
-  id: '/dev/screens',
-  path: '/dev/screens',
+const AuthSignInRoute = AuthSignInRouteImport.update({
+  id: '/auth/sign-in',
+  path: '/auth/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocManagerBriefEmailRoute = DocManagerBriefEmailRouteImport.update({
-  id: '/doc/manager-brief-email',
-  path: '/doc/manager-brief-email',
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocRepBriefPushRoute = DocRepBriefPushRouteImport.update({
-  id: '/doc/rep-brief-push',
-  path: '/doc/rep-brief-push',
+const AuthInviteRoute = AuthInviteRouteImport.update({
+  id: '/auth/invite',
+  path: '/auth/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocWeeklyPrintRoute = DocWeeklyPrintRouteImport.update({
-  id: '/doc/weekly-print',
-  path: '/doc/weekly-print',
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FFormIdRoute = FFormIdRouteImport.update({
-  id: '/f/$formId',
-  path: '/f/$formId',
-  getParentRoute: () => rootRouteImport,
+const AppWorkflowTemplatesRoute = AppWorkflowTemplatesRouteImport.update({
+  id: '/workflow-templates',
+  path: '/workflow-templates',
+  getParentRoute: () => AppRoute,
 } as any)
-const MAlertsRoute = MAlertsRouteImport.update({
-  id: '/m/alerts',
-  path: '/m/alerts',
-  getParentRoute: () => rootRouteImport,
+const AppTutorialsRoute = AppTutorialsRouteImport.update({
+  id: '/tutorials',
+  path: '/tutorials',
+  getParentRoute: () => AppRoute,
 } as any)
-const MAskRoute = MAskRouteImport.update({
-  id: '/m/ask',
-  path: '/m/ask',
-  getParentRoute: () => rootRouteImport,
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppRoute,
 } as any)
-const MBriefRoute = MBriefRouteImport.update({
-  id: '/m/brief',
-  path: '/m/brief',
-  getParentRoute: () => rootRouteImport,
+const AppSopLibraryRoute = AppSopLibraryRouteImport.update({
+  id: '/sop-library',
+  path: '/sop-library',
+  getParentRoute: () => AppRoute,
 } as any)
-const MManagerBriefRoute = MManagerBriefRouteImport.update({
-  id: '/m/manager-brief',
-  path: '/m/manager-brief',
-  getParentRoute: () => rootRouteImport,
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeAnalysisRoute = WelcomeAnalysisRouteImport.update({
-  id: '/welcome/analysis',
-  path: '/welcome/analysis',
-  getParentRoute: () => rootRouteImport,
+const AppScaleRoute = AppScaleRouteImport.update({
+  id: '/scale',
+  path: '/scale',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeConnectRoute = WelcomeConnectRouteImport.update({
-  id: '/welcome/connect',
-  path: '/welcome/connect',
-  getParentRoute: () => rootRouteImport,
+const AppRoadmapRoute = AppRoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeFirstInsightRoute = WelcomeFirstInsightRouteImport.update({
-  id: '/welcome/first-insight',
-  path: '/welcome/first-insight',
-  getParentRoute: () => rootRouteImport,
+const AppResearchRoute = AppResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeForgotRoute = WelcomeForgotRouteImport.update({
-  id: '/welcome/forgot',
-  path: '/welcome/forgot',
-  getParentRoute: () => rootRouteImport,
+const AppReputationRoute = AppReputationRouteImport.update({
+  id: '/reputation',
+  path: '/reputation',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeInviteRoute = WelcomeInviteRouteImport.update({
-  id: '/welcome/invite',
-  path: '/welcome/invite',
-  getParentRoute: () => rootRouteImport,
+const AppPlaybookRoute = AppPlaybookRouteImport.update({
+  id: '/playbook',
+  path: '/playbook',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeInviteTeamRoute = WelcomeInviteTeamRouteImport.update({
-  id: '/welcome/invite-team',
-  path: '/welcome/invite-team',
-  getParentRoute: () => rootRouteImport,
+const AppMonitoringRoute = AppMonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeSignInRoute = WelcomeSignInRouteImport.update({
-  id: '/welcome/sign-in',
-  path: '/welcome/sign-in',
-  getParentRoute: () => rootRouteImport,
+const AppMissionControlRoute = AppMissionControlRouteImport.update({
+  id: '/mission-control',
+  path: '/mission-control',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeSignUpRoute = WelcomeSignUpRouteImport.update({
-  id: '/welcome/sign-up',
-  path: '/welcome/sign-up',
-  getParentRoute: () => rootRouteImport,
+const AppMissionBriefingRoute = AppMissionBriefingRouteImport.update({
+  id: '/mission-briefing',
+  path: '/mission-briefing',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeTeachRoute = WelcomeTeachRouteImport.update({
-  id: '/welcome/teach',
-  path: '/welcome/teach',
-  getParentRoute: () => rootRouteImport,
+const AppMentorRoute = AppMentorRouteImport.update({
+  id: '/mentor',
+  path: '/mentor',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeVerifyRoute = WelcomeVerifyRouteImport.update({
-  id: '/welcome/verify',
-  path: '/welcome/verify',
-  getParentRoute: () => rootRouteImport,
+const AppMemoryRoute = AppMemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => AppRoute,
 } as any)
-const WelcomeWorkspaceRoute = WelcomeWorkspaceRouteImport.update({
-  id: '/welcome/workspace',
-  path: '/welcome/workspace',
-  getParentRoute: () => rootRouteImport,
+const AppLeadsRoute = AppLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppAcademyModuleRoute = AppAcademyModuleRouteImport.update({
-  id: '/$module',
-  path: '/$module',
-  getParentRoute: () => AppAcademyRoute,
+const AppLaunchpadPathRoute = AppLaunchpadPathRouteImport.update({
+  id: '/launchpad-path',
+  path: '/launchpad-path',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppBillingReturnRoute = AppBillingReturnRouteImport.update({
-  id: '/return',
-  path: '/return',
-  getParentRoute: () => AppBillingRoute,
+const AppLaunchControlRoute = AppLaunchControlRouteImport.update({
+  id: '/launch-control',
+  path: '/launch-control',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppByldaOsSlugRoute = AppByldaOsSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => AppByldaOsRoute,
+const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGalaxyRoute = AppGalaxyRouteImport.update({
+  id: '/galaxy',
+  path: '/galaxy',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContextMemoryRoute = AppContextMemoryRouteImport.update({
+  id: '/context-memory',
+  path: '/context-memory',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContactsRoute = AppContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCommandCenterRoute = AppCommandCenterRouteImport.update({
+  id: '/command-center',
+  path: '/command-center',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaOsRoute = AppByldaOsRouteImport.update({
+  id: '/bylda-os',
+  path: '/bylda-os',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaHomeRoute = AppByldaHomeRouteImport.update({
+  id: '/bylda-home',
+  path: '/bylda-home',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaFullRoute = AppByldaFullRouteImport.update({
+  id: '/bylda-full',
+  path: '/bylda-full',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBuilderRoute = AppBuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBillingRoute = AppBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAutomationsRoute = AppAutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssetsRoute = AppAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAiDashboardRoute = AppAiDashboardRouteImport.update({
+  id: '/ai-dashboard',
+  path: '/ai-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAcademyRoute = AppAcademyRouteImport.update({
+  id: '/academy',
+  path: '/academy',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLaunchpadIndexRoute = AppLaunchpadIndexRouteImport.update({
+  id: '/launchpad/',
+  path: '/launchpad/',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppByldaIndexRoute = AppByldaIndexRouteImport.update({
   id: '/bylda/',
   path: '/bylda/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppByldaClientsRoute = AppByldaClientsRouteImport.update({
-  id: '/bylda/clients',
-  path: '/bylda/clients',
+const AppScaleTeamRoute = AppScaleTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppScaleRoute,
+} as any)
+const AppScaleReportsRoute = AppScaleReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppScaleRoute,
+} as any)
+const AppScalePipelineRoute = AppScalePipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => AppScaleRoute,
+} as any)
+const AppScaleCampaignsRoute = AppScaleCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AppScaleRoute,
+} as any)
+const AppScaleAutomationsRoute = AppScaleAutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
+  getParentRoute: () => AppScaleRoute,
+} as any)
+const AppOutcomesCategoryRoute = AppOutcomesCategoryRouteImport.update({
+  id: '/outcomes/$category',
+  path: '/outcomes/$category',
   getParentRoute: () => AppRoute,
 } as any)
-const AppByldaCrmRoute = AppByldaCrmRouteImport.update({
-  id: '/bylda/crm',
-  path: '/bylda/crm',
+const AppLaunchpadMissionsRoute = AppLaunchpadMissionsRouteImport.update({
+  id: '/launchpad/missions',
+  path: '/launchpad/missions',
   getParentRoute: () => AppRoute,
 } as any)
-const AppByldaLeadsRoute = AppByldaLeadsRouteImport.update({
-  id: '/bylda/leads',
-  path: '/bylda/leads',
+const AppLaunchpadMentorsRoute = AppLaunchpadMentorsRouteImport.update({
+  id: '/launchpad/mentors',
+  path: '/launchpad/mentors',
   getParentRoute: () => AppRoute,
 } as any)
-const AppByldaReportsRoute = AppByldaReportsRouteImport.update({
-  id: '/bylda/reports',
-  path: '/bylda/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaWorkflowsRoute = AppByldaWorkflowsRouteImport.update({
-  id: '/bylda/workflows',
-  path: '/bylda/workflows',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsIndexRoute = AppCallsIndexRouteImport.update({
-  id: '/calls/',
-  path: '/calls/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsAllRoute = AppCallsAllRouteImport.update({
-  id: '/calls/all',
-  path: '/calls/all',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsCompareRoute = AppCallsCompareRouteImport.update({
-  id: '/calls/compare',
-  path: '/calls/compare',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsMineRoute = AppCallsMineRouteImport.update({
-  id: '/calls/mine',
-  path: '/calls/mine',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsUploadRoute = AppCallsUploadRouteImport.update({
-  id: '/calls/upload',
-  path: '/calls/upload',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCoachingIndexRoute = AppCoachingIndexRouteImport.update({
-  id: '/coaching/',
-  path: '/coaching/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCoachingAssignRoute = AppCoachingAssignRouteImport.update({
-  id: '/coaching/assign',
-  path: '/coaching/assign',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCoachingCompletedRoute = AppCoachingCompletedRouteImport.update({
-  id: '/coaching/completed',
-  path: '/coaching/completed',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCoachingFollowUpRoute = AppCoachingFollowUpRouteImport.update({
-  id: '/coaching/follow-up',
-  path: '/coaching/follow-up',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCoachingMineRoute = AppCoachingMineRouteImport.update({
-  id: '/coaching/mine',
-  path: '/coaching/mine',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConnectionsIndexRoute = AppConnectionsIndexRouteImport.update({
-  id: '/connections/',
-  path: '/connections/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConnectionsChannelsRoute = AppConnectionsChannelsRouteImport.update({
-  id: '/connections/channels',
-  path: '/connections/channels',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConnectionsHubspotRoute = AppConnectionsHubspotRouteImport.update({
-  id: '/connections/hubspot',
-  path: '/connections/hubspot',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmAccountsRoute = AppCrmAccountsRouteImport.update({
-  id: '/crm/accounts',
-  path: '/crm/accounts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmAutomationsRoute = AppCrmAutomationsRouteImport.update({
-  id: '/crm/automations',
-  path: '/crm/automations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCalendarRoute = AppCrmCalendarRouteImport.update({
-  id: '/crm/calendar',
-  path: '/crm/calendar',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCallsRoute = AppCrmCallsRouteImport.update({
-  id: '/crm/calls',
-  path: '/crm/calls',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCampaignsRoute = AppCrmCampaignsRouteImport.update({
-  id: '/crm/campaigns',
-  path: '/crm/campaigns',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCompaniesRoute = AppCrmCompaniesRouteImport.update({
-  id: '/crm/companies',
-  path: '/crm/companies',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmConversationsRoute = AppCrmConversationsRouteImport.update({
-  id: '/crm/conversations',
-  path: '/crm/conversations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmDuplicatesRoute = AppCrmDuplicatesRouteImport.update({
-  id: '/crm/duplicates',
-  path: '/crm/duplicates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmFormsRoute = AppCrmFormsRouteImport.update({
-  id: '/crm/forms',
-  path: '/crm/forms',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmSetupRoute = AppCrmSetupRouteImport.update({
-  id: '/crm/setup',
-  path: '/crm/setup',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmTasksRoute = AppCrmTasksRouteImport.update({
-  id: '/crm/tasks',
-  path: '/crm/tasks',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmWaitlistRoute = AppCrmWaitlistRouteImport.update({
-  id: '/crm/waitlist',
-  path: '/crm/waitlist',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDmThreadIdRoute = AppDmThreadIdRouteImport.update({
-  id: '/dm/$threadId',
-  path: '/dm/$threadId',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDmCoachRoute = AppDmCoachRouteImport.update({
-  id: '/dm/coach',
-  path: '/dm/coach',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeIndexRoute = AppHomeIndexRouteImport.update({
-  id: '/home/',
-  path: '/home/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeAdminRoute = AppHomeAdminRouteImport.update({
-  id: '/home/admin',
-  path: '/home/admin',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeCallsRoute = AppHomeCallsRouteImport.update({
-  id: '/home/calls',
-  path: '/home/calls',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeCoachingRoute = AppHomeCoachingRouteImport.update({
-  id: '/home/coaching',
-  path: '/home/coaching',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeMentionsRoute = AppHomeMentionsRouteImport.update({
-  id: '/home/mentions',
-  path: '/home/mentions',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeReportsRoute = AppHomeReportsRouteImport.update({
-  id: '/home/reports',
-  path: '/home/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeTeamUpdatesRoute = AppHomeTeamUpdatesRouteImport.update({
-  id: '/home/team-updates',
-  path: '/home/team-updates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntelligenceIndexRoute = AppIntelligenceIndexRouteImport.update({
-  id: '/intelligence/',
-  path: '/intelligence/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntelligenceGraphRoute = AppIntelligenceGraphRouteImport.update({
-  id: '/intelligence/graph',
-  path: '/intelligence/graph',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntelligenceMatrixRoute = AppIntelligenceMatrixRouteImport.update({
-  id: '/intelligence/matrix',
-  path: '/intelligence/matrix',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntelligenceMethodologyRoute =
-  AppIntelligenceMethodologyRouteImport.update({
-    id: '/intelligence/methodology',
-    path: '/intelligence/methodology',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppIntelligenceObjectionsRoute =
-  AppIntelligenceObjectionsRouteImport.update({
-    id: '/intelligence/objections',
-    path: '/intelligence/objections',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppIntelligenceOutcomesRoute = AppIntelligenceOutcomesRouteImport.update({
-  id: '/intelligence/outcomes',
-  path: '/intelligence/outcomes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntelligencePatternsRoute = AppIntelligencePatternsRouteImport.update({
-  id: '/intelligence/patterns',
-  path: '/intelligence/patterns',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntelligenceProspectsRoute =
-  AppIntelligenceProspectsRouteImport.update({
-    id: '/intelligence/prospects',
-    path: '/intelligence/prospects',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppIntelligenceRepsRoute = AppIntelligenceRepsRouteImport.update({
-  id: '/intelligence/reps',
-  path: '/intelligence/reps',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntelligenceTeamBehaviorsRoute =
-  AppIntelligenceTeamBehaviorsRouteImport.update({
-    id: '/intelligence/team-behaviors',
-    path: '/intelligence/team-behaviors',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppLaunchpadIndexRoute = AppLaunchpadIndexRouteImport.update({
-  id: '/launchpad/',
-  path: '/launchpad/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchpadToolRoute = AppLaunchpadToolRouteImport.update({
-  id: '/launchpad/$tool',
-  path: '/launchpad/$tool',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchpadByldaRoute = AppLaunchpadByldaRouteImport.update({
-  id: '/launchpad/bylda',
-  path: '/launchpad/bylda',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchpadCourseRoute = AppLaunchpadCourseRouteImport.update({
-  id: '/launchpad/course',
-  path: '/launchpad/course',
+const AppLaunchpadHistoryRoute = AppLaunchpadHistoryRouteImport.update({
+  id: '/launchpad/history',
+  path: '/launchpad/history',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLaunchpadFirstCustomersRoute =
@@ -861,410 +407,124 @@ const AppLaunchpadFirstCustomersRoute =
     path: '/launchpad/first-customers',
     getParentRoute: () => AppRoute,
   } as any)
-const AppLaunchpadHistoryRoute = AppLaunchpadHistoryRouteImport.update({
-  id: '/launchpad/history',
-  path: '/launchpad/history',
+const AppLaunchpadCourseRoute = AppLaunchpadCourseRouteImport.update({
+  id: '/launchpad/course',
+  path: '/launchpad/course',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLaunchpadMentorsRoute = AppLaunchpadMentorsRouteImport.update({
-  id: '/launchpad/mentors',
-  path: '/launchpad/mentors',
+const AppLaunchpadByldaRoute = AppLaunchpadByldaRouteImport.update({
+  id: '/launchpad/bylda',
+  path: '/launchpad/bylda',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLaunchpadMissionsRoute = AppLaunchpadMissionsRouteImport.update({
-  id: '/launchpad/missions',
-  path: '/launchpad/missions',
+const AppLaunchpadToolRoute = AppLaunchpadToolRouteImport.update({
+  id: '/launchpad/$tool',
+  path: '/launchpad/$tool',
   getParentRoute: () => AppRoute,
 } as any)
-const AppMethodologyIndexRoute = AppMethodologyIndexRouteImport.update({
-  id: '/methodology/',
-  path: '/methodology/',
+const AppCrmWaitlistRoute = AppCrmWaitlistRouteImport.update({
+  id: '/crm/waitlist',
+  path: '/crm/waitlist',
   getParentRoute: () => AppRoute,
 } as any)
-const AppMethodologyObjectionsRoute =
-  AppMethodologyObjectionsRouteImport.update({
-    id: '/methodology/objections',
-    path: '/methodology/objections',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppMethodologySuccessCriteriaRoute =
-  AppMethodologySuccessCriteriaRouteImport.update({
-    id: '/methodology/success-criteria',
-    path: '/methodology/success-criteria',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppNotificationsIndexRoute = AppNotificationsIndexRouteImport.update({
-  id: '/notifications/',
-  path: '/notifications/',
+const AppCrmTasksRoute = AppCrmTasksRouteImport.update({
+  id: '/crm/tasks',
+  path: '/crm/tasks',
   getParentRoute: () => AppRoute,
 } as any)
-const AppOutcomesCategoryRoute = AppOutcomesCategoryRouteImport.update({
-  id: '/outcomes/$category',
-  path: '/outcomes/$category',
+const AppCrmSetupRoute = AppCrmSetupRouteImport.update({
+  id: '/crm/setup',
+  path: '/crm/setup',
   getParentRoute: () => AppRoute,
 } as any)
-const AppRepIndexRoute = AppRepIndexRouteImport.update({
-  id: '/rep/',
-  path: '/rep/',
+const AppCrmFormsRoute = AppCrmFormsRouteImport.update({
+  id: '/crm/forms',
+  path: '/crm/forms',
   getParentRoute: () => AppRoute,
 } as any)
-const AppRepProgressRoute = AppRepProgressRouteImport.update({
-  id: '/rep/progress',
-  path: '/rep/progress',
+const AppCrmDuplicatesRoute = AppCrmDuplicatesRouteImport.update({
+  id: '/crm/duplicates',
+  path: '/crm/duplicates',
   getParentRoute: () => AppRoute,
 } as any)
-const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
-  id: '/reports/',
-  path: '/reports/',
+const AppCrmConversationsRoute = AppCrmConversationsRouteImport.update({
+  id: '/crm/conversations',
+  path: '/crm/conversations',
   getParentRoute: () => AppRoute,
 } as any)
-const AppReportsDailyRoute = AppReportsDailyRouteImport.update({
-  id: '/reports/daily',
-  path: '/reports/daily',
+const AppCrmCompaniesRoute = AppCrmCompaniesRouteImport.update({
+  id: '/crm/companies',
+  path: '/crm/companies',
   getParentRoute: () => AppRoute,
 } as any)
-const AppReportsOutlineRoute = AppReportsOutlineRouteImport.update({
-  id: '/reports/outline',
-  path: '/reports/outline',
+const AppCrmCampaignsRoute = AppCrmCampaignsRouteImport.update({
+  id: '/crm/campaigns',
+  path: '/crm/campaigns',
   getParentRoute: () => AppRoute,
 } as any)
-const AppReportsWeeklyRoute = AppReportsWeeklyRouteImport.update({
-  id: '/reports/weekly',
-  path: '/reports/weekly',
+const AppCrmCallsRoute = AppCrmCallsRouteImport.update({
+  id: '/crm/calls',
+  path: '/crm/calls',
   getParentRoute: () => AppRoute,
 } as any)
-const AppRoomsIndexRoute = AppRoomsIndexRouteImport.update({
-  id: '/rooms/',
-  path: '/rooms/',
+const AppCrmCalendarRoute = AppCrmCalendarRouteImport.update({
+  id: '/crm/calendar',
+  path: '/crm/calendar',
   getParentRoute: () => AppRoute,
 } as any)
-const AppRoomsNewRoute = AppRoomsNewRouteImport.update({
-  id: '/rooms/new',
-  path: '/rooms/new',
+const AppCrmAutomationsRoute = AppCrmAutomationsRouteImport.update({
+  id: '/crm/automations',
+  path: '/crm/automations',
   getParentRoute: () => AppRoute,
 } as any)
-const AppScaleAutomationsRoute = AppScaleAutomationsRouteImport.update({
-  id: '/automations',
-  path: '/automations',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScaleCampaignsRoute = AppScaleCampaignsRouteImport.update({
-  id: '/campaigns',
-  path: '/campaigns',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScalePipelineRoute = AppScalePipelineRouteImport.update({
-  id: '/pipeline',
-  path: '/pipeline',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScaleReportsRoute = AppScaleReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScaleTeamRoute = AppScaleTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppSearchIndexRoute = AppSearchIndexRouteImport.update({
-  id: '/search/',
-  path: '/search/',
+const AppCrmAccountsRoute = AppCrmAccountsRouteImport.update({
+  id: '/crm/accounts',
+  path: '/crm/accounts',
   getParentRoute: () => AppRoute,
 } as any)
-const AppStatesIndexRoute = AppStatesIndexRouteImport.update({
-  id: '/states/',
-  path: '/states/',
+const AppByldaWorkflowsRoute = AppByldaWorkflowsRouteImport.update({
+  id: '/bylda/workflows',
+  path: '/bylda/workflows',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTeamIndexRoute = AppTeamIndexRouteImport.update({
-  id: '/team/',
-  path: '/team/',
+const AppByldaReportsRoute = AppByldaReportsRouteImport.update({
+  id: '/bylda/reports',
+  path: '/bylda/reports',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTeamCompareRoute = AppTeamCompareRouteImport.update({
-  id: '/team/compare',
-  path: '/team/compare',
+const AppByldaLeadsRoute = AppByldaLeadsRouteImport.update({
+  id: '/bylda/leads',
+  path: '/bylda/leads',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWorkspaceIndexRoute = AppWorkspaceIndexRouteImport.update({
-  id: '/workspace/',
-  path: '/workspace/',
+const AppByldaCrmRoute = AppByldaCrmRouteImport.update({
+  id: '/bylda/crm',
+  path: '/bylda/crm',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWorkspaceAnalysisRoute = AppWorkspaceAnalysisRouteImport.update({
-  id: '/workspace/analysis',
-  path: '/workspace/analysis',
+const AppByldaClientsRoute = AppByldaClientsRouteImport.update({
+  id: '/bylda/clients',
+  path: '/bylda/clients',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWorkspaceApiKeysRoute = AppWorkspaceApiKeysRouteImport.update({
-  id: '/workspace/api-keys',
-  path: '/workspace/api-keys',
-  getParentRoute: () => AppRoute,
+const AppByldaOsSlugRoute = AppByldaOsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => AppByldaOsRoute,
 } as any)
-const AppWorkspaceAuditLogRoute = AppWorkspaceAuditLogRouteImport.update({
-  id: '/workspace/audit-log',
-  path: '/workspace/audit-log',
-  getParentRoute: () => AppRoute,
+const AppBillingReturnRoute = AppBillingReturnRouteImport.update({
+  id: '/return',
+  path: '/return',
+  getParentRoute: () => AppBillingRoute,
 } as any)
-const AppWorkspaceBillingRoute = AppWorkspaceBillingRouteImport.update({
-  id: '/workspace/billing',
-  path: '/workspace/billing',
-  getParentRoute: () => AppRoute,
+const AppAcademyModuleRoute = AppAcademyModuleRouteImport.update({
+  id: '/$module',
+  path: '/$module',
+  getParentRoute: () => AppAcademyRoute,
 } as any)
-const AppWorkspaceNotificationsRoute =
-  AppWorkspaceNotificationsRouteImport.update({
-    id: '/workspace/notifications',
-    path: '/workspace/notifications',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppWorkspaceProfileRoute = AppWorkspaceProfileRouteImport.update({
-  id: '/workspace/profile',
-  path: '/workspace/profile',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppWorkspaceRetentionRoute = AppWorkspaceRetentionRouteImport.update({
-  id: '/workspace/retention',
-  path: '/workspace/retention',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppWorkspaceRolesRoute = AppWorkspaceRolesRouteImport.update({
-  id: '/workspace/roles',
-  path: '/workspace/roles',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppWorkspaceTeamsRoute = AppWorkspaceTeamsRouteImport.update({
-  id: '/workspace/teams',
-  path: '/workspace/teams',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppWorkspaceUsageRoute = AppWorkspaceUsageRouteImport.update({
-  id: '/workspace/usage',
-  path: '/workspace/usage',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppWorkspaceUsersRoute = AppWorkspaceUsersRouteImport.update({
-  id: '/workspace/users',
-  path: '/workspace/users',
-  getParentRoute: () => AppRoute,
-} as any)
-const MCallsCallIdRoute = MCallsCallIdRouteImport.update({
-  id: '/m/calls/$callId',
-  path: '/m/calls/$callId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MCoachingFocusIdRoute = MCoachingFocusIdRouteImport.update({
-  id: '/m/coaching/$focusId',
-  path: '/m/coaching/$focusId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MDmThreadIdRoute = MDmThreadIdRouteImport.update({
-  id: '/m/dm/$threadId',
-  path: '/m/dm/$threadId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MMomentsMomentIdRoute = MMomentsMomentIdRouteImport.update({
-  id: '/m/moments/$momentId',
-  path: '/m/moments/$momentId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MRoomsRoomIdRoute = MRoomsRoomIdRouteImport.update({
-  id: '/m/rooms/$roomId',
-  path: '/m/rooms/$roomId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppCallsCallIdIndexRoute = AppCallsCallIdIndexRouteImport.update({
-  id: '/calls/$callId/',
-  path: '/calls/$callId/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsCallIdAnalysisRoute = AppCallsCallIdAnalysisRouteImport.update({
-  id: '/calls/$callId/analysis',
-  path: '/calls/$callId/analysis',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsCallIdCoachingRoute = AppCallsCallIdCoachingRouteImport.update({
-  id: '/calls/$callId/coaching',
-  path: '/calls/$callId/coaching',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCallsCallIdTranscriptRoute =
-  AppCallsCallIdTranscriptRouteImport.update({
-    id: '/calls/$callId/transcript',
-    path: '/calls/$callId/transcript',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppCoachingFocusIdIndexRoute = AppCoachingFocusIdIndexRouteImport.update({
-  id: '/coaching/$focusId/',
-  path: '/coaching/$focusId/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCoachingFocusIdDiscussionRoute =
-  AppCoachingFocusIdDiscussionRouteImport.update({
-    id: '/coaching/$focusId/discussion',
-    path: '/coaching/$focusId/discussion',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppCoachingFocusIdEvidenceRoute =
-  AppCoachingFocusIdEvidenceRouteImport.update({
-    id: '/coaching/$focusId/evidence',
-    path: '/coaching/$focusId/evidence',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppCoachingFocusIdOverviewRoute =
-  AppCoachingFocusIdOverviewRouteImport.update({
-    id: '/coaching/$focusId/overview',
-    path: '/coaching/$focusId/overview',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppCoachingFocusIdProgressRoute =
-  AppCoachingFocusIdProgressRouteImport.update({
-    id: '/coaching/$focusId/progress',
-    path: '/coaching/$focusId/progress',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppCoachingFocusIdResultRoute =
-  AppCoachingFocusIdResultRouteImport.update({
-    id: '/coaching/$focusId/result',
-    path: '/coaching/$focusId/result',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppIntelligenceBehaviorsBehaviorKeyRoute =
-  AppIntelligenceBehaviorsBehaviorKeyRouteImport.update({
-    id: '/intelligence/behaviors/$behaviorKey',
-    path: '/intelligence/behaviors/$behaviorKey',
-    getParentRoute: () => AppRoute,
-  } as any)
 const AppLaunchpadOutputsIdRoute = AppLaunchpadOutputsIdRouteImport.update({
   id: '/launchpad/outputs/$id',
   path: '/launchpad/outputs/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMethodologyMethodologyIdIndexRoute =
-  AppMethodologyMethodologyIdIndexRouteImport.update({
-    id: '/methodology/$methodologyId/',
-    path: '/methodology/$methodologyId/',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppRepCallsCallIdRoute = AppRepCallsCallIdRouteImport.update({
-  id: '/rep/calls/$callId',
-  path: '/rep/calls/$callId',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReportsBehaviorBehaviorKeyRoute =
-  AppReportsBehaviorBehaviorKeyRouteImport.update({
-    id: '/reports/behavior/$behaviorKey',
-    path: '/reports/behavior/$behaviorKey',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppReportsRepRepIdRoute = AppReportsRepRepIdRouteImport.update({
-  id: '/reports/rep/$repId',
-  path: '/reports/rep/$repId',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReportsTeamTeamIdRoute = AppReportsTeamTeamIdRouteImport.update({
-  id: '/reports/team/$teamId',
-  path: '/reports/team/$teamId',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoomsRoomIdIndexRoute = AppRoomsRoomIdIndexRouteImport.update({
-  id: '/rooms/$roomId/',
-  path: '/rooms/$roomId/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoomsRoomIdAboutRoute = AppRoomsRoomIdAboutRouteImport.update({
-  id: '/rooms/$roomId/about',
-  path: '/rooms/$roomId/about',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoomsRoomIdCallsRoute = AppRoomsRoomIdCallsRouteImport.update({
-  id: '/rooms/$roomId/calls',
-  path: '/rooms/$roomId/calls',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoomsRoomIdFilesRoute = AppRoomsRoomIdFilesRouteImport.update({
-  id: '/rooms/$roomId/files',
-  path: '/rooms/$roomId/files',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoomsRoomIdInsightsRoute = AppRoomsRoomIdInsightsRouteImport.update({
-  id: '/rooms/$roomId/insights',
-  path: '/rooms/$roomId/insights',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoomsRoomIdReportsRoute = AppRoomsRoomIdReportsRouteImport.update({
-  id: '/rooms/$roomId/reports',
-  path: '/rooms/$roomId/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamTeamIdIndexRoute = AppTeamTeamIdIndexRouteImport.update({
-  id: '/team/$teamId/',
-  path: '/team/$teamId/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamTeamIdBehaviorsRoute = AppTeamTeamIdBehaviorsRouteImport.update({
-  id: '/team/$teamId/behaviors',
-  path: '/team/$teamId/behaviors',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamTeamIdCallsRoute = AppTeamTeamIdCallsRouteImport.update({
-  id: '/team/$teamId/calls',
-  path: '/team/$teamId/calls',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamTeamIdCoachingRoute = AppTeamTeamIdCoachingRouteImport.update({
-  id: '/team/$teamId/coaching',
-  path: '/team/$teamId/coaching',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamTeamIdRepsRoute = AppTeamTeamIdRepsRouteImport.update({
-  id: '/team/$teamId/reps',
-  path: '/team/$teamId/reps',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamTeamIdSettingsRoute = AppTeamTeamIdSettingsRouteImport.update({
-  id: '/team/$teamId/settings',
-  path: '/team/$teamId/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMethodologyMethodologyIdRulesIndexRoute =
-  AppMethodologyMethodologyIdRulesIndexRouteImport.update({
-    id: '/methodology/$methodologyId/rules/',
-    path: '/methodology/$methodologyId/rules/',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppMethodologyMethodologyIdRulesRuleKeyRoute =
-  AppMethodologyMethodologyIdRulesRuleKeyRouteImport.update({
-    id: '/methodology/$methodologyId/rules/$ruleKey',
-    path: '/methodology/$methodologyId/rules/$ruleKey',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppTeamRepsRepIdIndexRoute = AppTeamRepsRepIdIndexRouteImport.update({
-  id: '/team/reps/$repId/',
-  path: '/team/reps/$repId/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamRepsRepIdCallsRoute = AppTeamRepsRepIdCallsRouteImport.update({
-  id: '/team/reps/$repId/calls',
-  path: '/team/reps/$repId/calls',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamRepsRepIdCoachingRoute =
-  AppTeamRepsRepIdCoachingRouteImport.update({
-    id: '/team/reps/$repId/coaching',
-    path: '/team/reps/$repId/coaching',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppTeamRepsRepIdOverviewRoute =
-  AppTeamRepsRepIdOverviewRouteImport.update({
-    id: '/team/reps/$repId/overview',
-    path: '/team/reps/$repId/overview',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppTeamRepsRepIdTrendsRoute = AppTeamRepsRepIdTrendsRouteImport.update({
-  id: '/team/reps/$repId/trends',
-  path: '/team/reps/$repId/trends',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -1317,27 +577,7 @@ export interface FileRoutesByFullPath {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/book/$slug': typeof BookSlugRoute
-  '/dev/components': typeof DevComponentsRoute
-  '/dev/screens': typeof DevScreensRoute
-  '/doc/manager-brief-email': typeof DocManagerBriefEmailRoute
-  '/doc/rep-brief-push': typeof DocRepBriefPushRoute
-  '/doc/weekly-print': typeof DocWeeklyPrintRoute
   '/f/$formId': typeof FFormIdRoute
-  '/m/alerts': typeof MAlertsRoute
-  '/m/ask': typeof MAskRoute
-  '/m/brief': typeof MBriefRoute
-  '/m/manager-brief': typeof MManagerBriefRoute
-  '/welcome/analysis': typeof WelcomeAnalysisRoute
-  '/welcome/connect': typeof WelcomeConnectRoute
-  '/welcome/first-insight': typeof WelcomeFirstInsightRoute
-  '/welcome/forgot': typeof WelcomeForgotRoute
-  '/welcome/invite': typeof WelcomeInviteRoute
-  '/welcome/invite-team': typeof WelcomeInviteTeamRoute
-  '/welcome/sign-in': typeof WelcomeSignInRoute
-  '/welcome/sign-up': typeof WelcomeSignUpRoute
-  '/welcome/teach': typeof WelcomeTeachRoute
-  '/welcome/verify': typeof WelcomeVerifyRoute
-  '/welcome/workspace': typeof WelcomeWorkspaceRoute
   '/app/': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -1347,16 +587,6 @@ export interface FileRoutesByFullPath {
   '/app/bylda/leads': typeof AppByldaLeadsRoute
   '/app/bylda/reports': typeof AppByldaReportsRoute
   '/app/bylda/workflows': typeof AppByldaWorkflowsRoute
-  '/app/calls/all': typeof AppCallsAllRoute
-  '/app/calls/compare': typeof AppCallsCompareRoute
-  '/app/calls/mine': typeof AppCallsMineRoute
-  '/app/calls/upload': typeof AppCallsUploadRoute
-  '/app/coaching/assign': typeof AppCoachingAssignRoute
-  '/app/coaching/completed': typeof AppCoachingCompletedRoute
-  '/app/coaching/follow-up': typeof AppCoachingFollowUpRoute
-  '/app/coaching/mine': typeof AppCoachingMineRoute
-  '/app/connections/channels': typeof AppConnectionsChannelsRoute
-  '/app/connections/hubspot': typeof AppConnectionsHubspotRoute
   '/app/crm/accounts': typeof AppCrmAccountsRoute
   '/app/crm/automations': typeof AppCrmAutomationsRoute
   '/app/crm/calendar': typeof AppCrmCalendarRoute
@@ -1369,23 +599,6 @@ export interface FileRoutesByFullPath {
   '/app/crm/setup': typeof AppCrmSetupRoute
   '/app/crm/tasks': typeof AppCrmTasksRoute
   '/app/crm/waitlist': typeof AppCrmWaitlistRoute
-  '/app/dm/$threadId': typeof AppDmThreadIdRoute
-  '/app/dm/coach': typeof AppDmCoachRoute
-  '/app/home/admin': typeof AppHomeAdminRoute
-  '/app/home/calls': typeof AppHomeCallsRoute
-  '/app/home/coaching': typeof AppHomeCoachingRoute
-  '/app/home/mentions': typeof AppHomeMentionsRoute
-  '/app/home/reports': typeof AppHomeReportsRoute
-  '/app/home/team-updates': typeof AppHomeTeamUpdatesRoute
-  '/app/intelligence/graph': typeof AppIntelligenceGraphRoute
-  '/app/intelligence/matrix': typeof AppIntelligenceMatrixRoute
-  '/app/intelligence/methodology': typeof AppIntelligenceMethodologyRoute
-  '/app/intelligence/objections': typeof AppIntelligenceObjectionsRoute
-  '/app/intelligence/outcomes': typeof AppIntelligenceOutcomesRoute
-  '/app/intelligence/patterns': typeof AppIntelligencePatternsRoute
-  '/app/intelligence/prospects': typeof AppIntelligenceProspectsRoute
-  '/app/intelligence/reps': typeof AppIntelligenceRepsRoute
-  '/app/intelligence/team-behaviors': typeof AppIntelligenceTeamBehaviorsRoute
   '/app/launchpad/$tool': typeof AppLaunchpadToolRoute
   '/app/launchpad/bylda': typeof AppLaunchpadByldaRoute
   '/app/launchpad/course': typeof AppLaunchpadCourseRoute
@@ -1393,88 +606,15 @@ export interface FileRoutesByFullPath {
   '/app/launchpad/history': typeof AppLaunchpadHistoryRoute
   '/app/launchpad/mentors': typeof AppLaunchpadMentorsRoute
   '/app/launchpad/missions': typeof AppLaunchpadMissionsRoute
-  '/app/methodology/objections': typeof AppMethodologyObjectionsRoute
-  '/app/methodology/success-criteria': typeof AppMethodologySuccessCriteriaRoute
   '/app/outcomes/$category': typeof AppOutcomesCategoryRoute
-  '/app/rep/progress': typeof AppRepProgressRoute
-  '/app/reports/daily': typeof AppReportsDailyRoute
-  '/app/reports/outline': typeof AppReportsOutlineRoute
-  '/app/reports/weekly': typeof AppReportsWeeklyRoute
-  '/app/rooms/new': typeof AppRoomsNewRoute
   '/app/scale/automations': typeof AppScaleAutomationsRoute
   '/app/scale/campaigns': typeof AppScaleCampaignsRoute
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
-  '/app/team/compare': typeof AppTeamCompareRoute
-  '/app/workspace/analysis': typeof AppWorkspaceAnalysisRoute
-  '/app/workspace/api-keys': typeof AppWorkspaceApiKeysRoute
-  '/app/workspace/audit-log': typeof AppWorkspaceAuditLogRoute
-  '/app/workspace/billing': typeof AppWorkspaceBillingRoute
-  '/app/workspace/notifications': typeof AppWorkspaceNotificationsRoute
-  '/app/workspace/profile': typeof AppWorkspaceProfileRoute
-  '/app/workspace/retention': typeof AppWorkspaceRetentionRoute
-  '/app/workspace/roles': typeof AppWorkspaceRolesRoute
-  '/app/workspace/teams': typeof AppWorkspaceTeamsRoute
-  '/app/workspace/usage': typeof AppWorkspaceUsageRoute
-  '/app/workspace/users': typeof AppWorkspaceUsersRoute
-  '/m/calls/$callId': typeof MCallsCallIdRoute
-  '/m/coaching/$focusId': typeof MCoachingFocusIdRoute
-  '/m/dm/$threadId': typeof MDmThreadIdRoute
-  '/m/moments/$momentId': typeof MMomentsMomentIdRoute
-  '/m/rooms/$roomId': typeof MRoomsRoomIdRoute
   '/app/bylda/': typeof AppByldaIndexRoute
-  '/app/calls/': typeof AppCallsIndexRoute
-  '/app/coaching/': typeof AppCoachingIndexRoute
-  '/app/connections/': typeof AppConnectionsIndexRoute
-  '/app/home/': typeof AppHomeIndexRoute
-  '/app/intelligence/': typeof AppIntelligenceIndexRoute
   '/app/launchpad/': typeof AppLaunchpadIndexRoute
-  '/app/methodology/': typeof AppMethodologyIndexRoute
-  '/app/notifications/': typeof AppNotificationsIndexRoute
-  '/app/rep/': typeof AppRepIndexRoute
-  '/app/reports/': typeof AppReportsIndexRoute
-  '/app/rooms/': typeof AppRoomsIndexRoute
-  '/app/search/': typeof AppSearchIndexRoute
-  '/app/states/': typeof AppStatesIndexRoute
-  '/app/team/': typeof AppTeamIndexRoute
-  '/app/workspace/': typeof AppWorkspaceIndexRoute
-  '/app/calls/$callId/analysis': typeof AppCallsCallIdAnalysisRoute
-  '/app/calls/$callId/coaching': typeof AppCallsCallIdCoachingRoute
-  '/app/calls/$callId/transcript': typeof AppCallsCallIdTranscriptRoute
-  '/app/coaching/$focusId/discussion': typeof AppCoachingFocusIdDiscussionRoute
-  '/app/coaching/$focusId/evidence': typeof AppCoachingFocusIdEvidenceRoute
-  '/app/coaching/$focusId/overview': typeof AppCoachingFocusIdOverviewRoute
-  '/app/coaching/$focusId/progress': typeof AppCoachingFocusIdProgressRoute
-  '/app/coaching/$focusId/result': typeof AppCoachingFocusIdResultRoute
-  '/app/intelligence/behaviors/$behaviorKey': typeof AppIntelligenceBehaviorsBehaviorKeyRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
-  '/app/rep/calls/$callId': typeof AppRepCallsCallIdRoute
-  '/app/reports/behavior/$behaviorKey': typeof AppReportsBehaviorBehaviorKeyRoute
-  '/app/reports/rep/$repId': typeof AppReportsRepRepIdRoute
-  '/app/reports/team/$teamId': typeof AppReportsTeamTeamIdRoute
-  '/app/rooms/$roomId/about': typeof AppRoomsRoomIdAboutRoute
-  '/app/rooms/$roomId/calls': typeof AppRoomsRoomIdCallsRoute
-  '/app/rooms/$roomId/files': typeof AppRoomsRoomIdFilesRoute
-  '/app/rooms/$roomId/insights': typeof AppRoomsRoomIdInsightsRoute
-  '/app/rooms/$roomId/reports': typeof AppRoomsRoomIdReportsRoute
-  '/app/team/$teamId/behaviors': typeof AppTeamTeamIdBehaviorsRoute
-  '/app/team/$teamId/calls': typeof AppTeamTeamIdCallsRoute
-  '/app/team/$teamId/coaching': typeof AppTeamTeamIdCoachingRoute
-  '/app/team/$teamId/reps': typeof AppTeamTeamIdRepsRoute
-  '/app/team/$teamId/settings': typeof AppTeamTeamIdSettingsRoute
-  '/app/calls/$callId/': typeof AppCallsCallIdIndexRoute
-  '/app/coaching/$focusId/': typeof AppCoachingFocusIdIndexRoute
-  '/app/methodology/$methodologyId/': typeof AppMethodologyMethodologyIdIndexRoute
-  '/app/rooms/$roomId/': typeof AppRoomsRoomIdIndexRoute
-  '/app/team/$teamId/': typeof AppTeamTeamIdIndexRoute
-  '/app/methodology/$methodologyId/rules/$ruleKey': typeof AppMethodologyMethodologyIdRulesRuleKeyRoute
-  '/app/team/reps/$repId/calls': typeof AppTeamRepsRepIdCallsRoute
-  '/app/team/reps/$repId/coaching': typeof AppTeamRepsRepIdCoachingRoute
-  '/app/team/reps/$repId/overview': typeof AppTeamRepsRepIdOverviewRoute
-  '/app/team/reps/$repId/trends': typeof AppTeamRepsRepIdTrendsRoute
-  '/app/methodology/$methodologyId/rules/': typeof AppMethodologyMethodologyIdRulesIndexRoute
-  '/app/team/reps/$repId/': typeof AppTeamRepsRepIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -1524,27 +664,7 @@ export interface FileRoutesByTo {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/book/$slug': typeof BookSlugRoute
-  '/dev/components': typeof DevComponentsRoute
-  '/dev/screens': typeof DevScreensRoute
-  '/doc/manager-brief-email': typeof DocManagerBriefEmailRoute
-  '/doc/rep-brief-push': typeof DocRepBriefPushRoute
-  '/doc/weekly-print': typeof DocWeeklyPrintRoute
   '/f/$formId': typeof FFormIdRoute
-  '/m/alerts': typeof MAlertsRoute
-  '/m/ask': typeof MAskRoute
-  '/m/brief': typeof MBriefRoute
-  '/m/manager-brief': typeof MManagerBriefRoute
-  '/welcome/analysis': typeof WelcomeAnalysisRoute
-  '/welcome/connect': typeof WelcomeConnectRoute
-  '/welcome/first-insight': typeof WelcomeFirstInsightRoute
-  '/welcome/forgot': typeof WelcomeForgotRoute
-  '/welcome/invite': typeof WelcomeInviteRoute
-  '/welcome/invite-team': typeof WelcomeInviteTeamRoute
-  '/welcome/sign-in': typeof WelcomeSignInRoute
-  '/welcome/sign-up': typeof WelcomeSignUpRoute
-  '/welcome/teach': typeof WelcomeTeachRoute
-  '/welcome/verify': typeof WelcomeVerifyRoute
-  '/welcome/workspace': typeof WelcomeWorkspaceRoute
   '/app': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -1554,16 +674,6 @@ export interface FileRoutesByTo {
   '/app/bylda/leads': typeof AppByldaLeadsRoute
   '/app/bylda/reports': typeof AppByldaReportsRoute
   '/app/bylda/workflows': typeof AppByldaWorkflowsRoute
-  '/app/calls/all': typeof AppCallsAllRoute
-  '/app/calls/compare': typeof AppCallsCompareRoute
-  '/app/calls/mine': typeof AppCallsMineRoute
-  '/app/calls/upload': typeof AppCallsUploadRoute
-  '/app/coaching/assign': typeof AppCoachingAssignRoute
-  '/app/coaching/completed': typeof AppCoachingCompletedRoute
-  '/app/coaching/follow-up': typeof AppCoachingFollowUpRoute
-  '/app/coaching/mine': typeof AppCoachingMineRoute
-  '/app/connections/channels': typeof AppConnectionsChannelsRoute
-  '/app/connections/hubspot': typeof AppConnectionsHubspotRoute
   '/app/crm/accounts': typeof AppCrmAccountsRoute
   '/app/crm/automations': typeof AppCrmAutomationsRoute
   '/app/crm/calendar': typeof AppCrmCalendarRoute
@@ -1576,23 +686,6 @@ export interface FileRoutesByTo {
   '/app/crm/setup': typeof AppCrmSetupRoute
   '/app/crm/tasks': typeof AppCrmTasksRoute
   '/app/crm/waitlist': typeof AppCrmWaitlistRoute
-  '/app/dm/$threadId': typeof AppDmThreadIdRoute
-  '/app/dm/coach': typeof AppDmCoachRoute
-  '/app/home/admin': typeof AppHomeAdminRoute
-  '/app/home/calls': typeof AppHomeCallsRoute
-  '/app/home/coaching': typeof AppHomeCoachingRoute
-  '/app/home/mentions': typeof AppHomeMentionsRoute
-  '/app/home/reports': typeof AppHomeReportsRoute
-  '/app/home/team-updates': typeof AppHomeTeamUpdatesRoute
-  '/app/intelligence/graph': typeof AppIntelligenceGraphRoute
-  '/app/intelligence/matrix': typeof AppIntelligenceMatrixRoute
-  '/app/intelligence/methodology': typeof AppIntelligenceMethodologyRoute
-  '/app/intelligence/objections': typeof AppIntelligenceObjectionsRoute
-  '/app/intelligence/outcomes': typeof AppIntelligenceOutcomesRoute
-  '/app/intelligence/patterns': typeof AppIntelligencePatternsRoute
-  '/app/intelligence/prospects': typeof AppIntelligenceProspectsRoute
-  '/app/intelligence/reps': typeof AppIntelligenceRepsRoute
-  '/app/intelligence/team-behaviors': typeof AppIntelligenceTeamBehaviorsRoute
   '/app/launchpad/$tool': typeof AppLaunchpadToolRoute
   '/app/launchpad/bylda': typeof AppLaunchpadByldaRoute
   '/app/launchpad/course': typeof AppLaunchpadCourseRoute
@@ -1600,88 +693,15 @@ export interface FileRoutesByTo {
   '/app/launchpad/history': typeof AppLaunchpadHistoryRoute
   '/app/launchpad/mentors': typeof AppLaunchpadMentorsRoute
   '/app/launchpad/missions': typeof AppLaunchpadMissionsRoute
-  '/app/methodology/objections': typeof AppMethodologyObjectionsRoute
-  '/app/methodology/success-criteria': typeof AppMethodologySuccessCriteriaRoute
   '/app/outcomes/$category': typeof AppOutcomesCategoryRoute
-  '/app/rep/progress': typeof AppRepProgressRoute
-  '/app/reports/daily': typeof AppReportsDailyRoute
-  '/app/reports/outline': typeof AppReportsOutlineRoute
-  '/app/reports/weekly': typeof AppReportsWeeklyRoute
-  '/app/rooms/new': typeof AppRoomsNewRoute
   '/app/scale/automations': typeof AppScaleAutomationsRoute
   '/app/scale/campaigns': typeof AppScaleCampaignsRoute
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
-  '/app/team/compare': typeof AppTeamCompareRoute
-  '/app/workspace/analysis': typeof AppWorkspaceAnalysisRoute
-  '/app/workspace/api-keys': typeof AppWorkspaceApiKeysRoute
-  '/app/workspace/audit-log': typeof AppWorkspaceAuditLogRoute
-  '/app/workspace/billing': typeof AppWorkspaceBillingRoute
-  '/app/workspace/notifications': typeof AppWorkspaceNotificationsRoute
-  '/app/workspace/profile': typeof AppWorkspaceProfileRoute
-  '/app/workspace/retention': typeof AppWorkspaceRetentionRoute
-  '/app/workspace/roles': typeof AppWorkspaceRolesRoute
-  '/app/workspace/teams': typeof AppWorkspaceTeamsRoute
-  '/app/workspace/usage': typeof AppWorkspaceUsageRoute
-  '/app/workspace/users': typeof AppWorkspaceUsersRoute
-  '/m/calls/$callId': typeof MCallsCallIdRoute
-  '/m/coaching/$focusId': typeof MCoachingFocusIdRoute
-  '/m/dm/$threadId': typeof MDmThreadIdRoute
-  '/m/moments/$momentId': typeof MMomentsMomentIdRoute
-  '/m/rooms/$roomId': typeof MRoomsRoomIdRoute
   '/app/bylda': typeof AppByldaIndexRoute
-  '/app/calls': typeof AppCallsIndexRoute
-  '/app/coaching': typeof AppCoachingIndexRoute
-  '/app/connections': typeof AppConnectionsIndexRoute
-  '/app/home': typeof AppHomeIndexRoute
-  '/app/intelligence': typeof AppIntelligenceIndexRoute
   '/app/launchpad': typeof AppLaunchpadIndexRoute
-  '/app/methodology': typeof AppMethodologyIndexRoute
-  '/app/notifications': typeof AppNotificationsIndexRoute
-  '/app/rep': typeof AppRepIndexRoute
-  '/app/reports': typeof AppReportsIndexRoute
-  '/app/rooms': typeof AppRoomsIndexRoute
-  '/app/search': typeof AppSearchIndexRoute
-  '/app/states': typeof AppStatesIndexRoute
-  '/app/team': typeof AppTeamIndexRoute
-  '/app/workspace': typeof AppWorkspaceIndexRoute
-  '/app/calls/$callId/analysis': typeof AppCallsCallIdAnalysisRoute
-  '/app/calls/$callId/coaching': typeof AppCallsCallIdCoachingRoute
-  '/app/calls/$callId/transcript': typeof AppCallsCallIdTranscriptRoute
-  '/app/coaching/$focusId/discussion': typeof AppCoachingFocusIdDiscussionRoute
-  '/app/coaching/$focusId/evidence': typeof AppCoachingFocusIdEvidenceRoute
-  '/app/coaching/$focusId/overview': typeof AppCoachingFocusIdOverviewRoute
-  '/app/coaching/$focusId/progress': typeof AppCoachingFocusIdProgressRoute
-  '/app/coaching/$focusId/result': typeof AppCoachingFocusIdResultRoute
-  '/app/intelligence/behaviors/$behaviorKey': typeof AppIntelligenceBehaviorsBehaviorKeyRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
-  '/app/rep/calls/$callId': typeof AppRepCallsCallIdRoute
-  '/app/reports/behavior/$behaviorKey': typeof AppReportsBehaviorBehaviorKeyRoute
-  '/app/reports/rep/$repId': typeof AppReportsRepRepIdRoute
-  '/app/reports/team/$teamId': typeof AppReportsTeamTeamIdRoute
-  '/app/rooms/$roomId/about': typeof AppRoomsRoomIdAboutRoute
-  '/app/rooms/$roomId/calls': typeof AppRoomsRoomIdCallsRoute
-  '/app/rooms/$roomId/files': typeof AppRoomsRoomIdFilesRoute
-  '/app/rooms/$roomId/insights': typeof AppRoomsRoomIdInsightsRoute
-  '/app/rooms/$roomId/reports': typeof AppRoomsRoomIdReportsRoute
-  '/app/team/$teamId/behaviors': typeof AppTeamTeamIdBehaviorsRoute
-  '/app/team/$teamId/calls': typeof AppTeamTeamIdCallsRoute
-  '/app/team/$teamId/coaching': typeof AppTeamTeamIdCoachingRoute
-  '/app/team/$teamId/reps': typeof AppTeamTeamIdRepsRoute
-  '/app/team/$teamId/settings': typeof AppTeamTeamIdSettingsRoute
-  '/app/calls/$callId': typeof AppCallsCallIdIndexRoute
-  '/app/coaching/$focusId': typeof AppCoachingFocusIdIndexRoute
-  '/app/methodology/$methodologyId': typeof AppMethodologyMethodologyIdIndexRoute
-  '/app/rooms/$roomId': typeof AppRoomsRoomIdIndexRoute
-  '/app/team/$teamId': typeof AppTeamTeamIdIndexRoute
-  '/app/methodology/$methodologyId/rules/$ruleKey': typeof AppMethodologyMethodologyIdRulesRuleKeyRoute
-  '/app/team/reps/$repId/calls': typeof AppTeamRepsRepIdCallsRoute
-  '/app/team/reps/$repId/coaching': typeof AppTeamRepsRepIdCoachingRoute
-  '/app/team/reps/$repId/overview': typeof AppTeamRepsRepIdOverviewRoute
-  '/app/team/reps/$repId/trends': typeof AppTeamRepsRepIdTrendsRoute
-  '/app/methodology/$methodologyId/rules': typeof AppMethodologyMethodologyIdRulesIndexRoute
-  '/app/team/reps/$repId': typeof AppTeamRepsRepIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -1733,27 +753,7 @@ export interface FileRoutesById {
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/book/$slug': typeof BookSlugRoute
-  '/dev/components': typeof DevComponentsRoute
-  '/dev/screens': typeof DevScreensRoute
-  '/doc/manager-brief-email': typeof DocManagerBriefEmailRoute
-  '/doc/rep-brief-push': typeof DocRepBriefPushRoute
-  '/doc/weekly-print': typeof DocWeeklyPrintRoute
   '/f/$formId': typeof FFormIdRoute
-  '/m/alerts': typeof MAlertsRoute
-  '/m/ask': typeof MAskRoute
-  '/m/brief': typeof MBriefRoute
-  '/m/manager-brief': typeof MManagerBriefRoute
-  '/welcome/analysis': typeof WelcomeAnalysisRoute
-  '/welcome/connect': typeof WelcomeConnectRoute
-  '/welcome/first-insight': typeof WelcomeFirstInsightRoute
-  '/welcome/forgot': typeof WelcomeForgotRoute
-  '/welcome/invite': typeof WelcomeInviteRoute
-  '/welcome/invite-team': typeof WelcomeInviteTeamRoute
-  '/welcome/sign-in': typeof WelcomeSignInRoute
-  '/welcome/sign-up': typeof WelcomeSignUpRoute
-  '/welcome/teach': typeof WelcomeTeachRoute
-  '/welcome/verify': typeof WelcomeVerifyRoute
-  '/welcome/workspace': typeof WelcomeWorkspaceRoute
   '/app/': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -1763,16 +763,6 @@ export interface FileRoutesById {
   '/app/bylda/leads': typeof AppByldaLeadsRoute
   '/app/bylda/reports': typeof AppByldaReportsRoute
   '/app/bylda/workflows': typeof AppByldaWorkflowsRoute
-  '/app/calls/all': typeof AppCallsAllRoute
-  '/app/calls/compare': typeof AppCallsCompareRoute
-  '/app/calls/mine': typeof AppCallsMineRoute
-  '/app/calls/upload': typeof AppCallsUploadRoute
-  '/app/coaching/assign': typeof AppCoachingAssignRoute
-  '/app/coaching/completed': typeof AppCoachingCompletedRoute
-  '/app/coaching/follow-up': typeof AppCoachingFollowUpRoute
-  '/app/coaching/mine': typeof AppCoachingMineRoute
-  '/app/connections/channels': typeof AppConnectionsChannelsRoute
-  '/app/connections/hubspot': typeof AppConnectionsHubspotRoute
   '/app/crm/accounts': typeof AppCrmAccountsRoute
   '/app/crm/automations': typeof AppCrmAutomationsRoute
   '/app/crm/calendar': typeof AppCrmCalendarRoute
@@ -1785,23 +775,6 @@ export interface FileRoutesById {
   '/app/crm/setup': typeof AppCrmSetupRoute
   '/app/crm/tasks': typeof AppCrmTasksRoute
   '/app/crm/waitlist': typeof AppCrmWaitlistRoute
-  '/app/dm/$threadId': typeof AppDmThreadIdRoute
-  '/app/dm/coach': typeof AppDmCoachRoute
-  '/app/home/admin': typeof AppHomeAdminRoute
-  '/app/home/calls': typeof AppHomeCallsRoute
-  '/app/home/coaching': typeof AppHomeCoachingRoute
-  '/app/home/mentions': typeof AppHomeMentionsRoute
-  '/app/home/reports': typeof AppHomeReportsRoute
-  '/app/home/team-updates': typeof AppHomeTeamUpdatesRoute
-  '/app/intelligence/graph': typeof AppIntelligenceGraphRoute
-  '/app/intelligence/matrix': typeof AppIntelligenceMatrixRoute
-  '/app/intelligence/methodology': typeof AppIntelligenceMethodologyRoute
-  '/app/intelligence/objections': typeof AppIntelligenceObjectionsRoute
-  '/app/intelligence/outcomes': typeof AppIntelligenceOutcomesRoute
-  '/app/intelligence/patterns': typeof AppIntelligencePatternsRoute
-  '/app/intelligence/prospects': typeof AppIntelligenceProspectsRoute
-  '/app/intelligence/reps': typeof AppIntelligenceRepsRoute
-  '/app/intelligence/team-behaviors': typeof AppIntelligenceTeamBehaviorsRoute
   '/app/launchpad/$tool': typeof AppLaunchpadToolRoute
   '/app/launchpad/bylda': typeof AppLaunchpadByldaRoute
   '/app/launchpad/course': typeof AppLaunchpadCourseRoute
@@ -1809,88 +782,15 @@ export interface FileRoutesById {
   '/app/launchpad/history': typeof AppLaunchpadHistoryRoute
   '/app/launchpad/mentors': typeof AppLaunchpadMentorsRoute
   '/app/launchpad/missions': typeof AppLaunchpadMissionsRoute
-  '/app/methodology/objections': typeof AppMethodologyObjectionsRoute
-  '/app/methodology/success-criteria': typeof AppMethodologySuccessCriteriaRoute
   '/app/outcomes/$category': typeof AppOutcomesCategoryRoute
-  '/app/rep/progress': typeof AppRepProgressRoute
-  '/app/reports/daily': typeof AppReportsDailyRoute
-  '/app/reports/outline': typeof AppReportsOutlineRoute
-  '/app/reports/weekly': typeof AppReportsWeeklyRoute
-  '/app/rooms/new': typeof AppRoomsNewRoute
   '/app/scale/automations': typeof AppScaleAutomationsRoute
   '/app/scale/campaigns': typeof AppScaleCampaignsRoute
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
-  '/app/team/compare': typeof AppTeamCompareRoute
-  '/app/workspace/analysis': typeof AppWorkspaceAnalysisRoute
-  '/app/workspace/api-keys': typeof AppWorkspaceApiKeysRoute
-  '/app/workspace/audit-log': typeof AppWorkspaceAuditLogRoute
-  '/app/workspace/billing': typeof AppWorkspaceBillingRoute
-  '/app/workspace/notifications': typeof AppWorkspaceNotificationsRoute
-  '/app/workspace/profile': typeof AppWorkspaceProfileRoute
-  '/app/workspace/retention': typeof AppWorkspaceRetentionRoute
-  '/app/workspace/roles': typeof AppWorkspaceRolesRoute
-  '/app/workspace/teams': typeof AppWorkspaceTeamsRoute
-  '/app/workspace/usage': typeof AppWorkspaceUsageRoute
-  '/app/workspace/users': typeof AppWorkspaceUsersRoute
-  '/m/calls/$callId': typeof MCallsCallIdRoute
-  '/m/coaching/$focusId': typeof MCoachingFocusIdRoute
-  '/m/dm/$threadId': typeof MDmThreadIdRoute
-  '/m/moments/$momentId': typeof MMomentsMomentIdRoute
-  '/m/rooms/$roomId': typeof MRoomsRoomIdRoute
   '/app/bylda/': typeof AppByldaIndexRoute
-  '/app/calls/': typeof AppCallsIndexRoute
-  '/app/coaching/': typeof AppCoachingIndexRoute
-  '/app/connections/': typeof AppConnectionsIndexRoute
-  '/app/home/': typeof AppHomeIndexRoute
-  '/app/intelligence/': typeof AppIntelligenceIndexRoute
   '/app/launchpad/': typeof AppLaunchpadIndexRoute
-  '/app/methodology/': typeof AppMethodologyIndexRoute
-  '/app/notifications/': typeof AppNotificationsIndexRoute
-  '/app/rep/': typeof AppRepIndexRoute
-  '/app/reports/': typeof AppReportsIndexRoute
-  '/app/rooms/': typeof AppRoomsIndexRoute
-  '/app/search/': typeof AppSearchIndexRoute
-  '/app/states/': typeof AppStatesIndexRoute
-  '/app/team/': typeof AppTeamIndexRoute
-  '/app/workspace/': typeof AppWorkspaceIndexRoute
-  '/app/calls/$callId/analysis': typeof AppCallsCallIdAnalysisRoute
-  '/app/calls/$callId/coaching': typeof AppCallsCallIdCoachingRoute
-  '/app/calls/$callId/transcript': typeof AppCallsCallIdTranscriptRoute
-  '/app/coaching/$focusId/discussion': typeof AppCoachingFocusIdDiscussionRoute
-  '/app/coaching/$focusId/evidence': typeof AppCoachingFocusIdEvidenceRoute
-  '/app/coaching/$focusId/overview': typeof AppCoachingFocusIdOverviewRoute
-  '/app/coaching/$focusId/progress': typeof AppCoachingFocusIdProgressRoute
-  '/app/coaching/$focusId/result': typeof AppCoachingFocusIdResultRoute
-  '/app/intelligence/behaviors/$behaviorKey': typeof AppIntelligenceBehaviorsBehaviorKeyRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
-  '/app/rep/calls/$callId': typeof AppRepCallsCallIdRoute
-  '/app/reports/behavior/$behaviorKey': typeof AppReportsBehaviorBehaviorKeyRoute
-  '/app/reports/rep/$repId': typeof AppReportsRepRepIdRoute
-  '/app/reports/team/$teamId': typeof AppReportsTeamTeamIdRoute
-  '/app/rooms/$roomId/about': typeof AppRoomsRoomIdAboutRoute
-  '/app/rooms/$roomId/calls': typeof AppRoomsRoomIdCallsRoute
-  '/app/rooms/$roomId/files': typeof AppRoomsRoomIdFilesRoute
-  '/app/rooms/$roomId/insights': typeof AppRoomsRoomIdInsightsRoute
-  '/app/rooms/$roomId/reports': typeof AppRoomsRoomIdReportsRoute
-  '/app/team/$teamId/behaviors': typeof AppTeamTeamIdBehaviorsRoute
-  '/app/team/$teamId/calls': typeof AppTeamTeamIdCallsRoute
-  '/app/team/$teamId/coaching': typeof AppTeamTeamIdCoachingRoute
-  '/app/team/$teamId/reps': typeof AppTeamTeamIdRepsRoute
-  '/app/team/$teamId/settings': typeof AppTeamTeamIdSettingsRoute
-  '/app/calls/$callId/': typeof AppCallsCallIdIndexRoute
-  '/app/coaching/$focusId/': typeof AppCoachingFocusIdIndexRoute
-  '/app/methodology/$methodologyId/': typeof AppMethodologyMethodologyIdIndexRoute
-  '/app/rooms/$roomId/': typeof AppRoomsRoomIdIndexRoute
-  '/app/team/$teamId/': typeof AppTeamTeamIdIndexRoute
-  '/app/methodology/$methodologyId/rules/$ruleKey': typeof AppMethodologyMethodologyIdRulesRuleKeyRoute
-  '/app/team/reps/$repId/calls': typeof AppTeamRepsRepIdCallsRoute
-  '/app/team/reps/$repId/coaching': typeof AppTeamRepsRepIdCoachingRoute
-  '/app/team/reps/$repId/overview': typeof AppTeamRepsRepIdOverviewRoute
-  '/app/team/reps/$repId/trends': typeof AppTeamRepsRepIdTrendsRoute
-  '/app/methodology/$methodologyId/rules/': typeof AppMethodologyMethodologyIdRulesIndexRoute
-  '/app/team/reps/$repId/': typeof AppTeamRepsRepIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1943,27 +843,7 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/book/$slug'
-    | '/dev/components'
-    | '/dev/screens'
-    | '/doc/manager-brief-email'
-    | '/doc/rep-brief-push'
-    | '/doc/weekly-print'
     | '/f/$formId'
-    | '/m/alerts'
-    | '/m/ask'
-    | '/m/brief'
-    | '/m/manager-brief'
-    | '/welcome/analysis'
-    | '/welcome/connect'
-    | '/welcome/first-insight'
-    | '/welcome/forgot'
-    | '/welcome/invite'
-    | '/welcome/invite-team'
-    | '/welcome/sign-in'
-    | '/welcome/sign-up'
-    | '/welcome/teach'
-    | '/welcome/verify'
-    | '/welcome/workspace'
     | '/app/'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -1973,16 +853,6 @@ export interface FileRouteTypes {
     | '/app/bylda/leads'
     | '/app/bylda/reports'
     | '/app/bylda/workflows'
-    | '/app/calls/all'
-    | '/app/calls/compare'
-    | '/app/calls/mine'
-    | '/app/calls/upload'
-    | '/app/coaching/assign'
-    | '/app/coaching/completed'
-    | '/app/coaching/follow-up'
-    | '/app/coaching/mine'
-    | '/app/connections/channels'
-    | '/app/connections/hubspot'
     | '/app/crm/accounts'
     | '/app/crm/automations'
     | '/app/crm/calendar'
@@ -1995,23 +865,6 @@ export interface FileRouteTypes {
     | '/app/crm/setup'
     | '/app/crm/tasks'
     | '/app/crm/waitlist'
-    | '/app/dm/$threadId'
-    | '/app/dm/coach'
-    | '/app/home/admin'
-    | '/app/home/calls'
-    | '/app/home/coaching'
-    | '/app/home/mentions'
-    | '/app/home/reports'
-    | '/app/home/team-updates'
-    | '/app/intelligence/graph'
-    | '/app/intelligence/matrix'
-    | '/app/intelligence/methodology'
-    | '/app/intelligence/objections'
-    | '/app/intelligence/outcomes'
-    | '/app/intelligence/patterns'
-    | '/app/intelligence/prospects'
-    | '/app/intelligence/reps'
-    | '/app/intelligence/team-behaviors'
     | '/app/launchpad/$tool'
     | '/app/launchpad/bylda'
     | '/app/launchpad/course'
@@ -2019,88 +872,15 @@ export interface FileRouteTypes {
     | '/app/launchpad/history'
     | '/app/launchpad/mentors'
     | '/app/launchpad/missions'
-    | '/app/methodology/objections'
-    | '/app/methodology/success-criteria'
     | '/app/outcomes/$category'
-    | '/app/rep/progress'
-    | '/app/reports/daily'
-    | '/app/reports/outline'
-    | '/app/reports/weekly'
-    | '/app/rooms/new'
     | '/app/scale/automations'
     | '/app/scale/campaigns'
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
-    | '/app/team/compare'
-    | '/app/workspace/analysis'
-    | '/app/workspace/api-keys'
-    | '/app/workspace/audit-log'
-    | '/app/workspace/billing'
-    | '/app/workspace/notifications'
-    | '/app/workspace/profile'
-    | '/app/workspace/retention'
-    | '/app/workspace/roles'
-    | '/app/workspace/teams'
-    | '/app/workspace/usage'
-    | '/app/workspace/users'
-    | '/m/calls/$callId'
-    | '/m/coaching/$focusId'
-    | '/m/dm/$threadId'
-    | '/m/moments/$momentId'
-    | '/m/rooms/$roomId'
     | '/app/bylda/'
-    | '/app/calls/'
-    | '/app/coaching/'
-    | '/app/connections/'
-    | '/app/home/'
-    | '/app/intelligence/'
     | '/app/launchpad/'
-    | '/app/methodology/'
-    | '/app/notifications/'
-    | '/app/rep/'
-    | '/app/reports/'
-    | '/app/rooms/'
-    | '/app/search/'
-    | '/app/states/'
-    | '/app/team/'
-    | '/app/workspace/'
-    | '/app/calls/$callId/analysis'
-    | '/app/calls/$callId/coaching'
-    | '/app/calls/$callId/transcript'
-    | '/app/coaching/$focusId/discussion'
-    | '/app/coaching/$focusId/evidence'
-    | '/app/coaching/$focusId/overview'
-    | '/app/coaching/$focusId/progress'
-    | '/app/coaching/$focusId/result'
-    | '/app/intelligence/behaviors/$behaviorKey'
     | '/app/launchpad/outputs/$id'
-    | '/app/rep/calls/$callId'
-    | '/app/reports/behavior/$behaviorKey'
-    | '/app/reports/rep/$repId'
-    | '/app/reports/team/$teamId'
-    | '/app/rooms/$roomId/about'
-    | '/app/rooms/$roomId/calls'
-    | '/app/rooms/$roomId/files'
-    | '/app/rooms/$roomId/insights'
-    | '/app/rooms/$roomId/reports'
-    | '/app/team/$teamId/behaviors'
-    | '/app/team/$teamId/calls'
-    | '/app/team/$teamId/coaching'
-    | '/app/team/$teamId/reps'
-    | '/app/team/$teamId/settings'
-    | '/app/calls/$callId/'
-    | '/app/coaching/$focusId/'
-    | '/app/methodology/$methodologyId/'
-    | '/app/rooms/$roomId/'
-    | '/app/team/$teamId/'
-    | '/app/methodology/$methodologyId/rules/$ruleKey'
-    | '/app/team/reps/$repId/calls'
-    | '/app/team/reps/$repId/coaching'
-    | '/app/team/reps/$repId/overview'
-    | '/app/team/reps/$repId/trends'
-    | '/app/methodology/$methodologyId/rules/'
-    | '/app/team/reps/$repId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -2150,27 +930,7 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/book/$slug'
-    | '/dev/components'
-    | '/dev/screens'
-    | '/doc/manager-brief-email'
-    | '/doc/rep-brief-push'
-    | '/doc/weekly-print'
     | '/f/$formId'
-    | '/m/alerts'
-    | '/m/ask'
-    | '/m/brief'
-    | '/m/manager-brief'
-    | '/welcome/analysis'
-    | '/welcome/connect'
-    | '/welcome/first-insight'
-    | '/welcome/forgot'
-    | '/welcome/invite'
-    | '/welcome/invite-team'
-    | '/welcome/sign-in'
-    | '/welcome/sign-up'
-    | '/welcome/teach'
-    | '/welcome/verify'
-    | '/welcome/workspace'
     | '/app'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -2180,16 +940,6 @@ export interface FileRouteTypes {
     | '/app/bylda/leads'
     | '/app/bylda/reports'
     | '/app/bylda/workflows'
-    | '/app/calls/all'
-    | '/app/calls/compare'
-    | '/app/calls/mine'
-    | '/app/calls/upload'
-    | '/app/coaching/assign'
-    | '/app/coaching/completed'
-    | '/app/coaching/follow-up'
-    | '/app/coaching/mine'
-    | '/app/connections/channels'
-    | '/app/connections/hubspot'
     | '/app/crm/accounts'
     | '/app/crm/automations'
     | '/app/crm/calendar'
@@ -2202,23 +952,6 @@ export interface FileRouteTypes {
     | '/app/crm/setup'
     | '/app/crm/tasks'
     | '/app/crm/waitlist'
-    | '/app/dm/$threadId'
-    | '/app/dm/coach'
-    | '/app/home/admin'
-    | '/app/home/calls'
-    | '/app/home/coaching'
-    | '/app/home/mentions'
-    | '/app/home/reports'
-    | '/app/home/team-updates'
-    | '/app/intelligence/graph'
-    | '/app/intelligence/matrix'
-    | '/app/intelligence/methodology'
-    | '/app/intelligence/objections'
-    | '/app/intelligence/outcomes'
-    | '/app/intelligence/patterns'
-    | '/app/intelligence/prospects'
-    | '/app/intelligence/reps'
-    | '/app/intelligence/team-behaviors'
     | '/app/launchpad/$tool'
     | '/app/launchpad/bylda'
     | '/app/launchpad/course'
@@ -2226,88 +959,15 @@ export interface FileRouteTypes {
     | '/app/launchpad/history'
     | '/app/launchpad/mentors'
     | '/app/launchpad/missions'
-    | '/app/methodology/objections'
-    | '/app/methodology/success-criteria'
     | '/app/outcomes/$category'
-    | '/app/rep/progress'
-    | '/app/reports/daily'
-    | '/app/reports/outline'
-    | '/app/reports/weekly'
-    | '/app/rooms/new'
     | '/app/scale/automations'
     | '/app/scale/campaigns'
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
-    | '/app/team/compare'
-    | '/app/workspace/analysis'
-    | '/app/workspace/api-keys'
-    | '/app/workspace/audit-log'
-    | '/app/workspace/billing'
-    | '/app/workspace/notifications'
-    | '/app/workspace/profile'
-    | '/app/workspace/retention'
-    | '/app/workspace/roles'
-    | '/app/workspace/teams'
-    | '/app/workspace/usage'
-    | '/app/workspace/users'
-    | '/m/calls/$callId'
-    | '/m/coaching/$focusId'
-    | '/m/dm/$threadId'
-    | '/m/moments/$momentId'
-    | '/m/rooms/$roomId'
     | '/app/bylda'
-    | '/app/calls'
-    | '/app/coaching'
-    | '/app/connections'
-    | '/app/home'
-    | '/app/intelligence'
     | '/app/launchpad'
-    | '/app/methodology'
-    | '/app/notifications'
-    | '/app/rep'
-    | '/app/reports'
-    | '/app/rooms'
-    | '/app/search'
-    | '/app/states'
-    | '/app/team'
-    | '/app/workspace'
-    | '/app/calls/$callId/analysis'
-    | '/app/calls/$callId/coaching'
-    | '/app/calls/$callId/transcript'
-    | '/app/coaching/$focusId/discussion'
-    | '/app/coaching/$focusId/evidence'
-    | '/app/coaching/$focusId/overview'
-    | '/app/coaching/$focusId/progress'
-    | '/app/coaching/$focusId/result'
-    | '/app/intelligence/behaviors/$behaviorKey'
     | '/app/launchpad/outputs/$id'
-    | '/app/rep/calls/$callId'
-    | '/app/reports/behavior/$behaviorKey'
-    | '/app/reports/rep/$repId'
-    | '/app/reports/team/$teamId'
-    | '/app/rooms/$roomId/about'
-    | '/app/rooms/$roomId/calls'
-    | '/app/rooms/$roomId/files'
-    | '/app/rooms/$roomId/insights'
-    | '/app/rooms/$roomId/reports'
-    | '/app/team/$teamId/behaviors'
-    | '/app/team/$teamId/calls'
-    | '/app/team/$teamId/coaching'
-    | '/app/team/$teamId/reps'
-    | '/app/team/$teamId/settings'
-    | '/app/calls/$callId'
-    | '/app/coaching/$focusId'
-    | '/app/methodology/$methodologyId'
-    | '/app/rooms/$roomId'
-    | '/app/team/$teamId'
-    | '/app/methodology/$methodologyId/rules/$ruleKey'
-    | '/app/team/reps/$repId/calls'
-    | '/app/team/reps/$repId/coaching'
-    | '/app/team/reps/$repId/overview'
-    | '/app/team/reps/$repId/trends'
-    | '/app/methodology/$methodologyId/rules'
-    | '/app/team/reps/$repId'
   id:
     | '__root__'
     | '/'
@@ -2358,27 +1018,7 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/book/$slug'
-    | '/dev/components'
-    | '/dev/screens'
-    | '/doc/manager-brief-email'
-    | '/doc/rep-brief-push'
-    | '/doc/weekly-print'
     | '/f/$formId'
-    | '/m/alerts'
-    | '/m/ask'
-    | '/m/brief'
-    | '/m/manager-brief'
-    | '/welcome/analysis'
-    | '/welcome/connect'
-    | '/welcome/first-insight'
-    | '/welcome/forgot'
-    | '/welcome/invite'
-    | '/welcome/invite-team'
-    | '/welcome/sign-in'
-    | '/welcome/sign-up'
-    | '/welcome/teach'
-    | '/welcome/verify'
-    | '/welcome/workspace'
     | '/app/'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -2388,16 +1028,6 @@ export interface FileRouteTypes {
     | '/app/bylda/leads'
     | '/app/bylda/reports'
     | '/app/bylda/workflows'
-    | '/app/calls/all'
-    | '/app/calls/compare'
-    | '/app/calls/mine'
-    | '/app/calls/upload'
-    | '/app/coaching/assign'
-    | '/app/coaching/completed'
-    | '/app/coaching/follow-up'
-    | '/app/coaching/mine'
-    | '/app/connections/channels'
-    | '/app/connections/hubspot'
     | '/app/crm/accounts'
     | '/app/crm/automations'
     | '/app/crm/calendar'
@@ -2410,23 +1040,6 @@ export interface FileRouteTypes {
     | '/app/crm/setup'
     | '/app/crm/tasks'
     | '/app/crm/waitlist'
-    | '/app/dm/$threadId'
-    | '/app/dm/coach'
-    | '/app/home/admin'
-    | '/app/home/calls'
-    | '/app/home/coaching'
-    | '/app/home/mentions'
-    | '/app/home/reports'
-    | '/app/home/team-updates'
-    | '/app/intelligence/graph'
-    | '/app/intelligence/matrix'
-    | '/app/intelligence/methodology'
-    | '/app/intelligence/objections'
-    | '/app/intelligence/outcomes'
-    | '/app/intelligence/patterns'
-    | '/app/intelligence/prospects'
-    | '/app/intelligence/reps'
-    | '/app/intelligence/team-behaviors'
     | '/app/launchpad/$tool'
     | '/app/launchpad/bylda'
     | '/app/launchpad/course'
@@ -2434,88 +1047,15 @@ export interface FileRouteTypes {
     | '/app/launchpad/history'
     | '/app/launchpad/mentors'
     | '/app/launchpad/missions'
-    | '/app/methodology/objections'
-    | '/app/methodology/success-criteria'
     | '/app/outcomes/$category'
-    | '/app/rep/progress'
-    | '/app/reports/daily'
-    | '/app/reports/outline'
-    | '/app/reports/weekly'
-    | '/app/rooms/new'
     | '/app/scale/automations'
     | '/app/scale/campaigns'
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
-    | '/app/team/compare'
-    | '/app/workspace/analysis'
-    | '/app/workspace/api-keys'
-    | '/app/workspace/audit-log'
-    | '/app/workspace/billing'
-    | '/app/workspace/notifications'
-    | '/app/workspace/profile'
-    | '/app/workspace/retention'
-    | '/app/workspace/roles'
-    | '/app/workspace/teams'
-    | '/app/workspace/usage'
-    | '/app/workspace/users'
-    | '/m/calls/$callId'
-    | '/m/coaching/$focusId'
-    | '/m/dm/$threadId'
-    | '/m/moments/$momentId'
-    | '/m/rooms/$roomId'
     | '/app/bylda/'
-    | '/app/calls/'
-    | '/app/coaching/'
-    | '/app/connections/'
-    | '/app/home/'
-    | '/app/intelligence/'
     | '/app/launchpad/'
-    | '/app/methodology/'
-    | '/app/notifications/'
-    | '/app/rep/'
-    | '/app/reports/'
-    | '/app/rooms/'
-    | '/app/search/'
-    | '/app/states/'
-    | '/app/team/'
-    | '/app/workspace/'
-    | '/app/calls/$callId/analysis'
-    | '/app/calls/$callId/coaching'
-    | '/app/calls/$callId/transcript'
-    | '/app/coaching/$focusId/discussion'
-    | '/app/coaching/$focusId/evidence'
-    | '/app/coaching/$focusId/overview'
-    | '/app/coaching/$focusId/progress'
-    | '/app/coaching/$focusId/result'
-    | '/app/intelligence/behaviors/$behaviorKey'
     | '/app/launchpad/outputs/$id'
-    | '/app/rep/calls/$callId'
-    | '/app/reports/behavior/$behaviorKey'
-    | '/app/reports/rep/$repId'
-    | '/app/reports/team/$teamId'
-    | '/app/rooms/$roomId/about'
-    | '/app/rooms/$roomId/calls'
-    | '/app/rooms/$roomId/files'
-    | '/app/rooms/$roomId/insights'
-    | '/app/rooms/$roomId/reports'
-    | '/app/team/$teamId/behaviors'
-    | '/app/team/$teamId/calls'
-    | '/app/team/$teamId/coaching'
-    | '/app/team/$teamId/reps'
-    | '/app/team/$teamId/settings'
-    | '/app/calls/$callId/'
-    | '/app/coaching/$focusId/'
-    | '/app/methodology/$methodologyId/'
-    | '/app/rooms/$roomId/'
-    | '/app/team/$teamId/'
-    | '/app/methodology/$methodologyId/rules/$ruleKey'
-    | '/app/team/reps/$repId/calls'
-    | '/app/team/reps/$repId/coaching'
-    | '/app/team/reps/$repId/overview'
-    | '/app/team/reps/$repId/trends'
-    | '/app/methodology/$methodologyId/rules/'
-    | '/app/team/reps/$repId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -2532,69 +1072,16 @@ export interface RootRouteChildren {
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
   BookSlugRoute: typeof BookSlugRoute
-  DevComponentsRoute: typeof DevComponentsRoute
-  DevScreensRoute: typeof DevScreensRoute
-  DocManagerBriefEmailRoute: typeof DocManagerBriefEmailRoute
-  DocRepBriefPushRoute: typeof DocRepBriefPushRoute
-  DocWeeklyPrintRoute: typeof DocWeeklyPrintRoute
   FFormIdRoute: typeof FFormIdRoute
-  MAlertsRoute: typeof MAlertsRoute
-  MAskRoute: typeof MAskRoute
-  MBriefRoute: typeof MBriefRoute
-  MManagerBriefRoute: typeof MManagerBriefRoute
-  WelcomeAnalysisRoute: typeof WelcomeAnalysisRoute
-  WelcomeConnectRoute: typeof WelcomeConnectRoute
-  WelcomeFirstInsightRoute: typeof WelcomeFirstInsightRoute
-  WelcomeForgotRoute: typeof WelcomeForgotRoute
-  WelcomeInviteRoute: typeof WelcomeInviteRoute
-  WelcomeInviteTeamRoute: typeof WelcomeInviteTeamRoute
-  WelcomeSignInRoute: typeof WelcomeSignInRoute
-  WelcomeSignUpRoute: typeof WelcomeSignUpRoute
-  WelcomeTeachRoute: typeof WelcomeTeachRoute
-  WelcomeVerifyRoute: typeof WelcomeVerifyRoute
-  WelcomeWorkspaceRoute: typeof WelcomeWorkspaceRoute
-  MCallsCallIdRoute: typeof MCallsCallIdRoute
-  MCoachingFocusIdRoute: typeof MCoachingFocusIdRoute
-  MDmThreadIdRoute: typeof MDmThreadIdRoute
-  MMomentsMomentIdRoute: typeof MMomentsMomentIdRoute
-  MRoomsRoomIdRoute: typeof MRoomsRoomIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo': {
-      id: '/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof DemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -2604,11 +1091,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -2618,284 +1133,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/academy': {
-      id: '/app/academy'
-      path: '/academy'
-      fullPath: '/app/academy'
-      preLoaderRoute: typeof AppAcademyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/activity': {
-      id: '/app/activity'
-      path: '/activity'
-      fullPath: '/app/activity'
-      preLoaderRoute: typeof AppActivityRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/admin': {
-      id: '/app/admin'
-      path: '/admin'
-      fullPath: '/app/admin'
-      preLoaderRoute: typeof AppAdminRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/ai-dashboard': {
-      id: '/app/ai-dashboard'
-      path: '/ai-dashboard'
-      fullPath: '/app/ai-dashboard'
-      preLoaderRoute: typeof AppAiDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/assets': {
-      id: '/app/assets'
-      path: '/assets'
-      fullPath: '/app/assets'
-      preLoaderRoute: typeof AppAssetsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/automations': {
-      id: '/app/automations'
-      path: '/automations'
-      fullPath: '/app/automations'
-      preLoaderRoute: typeof AppAutomationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/billing': {
-      id: '/app/billing'
-      path: '/billing'
-      fullPath: '/app/billing'
-      preLoaderRoute: typeof AppBillingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/builder': {
-      id: '/app/builder'
-      path: '/builder'
-      fullPath: '/app/builder'
-      preLoaderRoute: typeof AppBuilderRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda-full': {
-      id: '/app/bylda-full'
-      path: '/bylda-full'
-      fullPath: '/app/bylda-full'
-      preLoaderRoute: typeof AppByldaFullRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda-home': {
-      id: '/app/bylda-home'
-      path: '/bylda-home'
-      fullPath: '/app/bylda-home'
-      preLoaderRoute: typeof AppByldaHomeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda-os': {
-      id: '/app/bylda-os'
-      path: '/bylda-os'
-      fullPath: '/app/bylda-os'
-      preLoaderRoute: typeof AppByldaOsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/command-center': {
-      id: '/app/command-center'
-      path: '/command-center'
-      fullPath: '/app/command-center'
-      preLoaderRoute: typeof AppCommandCenterRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/contacts': {
-      id: '/app/contacts'
-      path: '/contacts'
-      fullPath: '/app/contacts'
-      preLoaderRoute: typeof AppContactsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/context-memory': {
-      id: '/app/context-memory'
-      path: '/context-memory'
-      fullPath: '/app/context-memory'
-      preLoaderRoute: typeof AppContextMemoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/dashboard': {
-      id: '/app/dashboard'
-      path: '/dashboard'
-      fullPath: '/app/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/galaxy': {
-      id: '/app/galaxy'
-      path: '/galaxy'
-      fullPath: '/app/galaxy'
-      preLoaderRoute: typeof AppGalaxyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/integrations': {
-      id: '/app/integrations'
-      path: '/integrations'
-      fullPath: '/app/integrations'
-      preLoaderRoute: typeof AppIntegrationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launch-control': {
-      id: '/app/launch-control'
-      path: '/launch-control'
-      fullPath: '/app/launch-control'
-      preLoaderRoute: typeof AppLaunchControlRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad-path': {
-      id: '/app/launchpad-path'
-      path: '/launchpad-path'
-      fullPath: '/app/launchpad-path'
-      preLoaderRoute: typeof AppLaunchpadPathRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/leads': {
-      id: '/app/leads'
-      path: '/leads'
-      fullPath: '/app/leads'
-      preLoaderRoute: typeof AppLeadsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/memory': {
-      id: '/app/memory'
-      path: '/memory'
-      fullPath: '/app/memory'
-      preLoaderRoute: typeof AppMemoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/mentor': {
-      id: '/app/mentor'
-      path: '/mentor'
-      fullPath: '/app/mentor'
-      preLoaderRoute: typeof AppMentorRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/mission-briefing': {
-      id: '/app/mission-briefing'
-      path: '/mission-briefing'
-      fullPath: '/app/mission-briefing'
-      preLoaderRoute: typeof AppMissionBriefingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/mission-control': {
-      id: '/app/mission-control'
-      path: '/mission-control'
-      fullPath: '/app/mission-control'
-      preLoaderRoute: typeof AppMissionControlRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/monitoring': {
-      id: '/app/monitoring'
-      path: '/monitoring'
-      fullPath: '/app/monitoring'
-      preLoaderRoute: typeof AppMonitoringRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/playbook': {
-      id: '/app/playbook'
-      path: '/playbook'
-      fullPath: '/app/playbook'
-      preLoaderRoute: typeof AppPlaybookRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reputation': {
-      id: '/app/reputation'
-      path: '/reputation'
-      fullPath: '/app/reputation'
-      preLoaderRoute: typeof AppReputationRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/research': {
-      id: '/app/research'
-      path: '/research'
-      fullPath: '/app/research'
-      preLoaderRoute: typeof AppResearchRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/roadmap': {
-      id: '/app/roadmap'
-      path: '/roadmap'
-      fullPath: '/app/roadmap'
-      preLoaderRoute: typeof AppRoadmapRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/scale': {
-      id: '/app/scale'
-      path: '/scale'
-      fullPath: '/app/scale'
-      preLoaderRoute: typeof AppScaleRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/settings': {
-      id: '/app/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/sop-library': {
-      id: '/app/sop-library'
-      path: '/sop-library'
-      fullPath: '/app/sop-library'
-      preLoaderRoute: typeof AppSopLibraryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/templates': {
-      id: '/app/templates'
-      path: '/templates'
-      fullPath: '/app/templates'
-      preLoaderRoute: typeof AppTemplatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/tutorials': {
-      id: '/app/tutorials'
-      path: '/tutorials'
-      fullPath: '/app/tutorials'
-      preLoaderRoute: typeof AppTutorialsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/workflow-templates': {
-      id: '/app/workflow-templates'
-      path: '/workflow-templates'
-      fullPath: '/app/workflow-templates'
-      preLoaderRoute: typeof AppWorkflowTemplatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/auth/forgot-password': {
-      id: '/auth/forgot-password'
-      path: '/auth/forgot-password'
-      fullPath: '/auth/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/invite': {
-      id: '/auth/invite'
-      path: '/auth/invite'
-      fullPath: '/auth/invite'
-      preLoaderRoute: typeof AuthInviteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/reset-password': {
-      id: '/auth/reset-password'
-      path: '/auth/reset-password'
-      fullPath: '/auth/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/sign-in': {
-      id: '/auth/sign-in'
-      path: '/auth/sign-in'
-      fullPath: '/auth/sign-in'
-      preLoaderRoute: typeof AuthSignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/sign-up': {
-      id: '/auth/sign-up'
-      path: '/auth/sign-up'
-      fullPath: '/auth/sign-up'
-      preLoaderRoute: typeof AuthSignUpRouteImport
+    '/f/$formId': {
+      id: '/f/$formId'
+      path: '/f/$formId'
+      fullPath: '/f/$formId'
+      preLoaderRoute: typeof FFormIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/book/$slug': {
@@ -2905,522 +1147,284 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dev/components': {
-      id: '/dev/components'
-      path: '/dev/components'
-      fullPath: '/dev/components'
-      preLoaderRoute: typeof DevComponentsRouteImport
+    '/auth/sign-up': {
+      id: '/auth/sign-up'
+      path: '/auth/sign-up'
+      fullPath: '/auth/sign-up'
+      preLoaderRoute: typeof AuthSignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dev/screens': {
-      id: '/dev/screens'
-      path: '/dev/screens'
-      fullPath: '/dev/screens'
-      preLoaderRoute: typeof DevScreensRouteImport
+    '/auth/sign-in': {
+      id: '/auth/sign-in'
+      path: '/auth/sign-in'
+      fullPath: '/auth/sign-in'
+      preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/doc/manager-brief-email': {
-      id: '/doc/manager-brief-email'
-      path: '/doc/manager-brief-email'
-      fullPath: '/doc/manager-brief-email'
-      preLoaderRoute: typeof DocManagerBriefEmailRouteImport
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/doc/rep-brief-push': {
-      id: '/doc/rep-brief-push'
-      path: '/doc/rep-brief-push'
-      fullPath: '/doc/rep-brief-push'
-      preLoaderRoute: typeof DocRepBriefPushRouteImport
+    '/auth/invite': {
+      id: '/auth/invite'
+      path: '/auth/invite'
+      fullPath: '/auth/invite'
+      preLoaderRoute: typeof AuthInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/doc/weekly-print': {
-      id: '/doc/weekly-print'
-      path: '/doc/weekly-print'
-      fullPath: '/doc/weekly-print'
-      preLoaderRoute: typeof DocWeeklyPrintRouteImport
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/f/$formId': {
-      id: '/f/$formId'
-      path: '/f/$formId'
-      fullPath: '/f/$formId'
-      preLoaderRoute: typeof FFormIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/alerts': {
-      id: '/m/alerts'
-      path: '/m/alerts'
-      fullPath: '/m/alerts'
-      preLoaderRoute: typeof MAlertsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/ask': {
-      id: '/m/ask'
-      path: '/m/ask'
-      fullPath: '/m/ask'
-      preLoaderRoute: typeof MAskRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/brief': {
-      id: '/m/brief'
-      path: '/m/brief'
-      fullPath: '/m/brief'
-      preLoaderRoute: typeof MBriefRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/manager-brief': {
-      id: '/m/manager-brief'
-      path: '/m/manager-brief'
-      fullPath: '/m/manager-brief'
-      preLoaderRoute: typeof MManagerBriefRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/analysis': {
-      id: '/welcome/analysis'
-      path: '/welcome/analysis'
-      fullPath: '/welcome/analysis'
-      preLoaderRoute: typeof WelcomeAnalysisRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/connect': {
-      id: '/welcome/connect'
-      path: '/welcome/connect'
-      fullPath: '/welcome/connect'
-      preLoaderRoute: typeof WelcomeConnectRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/first-insight': {
-      id: '/welcome/first-insight'
-      path: '/welcome/first-insight'
-      fullPath: '/welcome/first-insight'
-      preLoaderRoute: typeof WelcomeFirstInsightRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/forgot': {
-      id: '/welcome/forgot'
-      path: '/welcome/forgot'
-      fullPath: '/welcome/forgot'
-      preLoaderRoute: typeof WelcomeForgotRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/invite': {
-      id: '/welcome/invite'
-      path: '/welcome/invite'
-      fullPath: '/welcome/invite'
-      preLoaderRoute: typeof WelcomeInviteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/invite-team': {
-      id: '/welcome/invite-team'
-      path: '/welcome/invite-team'
-      fullPath: '/welcome/invite-team'
-      preLoaderRoute: typeof WelcomeInviteTeamRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/sign-in': {
-      id: '/welcome/sign-in'
-      path: '/welcome/sign-in'
-      fullPath: '/welcome/sign-in'
-      preLoaderRoute: typeof WelcomeSignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/sign-up': {
-      id: '/welcome/sign-up'
-      path: '/welcome/sign-up'
-      fullPath: '/welcome/sign-up'
-      preLoaderRoute: typeof WelcomeSignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/teach': {
-      id: '/welcome/teach'
-      path: '/welcome/teach'
-      fullPath: '/welcome/teach'
-      preLoaderRoute: typeof WelcomeTeachRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/verify': {
-      id: '/welcome/verify'
-      path: '/welcome/verify'
-      fullPath: '/welcome/verify'
-      preLoaderRoute: typeof WelcomeVerifyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/welcome/workspace': {
-      id: '/welcome/workspace'
-      path: '/welcome/workspace'
-      fullPath: '/welcome/workspace'
-      preLoaderRoute: typeof WelcomeWorkspaceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/academy/$module': {
-      id: '/app/academy/$module'
-      path: '/$module'
-      fullPath: '/app/academy/$module'
-      preLoaderRoute: typeof AppAcademyModuleRouteImport
-      parentRoute: typeof AppAcademyRoute
-    }
-    '/app/billing/return': {
-      id: '/app/billing/return'
-      path: '/return'
-      fullPath: '/app/billing/return'
-      preLoaderRoute: typeof AppBillingReturnRouteImport
-      parentRoute: typeof AppBillingRoute
-    }
-    '/app/bylda-os/$slug': {
-      id: '/app/bylda-os/$slug'
-      path: '/$slug'
-      fullPath: '/app/bylda-os/$slug'
-      preLoaderRoute: typeof AppByldaOsSlugRouteImport
-      parentRoute: typeof AppByldaOsRoute
-    }
-    '/app/bylda/': {
-      id: '/app/bylda/'
-      path: '/bylda'
-      fullPath: '/app/bylda/'
-      preLoaderRoute: typeof AppByldaIndexRouteImport
+    '/app/workflow-templates': {
+      id: '/app/workflow-templates'
+      path: '/workflow-templates'
+      fullPath: '/app/workflow-templates'
+      preLoaderRoute: typeof AppWorkflowTemplatesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/bylda/clients': {
-      id: '/app/bylda/clients'
-      path: '/bylda/clients'
-      fullPath: '/app/bylda/clients'
-      preLoaderRoute: typeof AppByldaClientsRouteImport
+    '/app/tutorials': {
+      id: '/app/tutorials'
+      path: '/tutorials'
+      fullPath: '/app/tutorials'
+      preLoaderRoute: typeof AppTutorialsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/bylda/crm': {
-      id: '/app/bylda/crm'
-      path: '/bylda/crm'
-      fullPath: '/app/bylda/crm'
-      preLoaderRoute: typeof AppByldaCrmRouteImport
+    '/app/templates': {
+      id: '/app/templates'
+      path: '/templates'
+      fullPath: '/app/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/bylda/leads': {
-      id: '/app/bylda/leads'
-      path: '/bylda/leads'
-      fullPath: '/app/bylda/leads'
-      preLoaderRoute: typeof AppByldaLeadsRouteImport
+    '/app/sop-library': {
+      id: '/app/sop-library'
+      path: '/sop-library'
+      fullPath: '/app/sop-library'
+      preLoaderRoute: typeof AppSopLibraryRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/bylda/reports': {
-      id: '/app/bylda/reports'
-      path: '/bylda/reports'
-      fullPath: '/app/bylda/reports'
-      preLoaderRoute: typeof AppByldaReportsRouteImport
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/bylda/workflows': {
-      id: '/app/bylda/workflows'
-      path: '/bylda/workflows'
-      fullPath: '/app/bylda/workflows'
-      preLoaderRoute: typeof AppByldaWorkflowsRouteImport
+    '/app/scale': {
+      id: '/app/scale'
+      path: '/scale'
+      fullPath: '/app/scale'
+      preLoaderRoute: typeof AppScaleRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/': {
-      id: '/app/calls/'
-      path: '/calls'
-      fullPath: '/app/calls/'
-      preLoaderRoute: typeof AppCallsIndexRouteImport
+    '/app/roadmap': {
+      id: '/app/roadmap'
+      path: '/roadmap'
+      fullPath: '/app/roadmap'
+      preLoaderRoute: typeof AppRoadmapRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/all': {
-      id: '/app/calls/all'
-      path: '/calls/all'
-      fullPath: '/app/calls/all'
-      preLoaderRoute: typeof AppCallsAllRouteImport
+    '/app/research': {
+      id: '/app/research'
+      path: '/research'
+      fullPath: '/app/research'
+      preLoaderRoute: typeof AppResearchRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/compare': {
-      id: '/app/calls/compare'
-      path: '/calls/compare'
-      fullPath: '/app/calls/compare'
-      preLoaderRoute: typeof AppCallsCompareRouteImport
+    '/app/reputation': {
+      id: '/app/reputation'
+      path: '/reputation'
+      fullPath: '/app/reputation'
+      preLoaderRoute: typeof AppReputationRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/mine': {
-      id: '/app/calls/mine'
-      path: '/calls/mine'
-      fullPath: '/app/calls/mine'
-      preLoaderRoute: typeof AppCallsMineRouteImport
+    '/app/playbook': {
+      id: '/app/playbook'
+      path: '/playbook'
+      fullPath: '/app/playbook'
+      preLoaderRoute: typeof AppPlaybookRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/upload': {
-      id: '/app/calls/upload'
-      path: '/calls/upload'
-      fullPath: '/app/calls/upload'
-      preLoaderRoute: typeof AppCallsUploadRouteImport
+    '/app/monitoring': {
+      id: '/app/monitoring'
+      path: '/monitoring'
+      fullPath: '/app/monitoring'
+      preLoaderRoute: typeof AppMonitoringRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/': {
-      id: '/app/coaching/'
-      path: '/coaching'
-      fullPath: '/app/coaching/'
-      preLoaderRoute: typeof AppCoachingIndexRouteImport
+    '/app/mission-control': {
+      id: '/app/mission-control'
+      path: '/mission-control'
+      fullPath: '/app/mission-control'
+      preLoaderRoute: typeof AppMissionControlRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/assign': {
-      id: '/app/coaching/assign'
-      path: '/coaching/assign'
-      fullPath: '/app/coaching/assign'
-      preLoaderRoute: typeof AppCoachingAssignRouteImport
+    '/app/mission-briefing': {
+      id: '/app/mission-briefing'
+      path: '/mission-briefing'
+      fullPath: '/app/mission-briefing'
+      preLoaderRoute: typeof AppMissionBriefingRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/completed': {
-      id: '/app/coaching/completed'
-      path: '/coaching/completed'
-      fullPath: '/app/coaching/completed'
-      preLoaderRoute: typeof AppCoachingCompletedRouteImport
+    '/app/mentor': {
+      id: '/app/mentor'
+      path: '/mentor'
+      fullPath: '/app/mentor'
+      preLoaderRoute: typeof AppMentorRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/follow-up': {
-      id: '/app/coaching/follow-up'
-      path: '/coaching/follow-up'
-      fullPath: '/app/coaching/follow-up'
-      preLoaderRoute: typeof AppCoachingFollowUpRouteImport
+    '/app/memory': {
+      id: '/app/memory'
+      path: '/memory'
+      fullPath: '/app/memory'
+      preLoaderRoute: typeof AppMemoryRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/mine': {
-      id: '/app/coaching/mine'
-      path: '/coaching/mine'
-      fullPath: '/app/coaching/mine'
-      preLoaderRoute: typeof AppCoachingMineRouteImport
+    '/app/leads': {
+      id: '/app/leads'
+      path: '/leads'
+      fullPath: '/app/leads'
+      preLoaderRoute: typeof AppLeadsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/connections/': {
-      id: '/app/connections/'
-      path: '/connections'
-      fullPath: '/app/connections/'
-      preLoaderRoute: typeof AppConnectionsIndexRouteImport
+    '/app/launchpad-path': {
+      id: '/app/launchpad-path'
+      path: '/launchpad-path'
+      fullPath: '/app/launchpad-path'
+      preLoaderRoute: typeof AppLaunchpadPathRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/connections/channels': {
-      id: '/app/connections/channels'
-      path: '/connections/channels'
-      fullPath: '/app/connections/channels'
-      preLoaderRoute: typeof AppConnectionsChannelsRouteImport
+    '/app/launch-control': {
+      id: '/app/launch-control'
+      path: '/launch-control'
+      fullPath: '/app/launch-control'
+      preLoaderRoute: typeof AppLaunchControlRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/connections/hubspot': {
-      id: '/app/connections/hubspot'
-      path: '/connections/hubspot'
-      fullPath: '/app/connections/hubspot'
-      preLoaderRoute: typeof AppConnectionsHubspotRouteImport
+    '/app/integrations': {
+      id: '/app/integrations'
+      path: '/integrations'
+      fullPath: '/app/integrations'
+      preLoaderRoute: typeof AppIntegrationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/accounts': {
-      id: '/app/crm/accounts'
-      path: '/crm/accounts'
-      fullPath: '/app/crm/accounts'
-      preLoaderRoute: typeof AppCrmAccountsRouteImport
+    '/app/galaxy': {
+      id: '/app/galaxy'
+      path: '/galaxy'
+      fullPath: '/app/galaxy'
+      preLoaderRoute: typeof AppGalaxyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/automations': {
-      id: '/app/crm/automations'
-      path: '/crm/automations'
-      fullPath: '/app/crm/automations'
-      preLoaderRoute: typeof AppCrmAutomationsRouteImport
+    '/app/dashboard': {
+      id: '/app/dashboard'
+      path: '/dashboard'
+      fullPath: '/app/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/calendar': {
-      id: '/app/crm/calendar'
-      path: '/crm/calendar'
-      fullPath: '/app/crm/calendar'
-      preLoaderRoute: typeof AppCrmCalendarRouteImport
+    '/app/context-memory': {
+      id: '/app/context-memory'
+      path: '/context-memory'
+      fullPath: '/app/context-memory'
+      preLoaderRoute: typeof AppContextMemoryRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/calls': {
-      id: '/app/crm/calls'
-      path: '/crm/calls'
-      fullPath: '/app/crm/calls'
-      preLoaderRoute: typeof AppCrmCallsRouteImport
+    '/app/contacts': {
+      id: '/app/contacts'
+      path: '/contacts'
+      fullPath: '/app/contacts'
+      preLoaderRoute: typeof AppContactsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/campaigns': {
-      id: '/app/crm/campaigns'
-      path: '/crm/campaigns'
-      fullPath: '/app/crm/campaigns'
-      preLoaderRoute: typeof AppCrmCampaignsRouteImport
+    '/app/command-center': {
+      id: '/app/command-center'
+      path: '/command-center'
+      fullPath: '/app/command-center'
+      preLoaderRoute: typeof AppCommandCenterRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/companies': {
-      id: '/app/crm/companies'
-      path: '/crm/companies'
-      fullPath: '/app/crm/companies'
-      preLoaderRoute: typeof AppCrmCompaniesRouteImport
+    '/app/bylda-os': {
+      id: '/app/bylda-os'
+      path: '/bylda-os'
+      fullPath: '/app/bylda-os'
+      preLoaderRoute: typeof AppByldaOsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/conversations': {
-      id: '/app/crm/conversations'
-      path: '/crm/conversations'
-      fullPath: '/app/crm/conversations'
-      preLoaderRoute: typeof AppCrmConversationsRouteImport
+    '/app/bylda-home': {
+      id: '/app/bylda-home'
+      path: '/bylda-home'
+      fullPath: '/app/bylda-home'
+      preLoaderRoute: typeof AppByldaHomeRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/duplicates': {
-      id: '/app/crm/duplicates'
-      path: '/crm/duplicates'
-      fullPath: '/app/crm/duplicates'
-      preLoaderRoute: typeof AppCrmDuplicatesRouteImport
+    '/app/bylda-full': {
+      id: '/app/bylda-full'
+      path: '/bylda-full'
+      fullPath: '/app/bylda-full'
+      preLoaderRoute: typeof AppByldaFullRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/forms': {
-      id: '/app/crm/forms'
-      path: '/crm/forms'
-      fullPath: '/app/crm/forms'
-      preLoaderRoute: typeof AppCrmFormsRouteImport
+    '/app/builder': {
+      id: '/app/builder'
+      path: '/builder'
+      fullPath: '/app/builder'
+      preLoaderRoute: typeof AppBuilderRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/setup': {
-      id: '/app/crm/setup'
-      path: '/crm/setup'
-      fullPath: '/app/crm/setup'
-      preLoaderRoute: typeof AppCrmSetupRouteImport
+    '/app/billing': {
+      id: '/app/billing'
+      path: '/billing'
+      fullPath: '/app/billing'
+      preLoaderRoute: typeof AppBillingRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/tasks': {
-      id: '/app/crm/tasks'
-      path: '/crm/tasks'
-      fullPath: '/app/crm/tasks'
-      preLoaderRoute: typeof AppCrmTasksRouteImport
+    '/app/automations': {
+      id: '/app/automations'
+      path: '/automations'
+      fullPath: '/app/automations'
+      preLoaderRoute: typeof AppAutomationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/crm/waitlist': {
-      id: '/app/crm/waitlist'
-      path: '/crm/waitlist'
-      fullPath: '/app/crm/waitlist'
-      preLoaderRoute: typeof AppCrmWaitlistRouteImport
+    '/app/assets': {
+      id: '/app/assets'
+      path: '/assets'
+      fullPath: '/app/assets'
+      preLoaderRoute: typeof AppAssetsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/dm/$threadId': {
-      id: '/app/dm/$threadId'
-      path: '/dm/$threadId'
-      fullPath: '/app/dm/$threadId'
-      preLoaderRoute: typeof AppDmThreadIdRouteImport
+    '/app/ai-dashboard': {
+      id: '/app/ai-dashboard'
+      path: '/ai-dashboard'
+      fullPath: '/app/ai-dashboard'
+      preLoaderRoute: typeof AppAiDashboardRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/dm/coach': {
-      id: '/app/dm/coach'
-      path: '/dm/coach'
-      fullPath: '/app/dm/coach'
-      preLoaderRoute: typeof AppDmCoachRouteImport
+    '/app/admin': {
+      id: '/app/admin'
+      path: '/admin'
+      fullPath: '/app/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/home/': {
-      id: '/app/home/'
-      path: '/home'
-      fullPath: '/app/home/'
-      preLoaderRoute: typeof AppHomeIndexRouteImport
+    '/app/activity': {
+      id: '/app/activity'
+      path: '/activity'
+      fullPath: '/app/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/home/admin': {
-      id: '/app/home/admin'
-      path: '/home/admin'
-      fullPath: '/app/home/admin'
-      preLoaderRoute: typeof AppHomeAdminRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/home/calls': {
-      id: '/app/home/calls'
-      path: '/home/calls'
-      fullPath: '/app/home/calls'
-      preLoaderRoute: typeof AppHomeCallsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/home/coaching': {
-      id: '/app/home/coaching'
-      path: '/home/coaching'
-      fullPath: '/app/home/coaching'
-      preLoaderRoute: typeof AppHomeCoachingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/home/mentions': {
-      id: '/app/home/mentions'
-      path: '/home/mentions'
-      fullPath: '/app/home/mentions'
-      preLoaderRoute: typeof AppHomeMentionsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/home/reports': {
-      id: '/app/home/reports'
-      path: '/home/reports'
-      fullPath: '/app/home/reports'
-      preLoaderRoute: typeof AppHomeReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/home/team-updates': {
-      id: '/app/home/team-updates'
-      path: '/home/team-updates'
-      fullPath: '/app/home/team-updates'
-      preLoaderRoute: typeof AppHomeTeamUpdatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/': {
-      id: '/app/intelligence/'
-      path: '/intelligence'
-      fullPath: '/app/intelligence/'
-      preLoaderRoute: typeof AppIntelligenceIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/graph': {
-      id: '/app/intelligence/graph'
-      path: '/intelligence/graph'
-      fullPath: '/app/intelligence/graph'
-      preLoaderRoute: typeof AppIntelligenceGraphRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/matrix': {
-      id: '/app/intelligence/matrix'
-      path: '/intelligence/matrix'
-      fullPath: '/app/intelligence/matrix'
-      preLoaderRoute: typeof AppIntelligenceMatrixRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/methodology': {
-      id: '/app/intelligence/methodology'
-      path: '/intelligence/methodology'
-      fullPath: '/app/intelligence/methodology'
-      preLoaderRoute: typeof AppIntelligenceMethodologyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/objections': {
-      id: '/app/intelligence/objections'
-      path: '/intelligence/objections'
-      fullPath: '/app/intelligence/objections'
-      preLoaderRoute: typeof AppIntelligenceObjectionsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/outcomes': {
-      id: '/app/intelligence/outcomes'
-      path: '/intelligence/outcomes'
-      fullPath: '/app/intelligence/outcomes'
-      preLoaderRoute: typeof AppIntelligenceOutcomesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/patterns': {
-      id: '/app/intelligence/patterns'
-      path: '/intelligence/patterns'
-      fullPath: '/app/intelligence/patterns'
-      preLoaderRoute: typeof AppIntelligencePatternsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/prospects': {
-      id: '/app/intelligence/prospects'
-      path: '/intelligence/prospects'
-      fullPath: '/app/intelligence/prospects'
-      preLoaderRoute: typeof AppIntelligenceProspectsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/reps': {
-      id: '/app/intelligence/reps'
-      path: '/intelligence/reps'
-      fullPath: '/app/intelligence/reps'
-      preLoaderRoute: typeof AppIntelligenceRepsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/intelligence/team-behaviors': {
-      id: '/app/intelligence/team-behaviors'
-      path: '/intelligence/team-behaviors'
-      fullPath: '/app/intelligence/team-behaviors'
-      preLoaderRoute: typeof AppIntelligenceTeamBehaviorsRouteImport
+    '/app/academy': {
+      id: '/app/academy'
+      path: '/academy'
+      fullPath: '/app/academy'
+      preLoaderRoute: typeof AppAcademyRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/launchpad/': {
@@ -3430,165 +1434,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLaunchpadIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/launchpad/$tool': {
-      id: '/app/launchpad/$tool'
-      path: '/launchpad/$tool'
-      fullPath: '/app/launchpad/$tool'
-      preLoaderRoute: typeof AppLaunchpadToolRouteImport
+    '/app/bylda/': {
+      id: '/app/bylda/'
+      path: '/bylda'
+      fullPath: '/app/bylda/'
+      preLoaderRoute: typeof AppByldaIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/launchpad/bylda': {
-      id: '/app/launchpad/bylda'
-      path: '/launchpad/bylda'
-      fullPath: '/app/launchpad/bylda'
-      preLoaderRoute: typeof AppLaunchpadByldaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/course': {
-      id: '/app/launchpad/course'
-      path: '/launchpad/course'
-      fullPath: '/app/launchpad/course'
-      preLoaderRoute: typeof AppLaunchpadCourseRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/first-customers': {
-      id: '/app/launchpad/first-customers'
-      path: '/launchpad/first-customers'
-      fullPath: '/app/launchpad/first-customers'
-      preLoaderRoute: typeof AppLaunchpadFirstCustomersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/history': {
-      id: '/app/launchpad/history'
-      path: '/launchpad/history'
-      fullPath: '/app/launchpad/history'
-      preLoaderRoute: typeof AppLaunchpadHistoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/mentors': {
-      id: '/app/launchpad/mentors'
-      path: '/launchpad/mentors'
-      fullPath: '/app/launchpad/mentors'
-      preLoaderRoute: typeof AppLaunchpadMentorsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/missions': {
-      id: '/app/launchpad/missions'
-      path: '/launchpad/missions'
-      fullPath: '/app/launchpad/missions'
-      preLoaderRoute: typeof AppLaunchpadMissionsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/methodology/': {
-      id: '/app/methodology/'
-      path: '/methodology'
-      fullPath: '/app/methodology/'
-      preLoaderRoute: typeof AppMethodologyIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/methodology/objections': {
-      id: '/app/methodology/objections'
-      path: '/methodology/objections'
-      fullPath: '/app/methodology/objections'
-      preLoaderRoute: typeof AppMethodologyObjectionsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/methodology/success-criteria': {
-      id: '/app/methodology/success-criteria'
-      path: '/methodology/success-criteria'
-      fullPath: '/app/methodology/success-criteria'
-      preLoaderRoute: typeof AppMethodologySuccessCriteriaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/notifications/': {
-      id: '/app/notifications/'
-      path: '/notifications'
-      fullPath: '/app/notifications/'
-      preLoaderRoute: typeof AppNotificationsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/outcomes/$category': {
-      id: '/app/outcomes/$category'
-      path: '/outcomes/$category'
-      fullPath: '/app/outcomes/$category'
-      preLoaderRoute: typeof AppOutcomesCategoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rep/': {
-      id: '/app/rep/'
-      path: '/rep'
-      fullPath: '/app/rep/'
-      preLoaderRoute: typeof AppRepIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rep/progress': {
-      id: '/app/rep/progress'
-      path: '/rep/progress'
-      fullPath: '/app/rep/progress'
-      preLoaderRoute: typeof AppRepProgressRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reports/': {
-      id: '/app/reports/'
-      path: '/reports'
-      fullPath: '/app/reports/'
-      preLoaderRoute: typeof AppReportsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reports/daily': {
-      id: '/app/reports/daily'
-      path: '/reports/daily'
-      fullPath: '/app/reports/daily'
-      preLoaderRoute: typeof AppReportsDailyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reports/outline': {
-      id: '/app/reports/outline'
-      path: '/reports/outline'
-      fullPath: '/app/reports/outline'
-      preLoaderRoute: typeof AppReportsOutlineRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reports/weekly': {
-      id: '/app/reports/weekly'
-      path: '/reports/weekly'
-      fullPath: '/app/reports/weekly'
-      preLoaderRoute: typeof AppReportsWeeklyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/': {
-      id: '/app/rooms/'
-      path: '/rooms'
-      fullPath: '/app/rooms/'
-      preLoaderRoute: typeof AppRoomsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/new': {
-      id: '/app/rooms/new'
-      path: '/rooms/new'
-      fullPath: '/app/rooms/new'
-      preLoaderRoute: typeof AppRoomsNewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/scale/automations': {
-      id: '/app/scale/automations'
-      path: '/automations'
-      fullPath: '/app/scale/automations'
-      preLoaderRoute: typeof AppScaleAutomationsRouteImport
-      parentRoute: typeof AppScaleRoute
-    }
-    '/app/scale/campaigns': {
-      id: '/app/scale/campaigns'
-      path: '/campaigns'
-      fullPath: '/app/scale/campaigns'
-      preLoaderRoute: typeof AppScaleCampaignsRouteImport
-      parentRoute: typeof AppScaleRoute
-    }
-    '/app/scale/pipeline': {
-      id: '/app/scale/pipeline'
-      path: '/pipeline'
-      fullPath: '/app/scale/pipeline'
-      preLoaderRoute: typeof AppScalePipelineRouteImport
+    '/app/scale/team': {
+      id: '/app/scale/team'
+      path: '/team'
+      fullPath: '/app/scale/team'
+      preLoaderRoute: typeof AppScaleTeamRouteImport
       parentRoute: typeof AppScaleRoute
     }
     '/app/scale/reports': {
@@ -3598,410 +1455,228 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScaleReportsRouteImport
       parentRoute: typeof AppScaleRoute
     }
-    '/app/scale/team': {
-      id: '/app/scale/team'
-      path: '/team'
-      fullPath: '/app/scale/team'
-      preLoaderRoute: typeof AppScaleTeamRouteImport
+    '/app/scale/pipeline': {
+      id: '/app/scale/pipeline'
+      path: '/pipeline'
+      fullPath: '/app/scale/pipeline'
+      preLoaderRoute: typeof AppScalePipelineRouteImport
       parentRoute: typeof AppScaleRoute
     }
-    '/app/search/': {
-      id: '/app/search/'
-      path: '/search'
-      fullPath: '/app/search/'
-      preLoaderRoute: typeof AppSearchIndexRouteImport
+    '/app/scale/campaigns': {
+      id: '/app/scale/campaigns'
+      path: '/campaigns'
+      fullPath: '/app/scale/campaigns'
+      preLoaderRoute: typeof AppScaleCampaignsRouteImport
+      parentRoute: typeof AppScaleRoute
+    }
+    '/app/scale/automations': {
+      id: '/app/scale/automations'
+      path: '/automations'
+      fullPath: '/app/scale/automations'
+      preLoaderRoute: typeof AppScaleAutomationsRouteImport
+      parentRoute: typeof AppScaleRoute
+    }
+    '/app/outcomes/$category': {
+      id: '/app/outcomes/$category'
+      path: '/outcomes/$category'
+      fullPath: '/app/outcomes/$category'
+      preLoaderRoute: typeof AppOutcomesCategoryRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/states/': {
-      id: '/app/states/'
-      path: '/states'
-      fullPath: '/app/states/'
-      preLoaderRoute: typeof AppStatesIndexRouteImport
+    '/app/launchpad/missions': {
+      id: '/app/launchpad/missions'
+      path: '/launchpad/missions'
+      fullPath: '/app/launchpad/missions'
+      preLoaderRoute: typeof AppLaunchpadMissionsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/team/': {
-      id: '/app/team/'
-      path: '/team'
-      fullPath: '/app/team/'
-      preLoaderRoute: typeof AppTeamIndexRouteImport
+    '/app/launchpad/mentors': {
+      id: '/app/launchpad/mentors'
+      path: '/launchpad/mentors'
+      fullPath: '/app/launchpad/mentors'
+      preLoaderRoute: typeof AppLaunchpadMentorsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/team/compare': {
-      id: '/app/team/compare'
-      path: '/team/compare'
-      fullPath: '/app/team/compare'
-      preLoaderRoute: typeof AppTeamCompareRouteImport
+    '/app/launchpad/history': {
+      id: '/app/launchpad/history'
+      path: '/launchpad/history'
+      fullPath: '/app/launchpad/history'
+      preLoaderRoute: typeof AppLaunchpadHistoryRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/': {
-      id: '/app/workspace/'
-      path: '/workspace'
-      fullPath: '/app/workspace/'
-      preLoaderRoute: typeof AppWorkspaceIndexRouteImport
+    '/app/launchpad/first-customers': {
+      id: '/app/launchpad/first-customers'
+      path: '/launchpad/first-customers'
+      fullPath: '/app/launchpad/first-customers'
+      preLoaderRoute: typeof AppLaunchpadFirstCustomersRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/analysis': {
-      id: '/app/workspace/analysis'
-      path: '/workspace/analysis'
-      fullPath: '/app/workspace/analysis'
-      preLoaderRoute: typeof AppWorkspaceAnalysisRouteImport
+    '/app/launchpad/course': {
+      id: '/app/launchpad/course'
+      path: '/launchpad/course'
+      fullPath: '/app/launchpad/course'
+      preLoaderRoute: typeof AppLaunchpadCourseRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/api-keys': {
-      id: '/app/workspace/api-keys'
-      path: '/workspace/api-keys'
-      fullPath: '/app/workspace/api-keys'
-      preLoaderRoute: typeof AppWorkspaceApiKeysRouteImport
+    '/app/launchpad/bylda': {
+      id: '/app/launchpad/bylda'
+      path: '/launchpad/bylda'
+      fullPath: '/app/launchpad/bylda'
+      preLoaderRoute: typeof AppLaunchpadByldaRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/audit-log': {
-      id: '/app/workspace/audit-log'
-      path: '/workspace/audit-log'
-      fullPath: '/app/workspace/audit-log'
-      preLoaderRoute: typeof AppWorkspaceAuditLogRouteImport
+    '/app/launchpad/$tool': {
+      id: '/app/launchpad/$tool'
+      path: '/launchpad/$tool'
+      fullPath: '/app/launchpad/$tool'
+      preLoaderRoute: typeof AppLaunchpadToolRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/billing': {
-      id: '/app/workspace/billing'
-      path: '/workspace/billing'
-      fullPath: '/app/workspace/billing'
-      preLoaderRoute: typeof AppWorkspaceBillingRouteImport
+    '/app/crm/waitlist': {
+      id: '/app/crm/waitlist'
+      path: '/crm/waitlist'
+      fullPath: '/app/crm/waitlist'
+      preLoaderRoute: typeof AppCrmWaitlistRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/notifications': {
-      id: '/app/workspace/notifications'
-      path: '/workspace/notifications'
-      fullPath: '/app/workspace/notifications'
-      preLoaderRoute: typeof AppWorkspaceNotificationsRouteImport
+    '/app/crm/tasks': {
+      id: '/app/crm/tasks'
+      path: '/crm/tasks'
+      fullPath: '/app/crm/tasks'
+      preLoaderRoute: typeof AppCrmTasksRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/profile': {
-      id: '/app/workspace/profile'
-      path: '/workspace/profile'
-      fullPath: '/app/workspace/profile'
-      preLoaderRoute: typeof AppWorkspaceProfileRouteImport
+    '/app/crm/setup': {
+      id: '/app/crm/setup'
+      path: '/crm/setup'
+      fullPath: '/app/crm/setup'
+      preLoaderRoute: typeof AppCrmSetupRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/retention': {
-      id: '/app/workspace/retention'
-      path: '/workspace/retention'
-      fullPath: '/app/workspace/retention'
-      preLoaderRoute: typeof AppWorkspaceRetentionRouteImport
+    '/app/crm/forms': {
+      id: '/app/crm/forms'
+      path: '/crm/forms'
+      fullPath: '/app/crm/forms'
+      preLoaderRoute: typeof AppCrmFormsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/roles': {
-      id: '/app/workspace/roles'
-      path: '/workspace/roles'
-      fullPath: '/app/workspace/roles'
-      preLoaderRoute: typeof AppWorkspaceRolesRouteImport
+    '/app/crm/duplicates': {
+      id: '/app/crm/duplicates'
+      path: '/crm/duplicates'
+      fullPath: '/app/crm/duplicates'
+      preLoaderRoute: typeof AppCrmDuplicatesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/teams': {
-      id: '/app/workspace/teams'
-      path: '/workspace/teams'
-      fullPath: '/app/workspace/teams'
-      preLoaderRoute: typeof AppWorkspaceTeamsRouteImport
+    '/app/crm/conversations': {
+      id: '/app/crm/conversations'
+      path: '/crm/conversations'
+      fullPath: '/app/crm/conversations'
+      preLoaderRoute: typeof AppCrmConversationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/usage': {
-      id: '/app/workspace/usage'
-      path: '/workspace/usage'
-      fullPath: '/app/workspace/usage'
-      preLoaderRoute: typeof AppWorkspaceUsageRouteImport
+    '/app/crm/companies': {
+      id: '/app/crm/companies'
+      path: '/crm/companies'
+      fullPath: '/app/crm/companies'
+      preLoaderRoute: typeof AppCrmCompaniesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/workspace/users': {
-      id: '/app/workspace/users'
-      path: '/workspace/users'
-      fullPath: '/app/workspace/users'
-      preLoaderRoute: typeof AppWorkspaceUsersRouteImport
+    '/app/crm/campaigns': {
+      id: '/app/crm/campaigns'
+      path: '/crm/campaigns'
+      fullPath: '/app/crm/campaigns'
+      preLoaderRoute: typeof AppCrmCampaignsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/m/calls/$callId': {
-      id: '/m/calls/$callId'
-      path: '/m/calls/$callId'
-      fullPath: '/m/calls/$callId'
-      preLoaderRoute: typeof MCallsCallIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/coaching/$focusId': {
-      id: '/m/coaching/$focusId'
-      path: '/m/coaching/$focusId'
-      fullPath: '/m/coaching/$focusId'
-      preLoaderRoute: typeof MCoachingFocusIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/dm/$threadId': {
-      id: '/m/dm/$threadId'
-      path: '/m/dm/$threadId'
-      fullPath: '/m/dm/$threadId'
-      preLoaderRoute: typeof MDmThreadIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/moments/$momentId': {
-      id: '/m/moments/$momentId'
-      path: '/m/moments/$momentId'
-      fullPath: '/m/moments/$momentId'
-      preLoaderRoute: typeof MMomentsMomentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/m/rooms/$roomId': {
-      id: '/m/rooms/$roomId'
-      path: '/m/rooms/$roomId'
-      fullPath: '/m/rooms/$roomId'
-      preLoaderRoute: typeof MRoomsRoomIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/calls/$callId/': {
-      id: '/app/calls/$callId/'
-      path: '/calls/$callId'
-      fullPath: '/app/calls/$callId/'
-      preLoaderRoute: typeof AppCallsCallIdIndexRouteImport
+    '/app/crm/calls': {
+      id: '/app/crm/calls'
+      path: '/crm/calls'
+      fullPath: '/app/crm/calls'
+      preLoaderRoute: typeof AppCrmCallsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/$callId/analysis': {
-      id: '/app/calls/$callId/analysis'
-      path: '/calls/$callId/analysis'
-      fullPath: '/app/calls/$callId/analysis'
-      preLoaderRoute: typeof AppCallsCallIdAnalysisRouteImport
+    '/app/crm/calendar': {
+      id: '/app/crm/calendar'
+      path: '/crm/calendar'
+      fullPath: '/app/crm/calendar'
+      preLoaderRoute: typeof AppCrmCalendarRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/$callId/coaching': {
-      id: '/app/calls/$callId/coaching'
-      path: '/calls/$callId/coaching'
-      fullPath: '/app/calls/$callId/coaching'
-      preLoaderRoute: typeof AppCallsCallIdCoachingRouteImport
+    '/app/crm/automations': {
+      id: '/app/crm/automations'
+      path: '/crm/automations'
+      fullPath: '/app/crm/automations'
+      preLoaderRoute: typeof AppCrmAutomationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calls/$callId/transcript': {
-      id: '/app/calls/$callId/transcript'
-      path: '/calls/$callId/transcript'
-      fullPath: '/app/calls/$callId/transcript'
-      preLoaderRoute: typeof AppCallsCallIdTranscriptRouteImport
+    '/app/crm/accounts': {
+      id: '/app/crm/accounts'
+      path: '/crm/accounts'
+      fullPath: '/app/crm/accounts'
+      preLoaderRoute: typeof AppCrmAccountsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/$focusId/': {
-      id: '/app/coaching/$focusId/'
-      path: '/coaching/$focusId'
-      fullPath: '/app/coaching/$focusId/'
-      preLoaderRoute: typeof AppCoachingFocusIdIndexRouteImport
+    '/app/bylda/workflows': {
+      id: '/app/bylda/workflows'
+      path: '/bylda/workflows'
+      fullPath: '/app/bylda/workflows'
+      preLoaderRoute: typeof AppByldaWorkflowsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/$focusId/discussion': {
-      id: '/app/coaching/$focusId/discussion'
-      path: '/coaching/$focusId/discussion'
-      fullPath: '/app/coaching/$focusId/discussion'
-      preLoaderRoute: typeof AppCoachingFocusIdDiscussionRouteImport
+    '/app/bylda/reports': {
+      id: '/app/bylda/reports'
+      path: '/bylda/reports'
+      fullPath: '/app/bylda/reports'
+      preLoaderRoute: typeof AppByldaReportsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/$focusId/evidence': {
-      id: '/app/coaching/$focusId/evidence'
-      path: '/coaching/$focusId/evidence'
-      fullPath: '/app/coaching/$focusId/evidence'
-      preLoaderRoute: typeof AppCoachingFocusIdEvidenceRouteImport
+    '/app/bylda/leads': {
+      id: '/app/bylda/leads'
+      path: '/bylda/leads'
+      fullPath: '/app/bylda/leads'
+      preLoaderRoute: typeof AppByldaLeadsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/$focusId/overview': {
-      id: '/app/coaching/$focusId/overview'
-      path: '/coaching/$focusId/overview'
-      fullPath: '/app/coaching/$focusId/overview'
-      preLoaderRoute: typeof AppCoachingFocusIdOverviewRouteImport
+    '/app/bylda/crm': {
+      id: '/app/bylda/crm'
+      path: '/bylda/crm'
+      fullPath: '/app/bylda/crm'
+      preLoaderRoute: typeof AppByldaCrmRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/$focusId/progress': {
-      id: '/app/coaching/$focusId/progress'
-      path: '/coaching/$focusId/progress'
-      fullPath: '/app/coaching/$focusId/progress'
-      preLoaderRoute: typeof AppCoachingFocusIdProgressRouteImport
+    '/app/bylda/clients': {
+      id: '/app/bylda/clients'
+      path: '/bylda/clients'
+      fullPath: '/app/bylda/clients'
+      preLoaderRoute: typeof AppByldaClientsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/coaching/$focusId/result': {
-      id: '/app/coaching/$focusId/result'
-      path: '/coaching/$focusId/result'
-      fullPath: '/app/coaching/$focusId/result'
-      preLoaderRoute: typeof AppCoachingFocusIdResultRouteImport
-      parentRoute: typeof AppRoute
+    '/app/bylda-os/$slug': {
+      id: '/app/bylda-os/$slug'
+      path: '/$slug'
+      fullPath: '/app/bylda-os/$slug'
+      preLoaderRoute: typeof AppByldaOsSlugRouteImport
+      parentRoute: typeof AppByldaOsRoute
     }
-    '/app/intelligence/behaviors/$behaviorKey': {
-      id: '/app/intelligence/behaviors/$behaviorKey'
-      path: '/intelligence/behaviors/$behaviorKey'
-      fullPath: '/app/intelligence/behaviors/$behaviorKey'
-      preLoaderRoute: typeof AppIntelligenceBehaviorsBehaviorKeyRouteImport
-      parentRoute: typeof AppRoute
+    '/app/billing/return': {
+      id: '/app/billing/return'
+      path: '/return'
+      fullPath: '/app/billing/return'
+      preLoaderRoute: typeof AppBillingReturnRouteImport
+      parentRoute: typeof AppBillingRoute
+    }
+    '/app/academy/$module': {
+      id: '/app/academy/$module'
+      path: '/$module'
+      fullPath: '/app/academy/$module'
+      preLoaderRoute: typeof AppAcademyModuleRouteImport
+      parentRoute: typeof AppAcademyRoute
     }
     '/app/launchpad/outputs/$id': {
       id: '/app/launchpad/outputs/$id'
       path: '/launchpad/outputs/$id'
       fullPath: '/app/launchpad/outputs/$id'
       preLoaderRoute: typeof AppLaunchpadOutputsIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/methodology/$methodologyId/': {
-      id: '/app/methodology/$methodologyId/'
-      path: '/methodology/$methodologyId'
-      fullPath: '/app/methodology/$methodologyId/'
-      preLoaderRoute: typeof AppMethodologyMethodologyIdIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rep/calls/$callId': {
-      id: '/app/rep/calls/$callId'
-      path: '/rep/calls/$callId'
-      fullPath: '/app/rep/calls/$callId'
-      preLoaderRoute: typeof AppRepCallsCallIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reports/behavior/$behaviorKey': {
-      id: '/app/reports/behavior/$behaviorKey'
-      path: '/reports/behavior/$behaviorKey'
-      fullPath: '/app/reports/behavior/$behaviorKey'
-      preLoaderRoute: typeof AppReportsBehaviorBehaviorKeyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reports/rep/$repId': {
-      id: '/app/reports/rep/$repId'
-      path: '/reports/rep/$repId'
-      fullPath: '/app/reports/rep/$repId'
-      preLoaderRoute: typeof AppReportsRepRepIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reports/team/$teamId': {
-      id: '/app/reports/team/$teamId'
-      path: '/reports/team/$teamId'
-      fullPath: '/app/reports/team/$teamId'
-      preLoaderRoute: typeof AppReportsTeamTeamIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/$roomId/': {
-      id: '/app/rooms/$roomId/'
-      path: '/rooms/$roomId'
-      fullPath: '/app/rooms/$roomId/'
-      preLoaderRoute: typeof AppRoomsRoomIdIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/$roomId/about': {
-      id: '/app/rooms/$roomId/about'
-      path: '/rooms/$roomId/about'
-      fullPath: '/app/rooms/$roomId/about'
-      preLoaderRoute: typeof AppRoomsRoomIdAboutRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/$roomId/calls': {
-      id: '/app/rooms/$roomId/calls'
-      path: '/rooms/$roomId/calls'
-      fullPath: '/app/rooms/$roomId/calls'
-      preLoaderRoute: typeof AppRoomsRoomIdCallsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/$roomId/files': {
-      id: '/app/rooms/$roomId/files'
-      path: '/rooms/$roomId/files'
-      fullPath: '/app/rooms/$roomId/files'
-      preLoaderRoute: typeof AppRoomsRoomIdFilesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/$roomId/insights': {
-      id: '/app/rooms/$roomId/insights'
-      path: '/rooms/$roomId/insights'
-      fullPath: '/app/rooms/$roomId/insights'
-      preLoaderRoute: typeof AppRoomsRoomIdInsightsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/rooms/$roomId/reports': {
-      id: '/app/rooms/$roomId/reports'
-      path: '/rooms/$roomId/reports'
-      fullPath: '/app/rooms/$roomId/reports'
-      preLoaderRoute: typeof AppRoomsRoomIdReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/$teamId/': {
-      id: '/app/team/$teamId/'
-      path: '/team/$teamId'
-      fullPath: '/app/team/$teamId/'
-      preLoaderRoute: typeof AppTeamTeamIdIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/$teamId/behaviors': {
-      id: '/app/team/$teamId/behaviors'
-      path: '/team/$teamId/behaviors'
-      fullPath: '/app/team/$teamId/behaviors'
-      preLoaderRoute: typeof AppTeamTeamIdBehaviorsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/$teamId/calls': {
-      id: '/app/team/$teamId/calls'
-      path: '/team/$teamId/calls'
-      fullPath: '/app/team/$teamId/calls'
-      preLoaderRoute: typeof AppTeamTeamIdCallsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/$teamId/coaching': {
-      id: '/app/team/$teamId/coaching'
-      path: '/team/$teamId/coaching'
-      fullPath: '/app/team/$teamId/coaching'
-      preLoaderRoute: typeof AppTeamTeamIdCoachingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/$teamId/reps': {
-      id: '/app/team/$teamId/reps'
-      path: '/team/$teamId/reps'
-      fullPath: '/app/team/$teamId/reps'
-      preLoaderRoute: typeof AppTeamTeamIdRepsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/$teamId/settings': {
-      id: '/app/team/$teamId/settings'
-      path: '/team/$teamId/settings'
-      fullPath: '/app/team/$teamId/settings'
-      preLoaderRoute: typeof AppTeamTeamIdSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/methodology/$methodologyId/rules/': {
-      id: '/app/methodology/$methodologyId/rules/'
-      path: '/methodology/$methodologyId/rules'
-      fullPath: '/app/methodology/$methodologyId/rules/'
-      preLoaderRoute: typeof AppMethodologyMethodologyIdRulesIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/methodology/$methodologyId/rules/$ruleKey': {
-      id: '/app/methodology/$methodologyId/rules/$ruleKey'
-      path: '/methodology/$methodologyId/rules/$ruleKey'
-      fullPath: '/app/methodology/$methodologyId/rules/$ruleKey'
-      preLoaderRoute: typeof AppMethodologyMethodologyIdRulesRuleKeyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/reps/$repId/': {
-      id: '/app/team/reps/$repId/'
-      path: '/team/reps/$repId'
-      fullPath: '/app/team/reps/$repId/'
-      preLoaderRoute: typeof AppTeamRepsRepIdIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/reps/$repId/calls': {
-      id: '/app/team/reps/$repId/calls'
-      path: '/team/reps/$repId/calls'
-      fullPath: '/app/team/reps/$repId/calls'
-      preLoaderRoute: typeof AppTeamRepsRepIdCallsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/reps/$repId/coaching': {
-      id: '/app/team/reps/$repId/coaching'
-      path: '/team/reps/$repId/coaching'
-      fullPath: '/app/team/reps/$repId/coaching'
-      preLoaderRoute: typeof AppTeamRepsRepIdCoachingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/reps/$repId/overview': {
-      id: '/app/team/reps/$repId/overview'
-      path: '/team/reps/$repId/overview'
-      fullPath: '/app/team/reps/$repId/overview'
-      preLoaderRoute: typeof AppTeamRepsRepIdOverviewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team/reps/$repId/trends': {
-      id: '/app/team/reps/$repId/trends'
-      path: '/team/reps/$repId/trends'
-      fullPath: '/app/team/reps/$repId/trends'
-      preLoaderRoute: typeof AppTeamRepsRepIdTrendsRouteImport
       parentRoute: typeof AppRoute
     }
   }
@@ -4105,16 +1780,6 @@ interface AppRouteChildren {
   AppByldaLeadsRoute: typeof AppByldaLeadsRoute
   AppByldaReportsRoute: typeof AppByldaReportsRoute
   AppByldaWorkflowsRoute: typeof AppByldaWorkflowsRoute
-  AppCallsAllRoute: typeof AppCallsAllRoute
-  AppCallsCompareRoute: typeof AppCallsCompareRoute
-  AppCallsMineRoute: typeof AppCallsMineRoute
-  AppCallsUploadRoute: typeof AppCallsUploadRoute
-  AppCoachingAssignRoute: typeof AppCoachingAssignRoute
-  AppCoachingCompletedRoute: typeof AppCoachingCompletedRoute
-  AppCoachingFollowUpRoute: typeof AppCoachingFollowUpRoute
-  AppCoachingMineRoute: typeof AppCoachingMineRoute
-  AppConnectionsChannelsRoute: typeof AppConnectionsChannelsRoute
-  AppConnectionsHubspotRoute: typeof AppConnectionsHubspotRoute
   AppCrmAccountsRoute: typeof AppCrmAccountsRoute
   AppCrmAutomationsRoute: typeof AppCrmAutomationsRoute
   AppCrmCalendarRoute: typeof AppCrmCalendarRoute
@@ -4127,23 +1792,6 @@ interface AppRouteChildren {
   AppCrmSetupRoute: typeof AppCrmSetupRoute
   AppCrmTasksRoute: typeof AppCrmTasksRoute
   AppCrmWaitlistRoute: typeof AppCrmWaitlistRoute
-  AppDmThreadIdRoute: typeof AppDmThreadIdRoute
-  AppDmCoachRoute: typeof AppDmCoachRoute
-  AppHomeAdminRoute: typeof AppHomeAdminRoute
-  AppHomeCallsRoute: typeof AppHomeCallsRoute
-  AppHomeCoachingRoute: typeof AppHomeCoachingRoute
-  AppHomeMentionsRoute: typeof AppHomeMentionsRoute
-  AppHomeReportsRoute: typeof AppHomeReportsRoute
-  AppHomeTeamUpdatesRoute: typeof AppHomeTeamUpdatesRoute
-  AppIntelligenceGraphRoute: typeof AppIntelligenceGraphRoute
-  AppIntelligenceMatrixRoute: typeof AppIntelligenceMatrixRoute
-  AppIntelligenceMethodologyRoute: typeof AppIntelligenceMethodologyRoute
-  AppIntelligenceObjectionsRoute: typeof AppIntelligenceObjectionsRoute
-  AppIntelligenceOutcomesRoute: typeof AppIntelligenceOutcomesRoute
-  AppIntelligencePatternsRoute: typeof AppIntelligencePatternsRoute
-  AppIntelligenceProspectsRoute: typeof AppIntelligenceProspectsRoute
-  AppIntelligenceRepsRoute: typeof AppIntelligenceRepsRoute
-  AppIntelligenceTeamBehaviorsRoute: typeof AppIntelligenceTeamBehaviorsRoute
   AppLaunchpadToolRoute: typeof AppLaunchpadToolRoute
   AppLaunchpadByldaRoute: typeof AppLaunchpadByldaRoute
   AppLaunchpadCourseRoute: typeof AppLaunchpadCourseRoute
@@ -4151,78 +1799,10 @@ interface AppRouteChildren {
   AppLaunchpadHistoryRoute: typeof AppLaunchpadHistoryRoute
   AppLaunchpadMentorsRoute: typeof AppLaunchpadMentorsRoute
   AppLaunchpadMissionsRoute: typeof AppLaunchpadMissionsRoute
-  AppMethodologyObjectionsRoute: typeof AppMethodologyObjectionsRoute
-  AppMethodologySuccessCriteriaRoute: typeof AppMethodologySuccessCriteriaRoute
   AppOutcomesCategoryRoute: typeof AppOutcomesCategoryRoute
-  AppRepProgressRoute: typeof AppRepProgressRoute
-  AppReportsDailyRoute: typeof AppReportsDailyRoute
-  AppReportsOutlineRoute: typeof AppReportsOutlineRoute
-  AppReportsWeeklyRoute: typeof AppReportsWeeklyRoute
-  AppRoomsNewRoute: typeof AppRoomsNewRoute
-  AppTeamCompareRoute: typeof AppTeamCompareRoute
-  AppWorkspaceAnalysisRoute: typeof AppWorkspaceAnalysisRoute
-  AppWorkspaceApiKeysRoute: typeof AppWorkspaceApiKeysRoute
-  AppWorkspaceAuditLogRoute: typeof AppWorkspaceAuditLogRoute
-  AppWorkspaceBillingRoute: typeof AppWorkspaceBillingRoute
-  AppWorkspaceNotificationsRoute: typeof AppWorkspaceNotificationsRoute
-  AppWorkspaceProfileRoute: typeof AppWorkspaceProfileRoute
-  AppWorkspaceRetentionRoute: typeof AppWorkspaceRetentionRoute
-  AppWorkspaceRolesRoute: typeof AppWorkspaceRolesRoute
-  AppWorkspaceTeamsRoute: typeof AppWorkspaceTeamsRoute
-  AppWorkspaceUsageRoute: typeof AppWorkspaceUsageRoute
-  AppWorkspaceUsersRoute: typeof AppWorkspaceUsersRoute
   AppByldaIndexRoute: typeof AppByldaIndexRoute
-  AppCallsIndexRoute: typeof AppCallsIndexRoute
-  AppCoachingIndexRoute: typeof AppCoachingIndexRoute
-  AppConnectionsIndexRoute: typeof AppConnectionsIndexRoute
-  AppHomeIndexRoute: typeof AppHomeIndexRoute
-  AppIntelligenceIndexRoute: typeof AppIntelligenceIndexRoute
   AppLaunchpadIndexRoute: typeof AppLaunchpadIndexRoute
-  AppMethodologyIndexRoute: typeof AppMethodologyIndexRoute
-  AppNotificationsIndexRoute: typeof AppNotificationsIndexRoute
-  AppRepIndexRoute: typeof AppRepIndexRoute
-  AppReportsIndexRoute: typeof AppReportsIndexRoute
-  AppRoomsIndexRoute: typeof AppRoomsIndexRoute
-  AppSearchIndexRoute: typeof AppSearchIndexRoute
-  AppStatesIndexRoute: typeof AppStatesIndexRoute
-  AppTeamIndexRoute: typeof AppTeamIndexRoute
-  AppWorkspaceIndexRoute: typeof AppWorkspaceIndexRoute
-  AppCallsCallIdAnalysisRoute: typeof AppCallsCallIdAnalysisRoute
-  AppCallsCallIdCoachingRoute: typeof AppCallsCallIdCoachingRoute
-  AppCallsCallIdTranscriptRoute: typeof AppCallsCallIdTranscriptRoute
-  AppCoachingFocusIdDiscussionRoute: typeof AppCoachingFocusIdDiscussionRoute
-  AppCoachingFocusIdEvidenceRoute: typeof AppCoachingFocusIdEvidenceRoute
-  AppCoachingFocusIdOverviewRoute: typeof AppCoachingFocusIdOverviewRoute
-  AppCoachingFocusIdProgressRoute: typeof AppCoachingFocusIdProgressRoute
-  AppCoachingFocusIdResultRoute: typeof AppCoachingFocusIdResultRoute
-  AppIntelligenceBehaviorsBehaviorKeyRoute: typeof AppIntelligenceBehaviorsBehaviorKeyRoute
   AppLaunchpadOutputsIdRoute: typeof AppLaunchpadOutputsIdRoute
-  AppRepCallsCallIdRoute: typeof AppRepCallsCallIdRoute
-  AppReportsBehaviorBehaviorKeyRoute: typeof AppReportsBehaviorBehaviorKeyRoute
-  AppReportsRepRepIdRoute: typeof AppReportsRepRepIdRoute
-  AppReportsTeamTeamIdRoute: typeof AppReportsTeamTeamIdRoute
-  AppRoomsRoomIdAboutRoute: typeof AppRoomsRoomIdAboutRoute
-  AppRoomsRoomIdCallsRoute: typeof AppRoomsRoomIdCallsRoute
-  AppRoomsRoomIdFilesRoute: typeof AppRoomsRoomIdFilesRoute
-  AppRoomsRoomIdInsightsRoute: typeof AppRoomsRoomIdInsightsRoute
-  AppRoomsRoomIdReportsRoute: typeof AppRoomsRoomIdReportsRoute
-  AppTeamTeamIdBehaviorsRoute: typeof AppTeamTeamIdBehaviorsRoute
-  AppTeamTeamIdCallsRoute: typeof AppTeamTeamIdCallsRoute
-  AppTeamTeamIdCoachingRoute: typeof AppTeamTeamIdCoachingRoute
-  AppTeamTeamIdRepsRoute: typeof AppTeamTeamIdRepsRoute
-  AppTeamTeamIdSettingsRoute: typeof AppTeamTeamIdSettingsRoute
-  AppCallsCallIdIndexRoute: typeof AppCallsCallIdIndexRoute
-  AppCoachingFocusIdIndexRoute: typeof AppCoachingFocusIdIndexRoute
-  AppMethodologyMethodologyIdIndexRoute: typeof AppMethodologyMethodologyIdIndexRoute
-  AppRoomsRoomIdIndexRoute: typeof AppRoomsRoomIdIndexRoute
-  AppTeamTeamIdIndexRoute: typeof AppTeamTeamIdIndexRoute
-  AppMethodologyMethodologyIdRulesRuleKeyRoute: typeof AppMethodologyMethodologyIdRulesRuleKeyRoute
-  AppTeamRepsRepIdCallsRoute: typeof AppTeamRepsRepIdCallsRoute
-  AppTeamRepsRepIdCoachingRoute: typeof AppTeamRepsRepIdCoachingRoute
-  AppTeamRepsRepIdOverviewRoute: typeof AppTeamRepsRepIdOverviewRoute
-  AppTeamRepsRepIdTrendsRoute: typeof AppTeamRepsRepIdTrendsRoute
-  AppMethodologyMethodologyIdRulesIndexRoute: typeof AppMethodologyMethodologyIdRulesIndexRoute
-  AppTeamRepsRepIdIndexRoute: typeof AppTeamRepsRepIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -4267,16 +1847,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppByldaLeadsRoute: AppByldaLeadsRoute,
   AppByldaReportsRoute: AppByldaReportsRoute,
   AppByldaWorkflowsRoute: AppByldaWorkflowsRoute,
-  AppCallsAllRoute: AppCallsAllRoute,
-  AppCallsCompareRoute: AppCallsCompareRoute,
-  AppCallsMineRoute: AppCallsMineRoute,
-  AppCallsUploadRoute: AppCallsUploadRoute,
-  AppCoachingAssignRoute: AppCoachingAssignRoute,
-  AppCoachingCompletedRoute: AppCoachingCompletedRoute,
-  AppCoachingFollowUpRoute: AppCoachingFollowUpRoute,
-  AppCoachingMineRoute: AppCoachingMineRoute,
-  AppConnectionsChannelsRoute: AppConnectionsChannelsRoute,
-  AppConnectionsHubspotRoute: AppConnectionsHubspotRoute,
   AppCrmAccountsRoute: AppCrmAccountsRoute,
   AppCrmAutomationsRoute: AppCrmAutomationsRoute,
   AppCrmCalendarRoute: AppCrmCalendarRoute,
@@ -4289,23 +1859,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppCrmSetupRoute: AppCrmSetupRoute,
   AppCrmTasksRoute: AppCrmTasksRoute,
   AppCrmWaitlistRoute: AppCrmWaitlistRoute,
-  AppDmThreadIdRoute: AppDmThreadIdRoute,
-  AppDmCoachRoute: AppDmCoachRoute,
-  AppHomeAdminRoute: AppHomeAdminRoute,
-  AppHomeCallsRoute: AppHomeCallsRoute,
-  AppHomeCoachingRoute: AppHomeCoachingRoute,
-  AppHomeMentionsRoute: AppHomeMentionsRoute,
-  AppHomeReportsRoute: AppHomeReportsRoute,
-  AppHomeTeamUpdatesRoute: AppHomeTeamUpdatesRoute,
-  AppIntelligenceGraphRoute: AppIntelligenceGraphRoute,
-  AppIntelligenceMatrixRoute: AppIntelligenceMatrixRoute,
-  AppIntelligenceMethodologyRoute: AppIntelligenceMethodologyRoute,
-  AppIntelligenceObjectionsRoute: AppIntelligenceObjectionsRoute,
-  AppIntelligenceOutcomesRoute: AppIntelligenceOutcomesRoute,
-  AppIntelligencePatternsRoute: AppIntelligencePatternsRoute,
-  AppIntelligenceProspectsRoute: AppIntelligenceProspectsRoute,
-  AppIntelligenceRepsRoute: AppIntelligenceRepsRoute,
-  AppIntelligenceTeamBehaviorsRoute: AppIntelligenceTeamBehaviorsRoute,
   AppLaunchpadToolRoute: AppLaunchpadToolRoute,
   AppLaunchpadByldaRoute: AppLaunchpadByldaRoute,
   AppLaunchpadCourseRoute: AppLaunchpadCourseRoute,
@@ -4313,81 +1866,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppLaunchpadHistoryRoute: AppLaunchpadHistoryRoute,
   AppLaunchpadMentorsRoute: AppLaunchpadMentorsRoute,
   AppLaunchpadMissionsRoute: AppLaunchpadMissionsRoute,
-  AppMethodologyObjectionsRoute: AppMethodologyObjectionsRoute,
-  AppMethodologySuccessCriteriaRoute: AppMethodologySuccessCriteriaRoute,
   AppOutcomesCategoryRoute: AppOutcomesCategoryRoute,
-  AppRepProgressRoute: AppRepProgressRoute,
-  AppReportsDailyRoute: AppReportsDailyRoute,
-  AppReportsOutlineRoute: AppReportsOutlineRoute,
-  AppReportsWeeklyRoute: AppReportsWeeklyRoute,
-  AppRoomsNewRoute: AppRoomsNewRoute,
-  AppTeamCompareRoute: AppTeamCompareRoute,
-  AppWorkspaceAnalysisRoute: AppWorkspaceAnalysisRoute,
-  AppWorkspaceApiKeysRoute: AppWorkspaceApiKeysRoute,
-  AppWorkspaceAuditLogRoute: AppWorkspaceAuditLogRoute,
-  AppWorkspaceBillingRoute: AppWorkspaceBillingRoute,
-  AppWorkspaceNotificationsRoute: AppWorkspaceNotificationsRoute,
-  AppWorkspaceProfileRoute: AppWorkspaceProfileRoute,
-  AppWorkspaceRetentionRoute: AppWorkspaceRetentionRoute,
-  AppWorkspaceRolesRoute: AppWorkspaceRolesRoute,
-  AppWorkspaceTeamsRoute: AppWorkspaceTeamsRoute,
-  AppWorkspaceUsageRoute: AppWorkspaceUsageRoute,
-  AppWorkspaceUsersRoute: AppWorkspaceUsersRoute,
   AppByldaIndexRoute: AppByldaIndexRoute,
-  AppCallsIndexRoute: AppCallsIndexRoute,
-  AppCoachingIndexRoute: AppCoachingIndexRoute,
-  AppConnectionsIndexRoute: AppConnectionsIndexRoute,
-  AppHomeIndexRoute: AppHomeIndexRoute,
-  AppIntelligenceIndexRoute: AppIntelligenceIndexRoute,
   AppLaunchpadIndexRoute: AppLaunchpadIndexRoute,
-  AppMethodologyIndexRoute: AppMethodologyIndexRoute,
-  AppNotificationsIndexRoute: AppNotificationsIndexRoute,
-  AppRepIndexRoute: AppRepIndexRoute,
-  AppReportsIndexRoute: AppReportsIndexRoute,
-  AppRoomsIndexRoute: AppRoomsIndexRoute,
-  AppSearchIndexRoute: AppSearchIndexRoute,
-  AppStatesIndexRoute: AppStatesIndexRoute,
-  AppTeamIndexRoute: AppTeamIndexRoute,
-  AppWorkspaceIndexRoute: AppWorkspaceIndexRoute,
-  AppCallsCallIdAnalysisRoute: AppCallsCallIdAnalysisRoute,
-  AppCallsCallIdCoachingRoute: AppCallsCallIdCoachingRoute,
-  AppCallsCallIdTranscriptRoute: AppCallsCallIdTranscriptRoute,
-  AppCoachingFocusIdDiscussionRoute: AppCoachingFocusIdDiscussionRoute,
-  AppCoachingFocusIdEvidenceRoute: AppCoachingFocusIdEvidenceRoute,
-  AppCoachingFocusIdOverviewRoute: AppCoachingFocusIdOverviewRoute,
-  AppCoachingFocusIdProgressRoute: AppCoachingFocusIdProgressRoute,
-  AppCoachingFocusIdResultRoute: AppCoachingFocusIdResultRoute,
-  AppIntelligenceBehaviorsBehaviorKeyRoute:
-    AppIntelligenceBehaviorsBehaviorKeyRoute,
   AppLaunchpadOutputsIdRoute: AppLaunchpadOutputsIdRoute,
-  AppRepCallsCallIdRoute: AppRepCallsCallIdRoute,
-  AppReportsBehaviorBehaviorKeyRoute: AppReportsBehaviorBehaviorKeyRoute,
-  AppReportsRepRepIdRoute: AppReportsRepRepIdRoute,
-  AppReportsTeamTeamIdRoute: AppReportsTeamTeamIdRoute,
-  AppRoomsRoomIdAboutRoute: AppRoomsRoomIdAboutRoute,
-  AppRoomsRoomIdCallsRoute: AppRoomsRoomIdCallsRoute,
-  AppRoomsRoomIdFilesRoute: AppRoomsRoomIdFilesRoute,
-  AppRoomsRoomIdInsightsRoute: AppRoomsRoomIdInsightsRoute,
-  AppRoomsRoomIdReportsRoute: AppRoomsRoomIdReportsRoute,
-  AppTeamTeamIdBehaviorsRoute: AppTeamTeamIdBehaviorsRoute,
-  AppTeamTeamIdCallsRoute: AppTeamTeamIdCallsRoute,
-  AppTeamTeamIdCoachingRoute: AppTeamTeamIdCoachingRoute,
-  AppTeamTeamIdRepsRoute: AppTeamTeamIdRepsRoute,
-  AppTeamTeamIdSettingsRoute: AppTeamTeamIdSettingsRoute,
-  AppCallsCallIdIndexRoute: AppCallsCallIdIndexRoute,
-  AppCoachingFocusIdIndexRoute: AppCoachingFocusIdIndexRoute,
-  AppMethodologyMethodologyIdIndexRoute: AppMethodologyMethodologyIdIndexRoute,
-  AppRoomsRoomIdIndexRoute: AppRoomsRoomIdIndexRoute,
-  AppTeamTeamIdIndexRoute: AppTeamTeamIdIndexRoute,
-  AppMethodologyMethodologyIdRulesRuleKeyRoute:
-    AppMethodologyMethodologyIdRulesRuleKeyRoute,
-  AppTeamRepsRepIdCallsRoute: AppTeamRepsRepIdCallsRoute,
-  AppTeamRepsRepIdCoachingRoute: AppTeamRepsRepIdCoachingRoute,
-  AppTeamRepsRepIdOverviewRoute: AppTeamRepsRepIdOverviewRoute,
-  AppTeamRepsRepIdTrendsRoute: AppTeamRepsRepIdTrendsRoute,
-  AppMethodologyMethodologyIdRulesIndexRoute:
-    AppMethodologyMethodologyIdRulesIndexRoute,
-  AppTeamRepsRepIdIndexRoute: AppTeamRepsRepIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -4406,32 +1888,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
   BookSlugRoute: BookSlugRoute,
-  DevComponentsRoute: DevComponentsRoute,
-  DevScreensRoute: DevScreensRoute,
-  DocManagerBriefEmailRoute: DocManagerBriefEmailRoute,
-  DocRepBriefPushRoute: DocRepBriefPushRoute,
-  DocWeeklyPrintRoute: DocWeeklyPrintRoute,
   FFormIdRoute: FFormIdRoute,
-  MAlertsRoute: MAlertsRoute,
-  MAskRoute: MAskRoute,
-  MBriefRoute: MBriefRoute,
-  MManagerBriefRoute: MManagerBriefRoute,
-  WelcomeAnalysisRoute: WelcomeAnalysisRoute,
-  WelcomeConnectRoute: WelcomeConnectRoute,
-  WelcomeFirstInsightRoute: WelcomeFirstInsightRoute,
-  WelcomeForgotRoute: WelcomeForgotRoute,
-  WelcomeInviteRoute: WelcomeInviteRoute,
-  WelcomeInviteTeamRoute: WelcomeInviteTeamRoute,
-  WelcomeSignInRoute: WelcomeSignInRoute,
-  WelcomeSignUpRoute: WelcomeSignUpRoute,
-  WelcomeTeachRoute: WelcomeTeachRoute,
-  WelcomeVerifyRoute: WelcomeVerifyRoute,
-  WelcomeWorkspaceRoute: WelcomeWorkspaceRoute,
-  MCallsCallIdRoute: MCallsCallIdRoute,
-  MCoachingFocusIdRoute: MCoachingFocusIdRoute,
-  MDmThreadIdRoute: MDmThreadIdRoute,
-  MMomentsMomentIdRoute: MMomentsMomentIdRoute,
-  MRoomsRoomIdRoute: MRoomsRoomIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
