@@ -95,6 +95,8 @@ function SettingsPage() {
           return (
             <button
               key={key}
+              aria-label={label}
+              aria-pressed={active}
               onClick={() => setTab(key)}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-by-card py-2 text-[12.5px] font-medium transition-all duration-150 sm:justify-start sm:px-3"
               style={
