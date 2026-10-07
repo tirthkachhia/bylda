@@ -49,3 +49,9 @@ while restoring the authenticated workspace. The root cause is not yet verified.
 The protected layout now offers retry/sign-in recovery after 15 seconds without
 bypassing authentication. Treat fresh-session restoration as an outstanding issue,
 not a passed end-to-end release check. Mock-only V1 screens are still not migrated.
+
+Final follow-up: the server-built Vercel deployment completed successfully and a
+fresh reload recovered the authenticated workspace, connected-source count and
+saved Life Insurance Call Capture profile. A screenshot was captured locally.
+The earlier stall's root cause remains unconfirmed; the recovery UI is retained.
+Final deployment: https://bylda-zh1apxdp2-bylda.vercel.app (app.usebylda.com alias).
