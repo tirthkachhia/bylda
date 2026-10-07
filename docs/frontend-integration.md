@@ -41,3 +41,11 @@ Do not blanket-stage or publish unrelated pending changes.
   have regression coverage but were not newly exercised end-to-end in this pass.
 - The commit also preserves earlier pending backend implementation already in
   this checkout; no production Supabase migrations were applied by this UI task.
+
+### Outstanding release check
+
+After the successful in-session screen checks, a fresh production reload stalled
+while restoring the authenticated workspace. The root cause is not yet verified.
+The protected layout now offers retry/sign-in recovery after 15 seconds without
+bypassing authentication. Treat fresh-session restoration as an outstanding issue,
+not a passed end-to-end release check. Mock-only V1 screens are still not migrated.
