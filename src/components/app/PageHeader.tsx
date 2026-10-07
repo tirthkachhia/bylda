@@ -26,7 +26,7 @@ export function PageHeader({
             <span className="opacity-50">[</span> {eyebrow} <span className="opacity-50">]</span>
           </p>
         )}
-        <h1 className="text-2xl sm:text-[26px] font-semibold tracking-tight leading-tight">
+        <h1 className="type-editorial-h1 text-by-text-primary">
           {title}
         </h1>
         {description && (

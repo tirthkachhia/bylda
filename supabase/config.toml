@@ -1,5 +1,14 @@
 project_id = "ipidfqwlszuhjgjygbvx"
 
+[storage]
+file_size_limit = "100MiB"
+
+[functions.signup-email]
+verify_jwt = false
+
+[functions.signup-email-unsubscribe]
+verify_jwt = false
+
 # AI tool functions — verify_jwt = true adds gateway-level auth before the
 # function runs. The functions also validate internally for defence-in-depth.
 [functions.validate-idea]

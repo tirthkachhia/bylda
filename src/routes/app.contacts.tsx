@@ -443,7 +443,7 @@ function ContactsPage() {
   return (
     <div className="space-y-5">
       {atContactLimit && (
-        <div className="flex flex-col items-start gap-2 rounded-2xl border border-[--border] bg-[--warning-light] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col items-start gap-2 rounded-by-card border border-[--border] bg-[--warning-light] p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-[--text-primary]">
             {contactLimit === 0
               ? "Your plan doesn't include CRM contacts. Upgrade to start capturing and managing leads."
@@ -451,7 +451,7 @@ function ContactsPage() {
           </p>
           <a
             href="/app/billing"
-            className="shrink-0 rounded-xl bg-[--warning] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            className="shrink-0 rounded-by-card bg-[--warning] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
             Upgrade
           </a>
@@ -510,7 +510,7 @@ function ContactsPage() {
 
       {/* Filters */}
       <div
-        className="rounded-xl p-4 space-y-3"
+        className="rounded-by-card p-4 space-y-3"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -613,7 +613,7 @@ function ContactsPage() {
       {/* Bulk actions */}
       {selected.size > 0 && (
         <div
-          className="flex items-center gap-3 rounded-xl px-4 py-2.5"
+          className="flex items-center gap-3 rounded-by-card px-4 py-2.5"
           style={{
             background: "var(--primary-soft)",
             border: "1px solid color-mix(in oklab, var(--primary) 25%, transparent)",
@@ -698,7 +698,7 @@ function ContactsPage() {
 
       {/* Table */}
       <div
-        className="overflow-hidden rounded-xl"
+        className="overflow-hidden rounded-by-card"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
         {contactsQ.isLoading ? (
@@ -1116,7 +1116,7 @@ function AddContactModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative w-full max-w-lg rounded-xl"
+        className="relative w-full max-w-lg rounded-by-card"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
         <div
@@ -1717,7 +1717,7 @@ function ContactDetail({
                   notesQ.data.map((note) => (
                     <div
                       key={note.id}
-                      className="rounded-xl p-3.5"
+                      className="rounded-by-card p-3.5"
                       style={{
                         background: "var(--surface-2)",
                         border: "1px solid var(--border)",

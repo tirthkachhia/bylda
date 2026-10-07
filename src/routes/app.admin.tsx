@@ -33,6 +33,7 @@ import { auditLogQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { impersonationStore } from "@/lib/impersonation";
 import { cn } from "@/lib/utils";
+import { SignupEmails } from "@/components/app/SignupEmails";
 import { Input } from "@/components/ui/input";
 import {
   BarChart,
@@ -65,6 +66,7 @@ export const Route = createFileRoute("/app/admin")({
 });
 
 type TabKey =
+  | "emails"
   | "overview"
   | "users"
   | "orgs"
@@ -418,6 +420,7 @@ function AdminHub() {
     count?: number;
   }[] = [
     { key: "overview", label: "Overview", icon: Activity },
+    { key: "emails", label: "Signup emails", icon: Users },
     { key: "analytics", label: "Analytics", icon: BarChart3 },
     { key: "users", label: "Users", icon: Users, count: totalUsers },
     { key: "orgs", label: "Workspaces", icon: Building2, count: totalOrgs },
@@ -544,6 +547,7 @@ function AdminHub() {
           )}
         </div>
 
+        {tab === "emails" && <SignupEmails />}
         {/* ── Overview tab ── */}
         {tab === "overview" && (
           <div className="grid gap-4 p-4 lg:grid-cols-2">

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { OperatorCanvas } from "@/components/canvas/OperatorCanvas";
+import { TodayBrief } from "@/components/app/TodayBrief";
 
 export const Route = createFileRoute("/app/")({
-  component: OperatorCanvas,
+  component: TodayBrief,
 });

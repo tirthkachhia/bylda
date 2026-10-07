@@ -11,6 +11,7 @@ import {
 import { ingestCrmSnapshot, type CrmIngestResult } from "../_shared/context-crm-ingest.ts";
 import { emitDomainEvent, sha256Hex, storeRawObject } from "../_shared/context-ingestion.ts";
 import { syncGoHighLevelCalls } from "../_shared/gohighlevel-calls.ts";
+import { syncCloseCalls } from "../_shared/close-calls.ts";
 import { loadConnectedOAuth, type StoredOAuth } from "../_shared/integration-credentials.ts";
 
 const corsHeaders = {
@@ -138,6 +139,10 @@ async function syncProvider(
     sourceLabel: labels[input.provider],
     snapshot,
   });
+  if (input.provider === "close_io") {
+    const calls = await syncCloseCalls(admin, { organizationId: input.organizationId, oauth: input.oauth });
+    return { ...ingested, ...calls, conversation_warning: calls.warning };
+  }
   if (input.provider !== "gohighlevel") return ingested;
 
   const conversations = await syncGoHighLevelCalls(admin, {

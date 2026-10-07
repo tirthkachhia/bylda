@@ -1,5 +1,3 @@
-import { Buffer } from "node:buffer";
-
 // Bylda AI API — served from https://ai.usebylda.com.
 // Authenticates with Supabase and runs inference on Cloudflare Workers AI.
 
@@ -66,8 +64,7 @@ type CrmContextResult = {
 const ALLOWED_ORIGIN = "https://app.usebylda.com";
 const MODEL = "@cf/openai/gpt-oss-20b";
 const TRANSCRIPTION_MODEL = "@cf/openai/whisper-large-v3-turbo";
-const AUDIO_CHUNK_BYTES = 1024 * 1024;
-const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 100 * 1024 * 1024;
 const SYSTEM_PROMPT = `You are Bylda, the revenue intelligence assistant for sales teams.
 
 Help users understand sales calls, deal history, buyer signals, CRM records, follow-ups, and pipeline risk. Ground every claim in the context provided. Be concise, specific, and operational. Never invent facts that are not present in the user's data. When evidence is incomplete, say what is missing.`;
@@ -433,16 +430,15 @@ function allowedRecordingUrl(value: string, env: Env) {
   }
 }
 
-async function transcribeChunk(chunk: ArrayBuffer, env: Env) {
-  const audio = Buffer.from(chunk).toString("base64");
+async function transcribeChunk(body: ReadableStream<Uint8Array>, contentType: string, env: Env) {
   const result = (await env.AI.run(TRANSCRIPTION_MODEL, {
-    audio,
+    audio: { body, contentType },
     task: "transcribe",
     language: "en",
     vad_filter: true,
     condition_on_previous_text: false,
     initial_prompt:
-      "Insurance sales call. Preserve names, carriers, policy types, premiums, coverage, objections, beneficiaries, and next steps accurately.",
+      "Transcribe the conversation faithfully. Preserve names, amounts, questions and next steps. Do not add information that was not spoken.",
   })) as TranscriptionResult;
   return (result.text ?? result.transcription_info?.text ?? "").trim();
 }
@@ -473,24 +469,35 @@ async function runTranscription(request: Request, env: Env) {
   const declaredLength = Number(audioResponse.headers.get("content-length") ?? 0);
   if (declaredLength > MAX_AUDIO_BYTES) return json({ error: "Recording is too large" }, 413);
 
-  const audio = await audioResponse.arrayBuffer();
-  if (!audio.byteLength || audio.byteLength > MAX_AUDIO_BYTES) {
-    return json({ error: "Recording is empty or too large" }, audio.byteLength ? 413 : 400);
-  }
+  if (!audioResponse.body) return json({ error: "Recording is empty" }, 400);
+  let audioBytes = 0;
+  const audio = audioResponse.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      audioBytes += chunk.byteLength;
+      if (audioBytes > MAX_AUDIO_BYTES) throw new Error("Recording exceeds 100 MB");
+      controller.enqueue(chunk);
+    },
+    flush() {
+      if (!audioBytes) throw new Error("Recording is empty");
+    },
+  }));
 
-  const transcriptParts: string[] = [];
-  for (let offset = 0; offset < audio.byteLength; offset += AUDIO_CHUNK_BYTES) {
-    const text = await transcribeChunk(audio.slice(offset, offset + AUDIO_CHUNK_BYTES), env);
-    if (text) transcriptParts.push(text);
+  // Encoded audio cannot be split at arbitrary byte offsets: later pieces lose
+  // container headers and codec frames. Send the validated file intact.
+  let transcript: string;
+  try {
+    transcript = await transcribeChunk(audio, audioResponse.headers.get("content-type") || "application/octet-stream", env);
+  } catch {
+    console.error("Transcription model failed", { audioBytes });
+    return json({ error: "Transcription service could not process the recording" }, 502);
   }
-  const transcript = transcriptParts.join("\n").trim();
   if (!transcript) return json({ error: "The recording did not contain recognizable speech" }, 422);
 
   return json({
     transcript,
     provider: body?.provider ?? "readymode",
     model: TRANSCRIPTION_MODEL,
-    chunks: Math.ceil(audio.byteLength / AUDIO_CHUNK_BYTES),
+    chunks: 1,
   });
 }
 

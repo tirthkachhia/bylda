@@ -18,7 +18,11 @@ type GhlCallMessage = {
   userId?: string;
   from?: string;
   to?: string;
-  meta?: { callDuration?: number | string; callStatus?: string };
+  meta?: {
+    callDuration?: number | string;
+    callStatus?: string;
+    call?: { duration?: number | string; status?: string };
+  };
 };
 
 type GhlConversation = {
@@ -44,19 +48,20 @@ export type GoHighLevelCallSyncResult = {
   warning: string | null;
 };
 
-function segmentsFrom(payload: unknown): TranscriptSegment[] {
-  if (Array.isArray(payload)) return payload as TranscriptSegment[];
+export function segmentsFrom(payload: unknown, depth = 0): TranscriptSegment[] {
+  if (depth > 8) return [];
+  if (Array.isArray(payload)) return payload.flatMap((item) => segmentsFrom(item, depth + 1));
   if (!payload || typeof payload !== "object") return [];
   const record = payload as Record<string, unknown>;
+  if (typeof record.transcript === "string") return [record as TranscriptSegment];
   for (const key of ["transcriptions", "transcription", "sentences", "data", "results"]) {
-    const value = record[key];
-    if (Array.isArray(value)) return value as TranscriptSegment[];
-    if (value && typeof value === "object") return [value as TranscriptSegment];
+    const segments = segmentsFrom(record[key], depth + 1);
+    if (segments.length) return segments;
   }
-  return typeof record.transcript === "string" ? [record as TranscriptSegment] : [];
+  return [];
 }
 
-function textFrom(segments: TranscriptSegment[]) {
+export function textFrom(segments: TranscriptSegment[]) {
   return [...segments]
     .sort((a, b) => Number(a.sentenceIndex ?? 0) - Number(b.sentenceIndex ?? 0))
     .map((segment) => segment.transcript?.trim() ?? "")
@@ -65,14 +70,21 @@ function textFrom(segments: TranscriptSegment[]) {
     .trim();
 }
 
-function normalizedStatus(message: GhlCallMessage) {
-  const value = String(message.meta?.callStatus ?? message.status ?? "").toLowerCase();
+export function normalizedStatus(message: GhlCallMessage) {
+  const value = String(message.meta?.call?.status ?? message.meta?.callStatus ?? message.status ?? "").toLowerCase();
   if (value.includes("voicemail")) return "voicemail";
   if (value.includes("miss") || value.includes("no-answer") || value.includes("no_answer")) {
     return "missed";
   }
   if (value.includes("fail") || value.includes("busy") || value.includes("cancel")) return "failed";
   return "completed";
+}
+
+export function callDuration(message: GhlCallMessage): number | null {
+  const raw = message.meta?.call?.duration ?? message.meta?.callDuration;
+  if (raw === undefined || raw === null || raw === "") return null;
+  const duration = Number(raw);
+  return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
 }
 
 function apiHeaders(oauth: StoredOAuth) {
@@ -281,7 +293,6 @@ export async function syncGoHighLevelCalls(
       externalContactId: message.contactId,
       customerPhone: message.direction === "inbound" ? message.from : message.to,
     });
-    const duration = Number(message.meta?.callDuration);
     const { data: stored, error } = await admin
       .from("calls")
       .upsert(
@@ -291,8 +302,8 @@ export async function syncGoHighLevelCalls(
           lead_id: entities.leadId,
           direction: message.direction === "inbound" ? "inbound" : "outbound",
           status: normalizedStatus(message),
-          duration: Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null,
-          disposition: message.meta?.callStatus ?? message.status ?? null,
+          duration: callDuration(message),
+          disposition: message.meta?.call?.status ?? message.meta?.callStatus ?? message.status ?? null,
           from_number: message.from ?? null,
           to_number: message.to ?? null,
           provider: "gohighlevel",
@@ -327,6 +338,9 @@ export async function syncGoHighLevelCalls(
 
   let transcriptsImported = 0;
   let analysesQueued = 0;
+  const transcriptOutcomes = new Map<string, number>();
+  const countOutcome = (outcome: string) =>
+    transcriptOutcomes.set(outcome, (transcriptOutcomes.get(outcome) ?? 0) + 1);
   for (let offset = 0; offset < messages.length; offset += 5) {
     const results = await Promise.all(
       messages.slice(offset, offset + 5).map(async (message) => {
@@ -336,9 +350,13 @@ export async function syncGoHighLevelCalls(
           `https://services.leadconnectorhq.com/conversations/locations/${encodeURIComponent(input.oauth.locationId!)}/messages/${encodeURIComponent(message.id)}/transcription`,
           { headers },
         );
-        if (!response.ok) return null;
+        if (!response.ok) {
+          countOutcome(`HTTP ${response.status}`);
+          return null;
+        }
         const segments = segmentsFrom(await response.json().catch(() => null));
         const transcript = textFrom(segments);
+        countOutcome(transcript ? "available" : "empty response");
         return transcript ? { callId, transcript, segments } : null;
       }),
     );
@@ -376,6 +394,8 @@ export async function syncGoHighLevelCalls(
     calls_imported: storedByMessage.size,
     transcripts_imported: transcriptsImported,
     analyses_queued: analysesQueued,
-    warning: null,
+    warning: [...transcriptOutcomes].some(([outcome]) => outcome !== "available")
+      ? `GoHighLevel transcript results: ${[...transcriptOutcomes].map(([outcome, count]) => `${count} ${outcome}`).join(", ")}.`
+      : null,
   };
 }
