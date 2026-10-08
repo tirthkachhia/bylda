@@ -18,6 +18,7 @@ import { syncCrm, writeCallToGoHighLevel, type CrmSyncProviderResult } from "@/l
 import { connectedCrmKeys, sourceName } from "@/lib/crm-sync";
 import { conductMetrics } from "../../supabase/functions/_shared/observable-conduct";
 import { CallImport } from "@/components/app/CallImport";
+import { CallCoaching } from "@/components/app/CallCoaching";
 
 export const Route = createFileRoute("/app/crm/calls")({ component: CallsPage });
 const db = supabase as any;
@@ -118,7 +119,7 @@ function CallsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncResults, setSyncResults] = useState<CrmSyncProviderResult[]>([]);
-  const [tab, setTab] = useState<"summary" | "transcript">("summary");
+  const [tab, setTab] = useState<"summary" | "transcript" | "coaching">("coaching");
 
   const load = useCallback(async () => {
     if (!currentOrgId) {
@@ -559,13 +560,14 @@ function CallsPage() {
                     </div>
                   </div>
                 </section>
-                <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.1fr)_minmax(390px,0.9fr)]">
+                <div className={`grid items-start gap-4 ${tab === "coaching" ? "" : "2xl:grid-cols-[minmax(0,1.1fr)_minmax(390px,0.9fr)]"}`}>
                   <section className="overflow-hidden rounded-by-card border border-black/[0.09] bg-by-surface-raised">
                     <div className="flex items-center justify-between border-b border-black/[0.08] px-5">
                       <div className="flex h-[58px] items-end gap-6">
-                        {(["summary", "transcript"] as const).map((item) => (
+                        {(["summary", "transcript", "coaching"] as const).map((item) => (
                           <button
                             key={item}
+                            aria-pressed={tab === item}
                             onClick={() => setTab(item)}
                             className={`h-full border-b-2 text-[11px] font-semibold capitalize ${tab === item ? "border-[#3275d8] text-[#1e5faf]" : "border-transparent text-[#7d838c]"}`}
                           >
@@ -575,7 +577,12 @@ function CallsPage() {
                       </div>
                       <Sparkles className="h-4 w-4 text-[#3275d8]" />
                     </div>
-                    {tab === "summary" ? (
+                    {tab === "coaching" ? (
+                      <CallCoaching key={selected.id} callId={selected.id} transcript={selected.transcript}
+                        coaching={selected.insight?.vertical_insights?.coaching}
+                        partial={Boolean(selected.insight?.vertical_insights?.analysis_coverage?.partial)}
+                        onAnalyzed={load} />
+                    ) : tab === "summary" ? (
                       <div className="p-5 sm:p-6">
                         <div className="rounded-by-card bg-[#e9eef6] p-5">
                           <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#4774b5]">

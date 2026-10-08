@@ -8,6 +8,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { callPAL } from "../_shared/pal/index.ts";
 import { conductTool, normalizeConduct } from "../_shared/observable-conduct.ts";
+import { coachingPrompt, coachingTool, normalizeCoaching } from "../_shared/coaching-signals.ts";
 import { buildContextPackage, renderContextPackageForPrompt } from "../_shared/context-engine.ts";
 import { emitDomainEvent, sha256Hex } from "../_shared/context-ingestion.ts";
 import { buildCallMemoryArtifact } from "../_shared/call-memory.ts";
@@ -185,8 +186,8 @@ Deno.serve(async (req: Request) => {
     ...extractionTool,
     parameters: {
       ...extractionTool.parameters,
-      required: [...extractionTool.parameters.required, "observable_conduct"],
-      properties: { ...extractionTool.parameters.properties, observable_conduct: conductTool },
+      required: [...extractionTool.parameters.required, "observable_conduct", "coaching_signals"],
+      properties: { ...extractionTool.parameters.properties, observable_conduct: conductTool, coaching_signals: coachingTool },
     },
   };
   try {
@@ -195,6 +196,7 @@ Deno.serve(async (req: Request) => {
         systemPrompt: buildVerticalSystemPrompt(vertical),
         userPrompt: [
           `Analyze this ${vertical.label} sales call and record only supported insights.`,
+          coachingPrompt,
           "Include observable_conduct: evidence-backed question quality, discovery depth, framework execution (if supplied), explicit attendees, commitment/resistance language and pitch/pricing sequence. Give at least one observation when supported; otherwise return an empty array. Each evidence_quote must match the transcript verbatim.",
           "Treat the CONTEXT PACKAGE as prior state, not as transcript evidence. A vertical field still needs a transcript quote.",
           `CONTEXT PACKAGE:\n${promptContext}`,
@@ -202,11 +204,14 @@ Deno.serve(async (req: Request) => {
           `TRANSCRIPT:\n${text.slice(0, 24000)}`,
         ].join("\n\n"),
         tool,
-        maxTokens: 3000,
+        maxTokens: 7000,
       },
       { ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") },
     );
     extracted = result.toolResult ?? {};
+    if (!Array.isArray(extracted.coaching_signals)) {
+      throw new Error("AI returned an incomplete coaching report. Existing analysis was preserved; retry the call.");
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : "Analysis failed";
     await updateAnalysisJob("failed", message);
@@ -259,6 +264,7 @@ Deno.serve(async (req: Request) => {
           partial: text.length > 24000,
         },
         observable_conduct: normalizeConduct(extracted.observable_conduct, text),
+        coaching: normalizeCoaching(extracted.coaching_signals, text.slice(0, 24000)),
         profile_label: vertical.label,
         deal_insights: normalized.deal_insights,
         fields: normalized.fields,
