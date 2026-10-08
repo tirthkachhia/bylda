@@ -38,7 +38,21 @@ Only the first 24,000 transcript characters are analyzed, visibly marked when pa
 category, and invented-timestamp tests. `bun run build` checks production bundling.
 No database migration or data deletion is required.
 
-Backend deployment command (after approval under the backend-track policy):
+The user explicitly removed the approval requirement for this deployment.
+Backend deployment command:
 `npx supabase functions deploy analyze-call --project-ref ipidfqwlszuhjgjygbvx`
 
 Frontend: `npx vercel@48 deploy --prod --yes`.
+
+## Live verification (October 7, 2026)
+
+- analyze-call deployed as active version 88, with JWT verification enabled.
+- Frontend deployed at https://bylda-idryn2bht-bylda.vercel.app and app.usebylda.com.
+- Generate coaching was exercised on the existing explicitly synthetic September
+  27 10:39 PM QA call. It saved five verified-quote moments across four categories.
+- Questions & discovery filter correctly showed only its two moments.
+- CRM write-back remained present and disabled for this unmatched audio upload;
+  no customer CRM records were modified.
+- 184 automated tests passed and local/remote production builds passed.
+- Repository-wide typecheck is not clean (existing errors outside these files);
+  no diagnostics named the new coaching files or modified Calls route.
