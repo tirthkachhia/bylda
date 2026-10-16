@@ -1,3 +1,4 @@
+import type { Rep } from "@/lib/coaching/types";
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdge } from "@/lib/invokeEdge";
@@ -1694,3 +1695,33 @@ export const auditLogQuery = (limit = 200) =>
     },
     staleTime: 30_000,
   });
+
+export const repsQuery = (orgId: string) =>
+  queryOptions({
+    queryKey: ["reps", orgId],
+    queryFn: async (): Promise<Rep[]> => {
+      if (isGuest()) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data, error } = await db
+        .from("reps")
+        .select("*")
+        .eq("organization_id", orgId)
+        .eq("status", "active")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as Rep[];
+    },
+  });
+
+export async function createRep(orgId: string, userId: string, name: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { data, error } = await db
+    .from("reps")
+    .insert({ organization_id: orgId, created_by: userId, name: name.trim() })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Rep;
+}

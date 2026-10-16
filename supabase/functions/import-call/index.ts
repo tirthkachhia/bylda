@@ -35,6 +35,13 @@ Deno.serve(async (req) => {
     .eq("user_id", user.id)
     .maybeSingle();
   if (!member) return json({ error: "Workspace access required" }, 403);
+  const repId = typeof body.rep_id === "string" ? body.rep_id : undefined;
+  if (repId !== undefined && !/^[0-9a-f-]{36}$/i.test(repId))
+    return json({ error: "Invalid rep" }, 400)
+  if (repId) {
+    const { data: rep } = await client.from("reps").select("id").eq("id", repId).eq("organization_id", body.organization_id).eq("status", "active").maybeSingle();
+    if (!rep) return json({ error: "Rep not found in this workspace" }, 400);
+  }
   const transcriptInput = typeof body.transcript === "string" ? body.transcript.trim() : "";
   const details = typeof body.details === "string" ? body.details.trim() : "";
   const audioPath = typeof body.audio_path === "string" ? body.audio_path : "";
@@ -123,9 +130,11 @@ Deno.serve(async (req) => {
       if (error) return json({ error: "Could not save transcript. Retry." }, 500);
     }
     if (transcript) {
-      const { error } = await client.from("calls").update({ metadata: {
-        ...existing.metadata, transcription_status: transcriptionStatus,
-      } }).eq("id", callId).eq("user_id", user.id);
+      const { error } = await client.from("calls").update({
+        metadata: {
+          ...existing.metadata, transcription_status: transcriptionStatus,
+        }
+      }).eq("id", callId).eq("user_id", user.id);
       if (error) return json({ error: "Transcript saved, but import status could not be updated. Retry." }, 500);
     }
     return json({
@@ -141,6 +150,7 @@ Deno.serve(async (req) => {
     user_id: user.id,
     provider: "manual_upload",
     provider_call_id: callId,
+    rep_id: repId ?? null,
     status: "completed",
     direction: "outbound",
     metadata: {
