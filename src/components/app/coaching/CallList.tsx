@@ -1,5 +1,14 @@
 import { formatDuration, formatWhen, initials, type CoachingCall } from "@/lib/coaching/calls";
 
+function stageLabel(call: CoachingCall) {
+  if (call.insight) return "Reviewed";
+  if (call.coaching_stage === "queued" || call.coaching_stage === "transcribing")
+    return "Transcribing…";
+  if (call.coaching_stage === "scoring") return "Scoring…";
+  if (call.coaching_stage === "failed") return "Transcription failed";
+  return call.transcript ? "Transcript ready" : "Awaiting transcript";
+}
+
 /** Searchable list of one rep's calls. Selection is owned by the parent. */
 export function CallList({
   calls,
@@ -55,13 +64,10 @@ export function CallList({
               <span className="block truncate text-[9px] text-by-text-secondary">
                 {call.company} · {formatWhen(call.started_at ?? call.created_at)}
               </span>
-              <span className="mt-0.5 block text-[9px] text-[#3275d8]">
-                {formatDuration(call.duration)} ·{" "}
-                {call.insight
-                  ? "Reviewed"
-                  : call.transcript
-                    ? "Transcript ready"
-                    : "Awaiting transcript"}
+              <span
+                className={`mt-0.5 block text-[9px] ${call.coaching_stage === "failed" ? "text-red-600" : "text-[#3275d8]"}`}
+              >
+                {formatDuration(call.duration)} · {stageLabel(call)}
               </span>
             </span>
           </button>

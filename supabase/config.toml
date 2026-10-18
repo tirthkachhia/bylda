@@ -121,6 +121,15 @@ verify_jwt = true
 [functions.analyze-call]
 verify_jwt = true
 
+# Internal bridge for the Cloudflare transcriber worker; authenticates with
+# COACHING_WORKER_SECRET, then calls analyze-call with the runtime's service key.
+[functions.coaching-analyze]
+verify_jwt = false
+
+# User-triggered re-score + re-analysis; enqueues a score message on the worker.
+[functions.coaching-rescore]
+verify_jwt = true
+
 # Typed, tenant-scoped Context Package assembly for AI consumers.
 [functions.context-package]
 verify_jwt = true
@@ -212,3 +221,9 @@ verify_jwt = true
 # Public campaign engagement tracker (open pixel / click redirect / unsubscribe).
 [functions.track-event]
 verify_jwt = false
+
+[functions.coaching-report]
+verify_jwt = true
+
+[functions.coaching-playbook-guidelines]
+verify_jwt = true

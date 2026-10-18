@@ -41,9 +41,22 @@ describe("importRecording", () => {
       organization_id: "org-1",
       import_id: result.callId,
       audio_path: path,
+      content_type: "audio/mpeg",
       consent: true,
       rep_id: "rep-1",
     });
+  });
+
+  it("returns queued without analyzing when the worker took the recording", async () => {
+    const deps = makeDeps({
+      invoke: vi.fn(async () => ({
+        data: { call_id: "x", transcript_available: false, coaching_stage: "queued" },
+        error: null,
+      })),
+    });
+    const result = await importRecording(input, deps);
+    expect(result.status).toBe("queued");
+    expect(deps.invoke).toHaveBeenCalledTimes(1);
   });
 
   it("skips analysis when no transcript is available", async () => {

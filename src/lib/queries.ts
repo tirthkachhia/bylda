@@ -1,4 +1,13 @@
-import type { Rep } from "@/lib/coaching/types";
+import type {
+  CallScores,
+  LearningMomentRow,
+  Playbook,
+  PlaybookVersion,
+  PlaybookGuidelineRow,
+  Rep,
+  RepReport,
+  RepReportRow,
+} from "@/lib/coaching/types";
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdge } from "@/lib/invokeEdge";
@@ -1219,10 +1228,7 @@ export async function applyTemplate(orgId: string, templateSlug: string): Promis
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 export type ApprovalRequestType =
-  | "content_publish"
-  | "automation_change"
-  | "budget_spend"
-  | "client_communication";
+  "content_publish" | "automation_change" | "budget_spend" | "client_communication";
 
 export interface ApprovalRequest {
   id: string;
@@ -1724,4 +1730,252 @@ export async function createRep(orgId: string, userId: string, name: string) {
     .single();
   if (error) throw error;
   return data as Rep;
+}
+
+export async function assignRepPlaybook(repId: string, playbookId: string | null) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { error } = await db.from("reps").update({ playbook_id: playbookId }).eq("id", repId);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Coaching playbooks: a head row plus immutable versions. "Save" inserts a new
+// version and moves current_version_id; "restore" is a save with old content.
+// ---------------------------------------------------------------------------
+const PLAYBOOK_SELECT =
+  "*, current:coaching_playbook_versions!coaching_playbooks_current_version_fk(id,version,content,created_at)";
+
+export const playbooksQuery = (orgId: string) =>
+  queryOptions({
+    queryKey: ["playbooks", orgId],
+    queryFn: async (): Promise<Playbook[]> => {
+      if (isGuest()) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data, error } = await db
+        .from("coaching_playbooks")
+        .select(PLAYBOOK_SELECT)
+        .eq("organization_id", orgId)
+        .eq("status", "active")
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as Playbook[];
+    },
+  });
+
+export const playbookVersionsQuery = (playbookId: string) =>
+  queryOptions({
+    queryKey: ["playbook-versions", playbookId],
+    queryFn: async (): Promise<PlaybookVersion[]> => {
+      if (isGuest()) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data, error } = await db
+        .from("coaching_playbook_versions")
+        .select("*")
+        .eq("playbook_id", playbookId)
+        .order("version", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as PlaybookVersion[];
+    },
+  });
+
+export async function savePlaybookVersion(
+  playbook: Pick<Playbook, "id" | "organization_id">,
+  userId: string,
+  content: string,
+  changeNote?: string,
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { data: latest, error: latestError } = await db
+    .from("coaching_playbook_versions")
+    .select("version")
+    .eq("playbook_id", playbook.id)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestError) throw latestError;
+  const { data: version, error } = await db
+    .from("coaching_playbook_versions")
+    .insert({
+      playbook_id: playbook.id,
+      organization_id: playbook.organization_id,
+      version: (latest?.version ?? 0) + 1,
+      content: content.trim(),
+      change_note: changeNote?.trim() || null,
+      created_by: userId,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  const { error: pointerError } = await db
+    .from("coaching_playbooks")
+    .update({ current_version_id: version.id })
+    .eq("id", playbook.id);
+  if (pointerError) throw pointerError;
+  return version as PlaybookVersion;
+}
+
+export async function createPlaybook(orgId: string, userId: string, name: string, content: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { data: head, error } = await db
+    .from("coaching_playbooks")
+    .insert({ organization_id: orgId, created_by: userId, name: name.trim() })
+    .select()
+    .single();
+  if (error) throw error;
+  const version = await savePlaybookVersion(head, userId, content, "Initial version");
+  return { ...head, current_version_id: version.id, current: version } as Playbook;
+}
+
+/** Jev scoring output for one call: per-exchange rows, the summary, and learning moments. */
+export const callScoresQuery = (callId: string) =>
+  queryOptions({
+    queryKey: ["call-scores", callId],
+    queryFn: async (): Promise<CallScores> => {
+      if (isGuest()) return { rows: [], summary: null, moments: [] };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const [rows, summary, moments] = await Promise.all([
+        db
+          .from("call_exchange_scores")
+          .select(
+            "exchange_index,start_s,end_s,temperature_score,temperature_confidence,delta,rep_move_score,rep_move_confidence,playbook_step,playbook_step_confidence,risk_probability,truncated",
+          )
+          .eq("call_id", callId)
+          .order("exchange_index"),
+        db.from("call_score_summaries").select("*").eq("call_id", callId).maybeSingle(),
+        db
+          .from("call_learning_moments")
+          .select(
+            "id,exchange_index,type,score,delta,confidence,risk_probability,rep_move,low_confidence,rep_text,customer_text,headline,why_it_matters,what_to_say_instead,playbook_guideline,guideline_source,guideline_id,guideline:coaching_playbook_guidelines(code)",
+          )
+          .eq("call_id", callId)
+          .order("score", { ascending: false }),
+      ]);
+      for (const result of [rows, summary, moments]) if (result.error) throw result.error;
+      return {
+        rows: rows.data ?? [],
+        summary: summary.data ?? null,
+        moments: (moments.data ?? []).map(
+          ({ guideline, ...m }: { guideline: { code: string } | null } & LearningMomentRow) => ({
+            ...m,
+            guideline_code: guideline?.code ?? null,
+          }),
+        ),
+      };
+    },
+    staleTime: 15_000,
+  });
+
+/** Re-score (Jev) then re-analyze (Claude) one call. Returns once queued; the page polls the stage. */
+export async function rescoreCall(callId: string) {
+  return invokeEdge<{ ok: boolean; call_id: string; coaching_stage: string }>(
+    "coaching-rescore",
+    { call_id: callId },
+    { timeoutMs: 30_000 },
+  );
+}
+
+export async function archivePlaybook(playbookId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { error } = await db
+    .from("coaching_playbooks")
+    .update({ status: "archived" })
+    .eq("id", playbookId);
+  if (error) throw error;
+}
+
+/** Past coaching reports for one rep, newest first. */
+export const repReportsQuery = (repId: string) =>
+  queryOptions({
+    queryKey: ["rep-reports", repId],
+    queryFn: async (): Promise<RepReportRow[]> => {
+      if (isGuest()) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data, error } = await db
+        .from("coaching_reports")
+        .select(
+          "id,rep_id,period_start,period_end,trigger,status,error_message,call_count,playbook_version_id,report,drill_guideline_id,previous_report_id,delivered_at,created_at,completed_at",
+        )
+        .eq("rep_id", repId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 15_000,
+  });
+
+/** Write a one-page coaching note for a rep over the last `days` days. Synchronous; ~20-40s. */
+export async function generateRepReport(repId: string, days: number) {
+  return invokeEdge<{ ok: boolean; report_id: string; report: RepReport; call_count: number }>(
+    "coaching-report",
+    { rep_id: repId, days },
+    { timeoutMs: 120_000, retries: 0 },
+  );
+}
+
+/** The behavior checklist extracted from one playbook version, in playbook order. */
+export const playbookGuidelinesQuery = (versionId: string) =>
+  queryOptions({
+    queryKey: ["playbook-guidelines", versionId],
+    queryFn: async (): Promise<PlaybookGuidelineRow[]> => {
+      if (isGuest()) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data, error } = await db
+        .from("coaching_playbook_guidelines")
+        .select("id,version_id,position,code,title,detail,phase")
+        .eq("version_id", versionId)
+        .order("position");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+
+/** Ask the model to turn a saved version into guidelines. Replaces any existing set. ~10-20s. */
+export async function extractPlaybookGuidelines(versionId: string) {
+  return invokeEdge<{ ok: boolean; version_id: string; guidelines: PlaybookGuidelineRow[] }>(
+    "coaching-playbook-guidelines",
+    { version_id: versionId },
+    { timeoutMs: 90_000, retries: 0 },
+  );
+}
+
+/**
+ * Delete a call. The row delete cascades to transcript, scores, moments, adherence,
+ * and insights; the recording is removed afterwards, best effort, because storage
+ * only lets the uploader delete their own file. Reports keep their call_ids list.
+ */
+export async function deleteCall(
+  callId: string,
+  audioPath: string | null,
+): Promise<{ audioRemoved: boolean }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { error } = await db.from("calls").delete().eq("id", callId);
+  if (error) throw error;
+  if (!audioPath) return { audioRemoved: true };
+  const { data, error: storageError } = await supabase.storage
+    .from("call-audio")
+    .remove([audioPath]);
+  return { audioRemoved: !storageError && (data?.length ?? 0) > 0 };
+}
+
+/** Record that the manager had the coaching conversation for this report. */
+export async function markReportDelivered(reportId: string, delivered: boolean) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { error } = await db
+    .from("coaching_reports")
+    .update({ delivered_at: delivered ? new Date().toISOString() : null })
+    .eq("id", reportId);
+  if (error) throw error;
 }

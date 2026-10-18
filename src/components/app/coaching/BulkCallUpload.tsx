@@ -68,7 +68,10 @@ export function BulkCallUpload({
           { file: items[i].file, organizationId, userId, repId },
           deps,
         );
-        updateItem(i, { status: result.status, callId: result.callId });
+        updateItem(i, {
+          status: result.status === "queued" ? "queued_transcription" : result.status,
+          callId: result.callId,
+        });
       } catch (error) {
         updateItem(i, {
           status: "failed",

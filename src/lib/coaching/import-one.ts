@@ -18,7 +18,11 @@ export type ImportInput = {
   repId: string;
 };
 
-export type ImportResult = { callId: string; status: "analyzed" | "saved_no_transcript" };
+export type ImportResult = {
+  callId: string;
+  /** "queued" means the Gemini worker owns the rest; the list refreshes as it progresses. */
+  status: "analyzed" | "saved_no_transcript" | "queued";
+};
 
 function failureMessage(response: InvokeResponse, fallback: string) {
   const message = response.data?.error;
@@ -42,11 +46,13 @@ export async function importRecording(input: ImportInput, deps: ImportDeps): Pro
     organization_id: input.organizationId,
     import_id: importId,
     audio_path: path,
+    content_type: contentType,
     consent: true,
     rep_id: input.repId,
   });
   if (imported.error || imported.data?.error)
     throw new Error(failureMessage(imported, "Import failed"));
+  if (imported.data?.coaching_stage === "queued") return { callId: importId, status: "queued" };
   if (!imported.data?.transcript_available)
     return { callId: importId, status: "saved_no_transcript" };
   const analyzed = await deps.invoke("analyze-call", { call_id: importId });

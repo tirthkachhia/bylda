@@ -25,6 +25,34 @@ describe("segmentLines", () => {
   it("returns nothing when there is neither", () => {
     expect(segmentLines({ id: "c3", transcript: null, segments: [] })).toEqual([]);
   });
+
+  it("carries tone and overlap through for Gemini segments", () => {
+    const [line] = segmentLines({
+      id: "c4",
+      transcript: null,
+      segments: [
+        {
+          speaker: "Customer",
+          text: "Not now",
+          start: 12,
+          tone: { label: "dismissive", note: "flat, clipped" },
+          overlap: true,
+        },
+      ],
+    });
+    expect(line.tone).toEqual({ label: "dismissive", note: "flat, clipped" });
+    expect(line.overlap).toBe(true);
+  });
+
+  it("omits tone and overlap keys for Whisper-era segments", () => {
+    const [line] = segmentLines({
+      id: "c5",
+      transcript: null,
+      segments: [{ speaker: "Rep", text: "Hello", start: 0 }],
+    });
+    expect("tone" in line).toBe(false);
+    expect("overlap" in line).toBe(false);
+  });
 });
 
 describe("formatting helpers", () => {

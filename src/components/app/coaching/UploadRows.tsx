@@ -3,6 +3,7 @@ import type { UploadItem, UploadStatus } from "@/lib/coaching/types";
 const LABEL: Record<UploadStatus, string> = {
   queued: "Waiting",
   uploading: "Uploading and analyzing…",
+  queued_transcription: "Queued, transcribing in the background",
   analyzed: "Coaching ready",
   saved_no_transcript: "Saved, transcript unavailable",
   failed: "Failed",

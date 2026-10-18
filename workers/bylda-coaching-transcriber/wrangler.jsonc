@@ -1,0 +1,50 @@
+{
+  // Secrets needed (wrangler secret put): SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, COACHING_WORKER_SECRET
+  // Queues needed once per account: coaching-transcribe-queue, coaching-score-queue, coaching-transcribe-dlq
+  "name": "bylda-coaching-transcriber",
+  "compatibility_date": "2025-09-24",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "account_id": "25b7202ade639506ffce966e37a116e1",
+  "main": "worker.ts",
+  "vars": {
+    "SUPABASE_URL": "https://ipidfqwlszuhjgjygbvx.supabase.co",
+  },
+  "observability": {
+    "logs": {
+      "enabled": true
+    },
+  },
+  "queues": {
+    "producers": [
+      {
+        "queue": "coaching-transcribe-queue",
+        "binding": "TRANSCRIBE_QUEUE",
+      },
+      {
+        // Scoring chunks take seconds; on their own queue they never wait behind
+        // ten-minute transcriptions.
+        "queue": "coaching-score-queue",
+        "binding": "SCORE_QUEUE",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "coaching-transcribe-queue",
+        // One recording per invocation: a 40-minute call takes ~10 minutes in Gemini and
+        // the consumer has a 15-minute wall-clock limit, so two in a batch would be cut off.
+        "max_batch_size": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "coaching-transcribe-dlq",
+      },
+      {
+        "queue": "coaching-score-queue",
+        // One chunk per invocation: each chunk already uses most of the 50-subrequest cap.
+        "max_batch_size": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "coaching-transcribe-dlq",
+      },
+    ],
+  },
+}
