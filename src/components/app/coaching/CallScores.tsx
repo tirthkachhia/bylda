@@ -16,6 +16,10 @@ import {
   YAxis,
 } from "recharts";
 import { callVerdict } from "../../../../supabase/functions/_shared/coaching/moments";
+import {
+  TEMPERATURE_LABELS,
+  TEMPERATURE_MAX,
+} from "../../../../supabase/functions/_shared/coaching/jev-questions";
 import { callScoresQuery } from "@/lib/queries";
 import type { ExchangeScoreRow, LearningMomentRow, ScoreSummary } from "@/lib/coaching/types";
 
@@ -24,7 +28,7 @@ const TEMP_COLOR = "#3275d8";
 const MOVE_COLOR = "#c2410c";
 const MOMENT_COLOR = "#9b1c1c";
 
-const TEMP_LEVELS = ["Cold", "Warm", "Hot", "Critical"];
+const TEMP_LEVELS: readonly string[] = TEMPERATURE_LABELS;
 const MOVE_LEVELS = ["pushed past", "missed the opening", "advanced", "advanced and asked"];
 
 const n = (v: number | string | null | undefined) =>
@@ -139,8 +143,8 @@ export function CallScores({ callId }: { callId: string }) {
                   minTickGap={40}
                 />
                 <YAxis
-                  domain={[0, 3]}
-                  ticks={[0, 1, 2, 3]}
+                  domain={[0, TEMPERATURE_MAX]}
+                  ticks={Array.from({ length: TEMPERATURE_MAX + 1 }, (_, i) => i)}
                   tickFormatter={(v: number) => TEMP_LEVELS[v] ?? String(v)}
                   tick={{ fontSize: 10, fill: "#8a9098" }}
                   tickLine={false}

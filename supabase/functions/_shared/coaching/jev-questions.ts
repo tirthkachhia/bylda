@@ -14,7 +14,12 @@ export const DEFAULT_BUDGET_TOKENS = 24_000;
 export const MAX_GUIDELINES = 20;
 export const MAX_GUIDELINE_CHARS = 200;
 
-export const TEMPERATURE_LEVELS = ["cold", "warm", "hot", "critical"] as const;
+/** Level keys in score order. The score is a probability-weighted index into this list. */
+export const TEMPERATURE_LEVELS = ["cold", "warm", "hot", "critical", "committed"] as const;
+/** Display names, same order. */
+export const TEMPERATURE_LABELS = ["Cold", "Warm", "Hot", "Critical", "Committed"] as const;
+/** Highest temperature score (index of the last level). Code that normalizes by the scale uses this. */
+export const TEMPERATURE_MAX = TEMPERATURE_LEVELS.length - 1;
 export const REP_MOVE_LEVELS = [
   "pushed_past",
   "missed_opening",
@@ -29,7 +34,7 @@ export const TEMPERATURE_QUESTION = {
       "Judge the customer's current temperature toward moving forward with `call_goal`, based on what the customer has said in `exchanges` so far.",
     focus:
       "Weight the latest exchange (`latest_exchange_number`) most heavily, but use the whole conversation to interpret it.",
-    note: "Judge only the customer's words. Ignore how the rep performed. A customer who has already agreed to proceed and is now answering logistics questions (spelling a name, confirming an address, reading payment or bank details, picking a time) stays Critical; short answers while complying are not coldness.",
+    note: "Judge only the customer's words. Ignore how the rep performed. Once the customer has agreed to proceed, they are Committed for the rest of the call unless they pull back; short answers while completing logistics are compliance, not coldness.",
   },
   criteria: [
     {
@@ -64,7 +69,15 @@ export const TEMPERATURE_QUESTION = {
         "Requests a demo, trial, proposal, quote, or application",
         "Proposes or accepts a specific date or time",
         "Says they want to proceed, sign, or get started",
-        "Provides identity, address, payment, or bank details the rep asked for to complete the purchase",
+      ],
+    },
+    {
+      summary: "Committed: the customer has agreed and is completing the purchase or booking",
+      signals: [
+        "Provides identity, address, payment, or bank details the rep asked for",
+        "Spells a name, confirms a date, or picks an option to finish the paperwork",
+        "Answers logistics questions briefly after already saying yes",
+        "Asks what happens next after agreeing",
       ],
     },
   ],

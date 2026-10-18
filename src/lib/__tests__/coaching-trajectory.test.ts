@@ -128,6 +128,30 @@ describe("findLearningMoments", () => {
     expect(all.map((m) => m.exchange_index)).toEqual([2, 3, 1]);
   });
 
+  it("keeps the sharpest confident drop even when risk flags fill the list", () => {
+    const scores = withDeltas([
+      scored(0, 3.0),
+      scored(1, 3.0, { risk: { probability: 0.9 } }),
+      scored(2, 3.0, { risk: { probability: 0.9 } }),
+      scored(3, 1.5, {}, 0.8),
+      scored(4, 1.5, { risk: { probability: 0.9 } }),
+    ]);
+    const exchanges = [ex(0, false), ex(1), ex(2), ex(3), ex(4)];
+    const top = findLearningMoments(scores, exchanges, 3);
+    expect(top).toHaveLength(3);
+    expect(top.map((m) => m.exchange_index)).toContain(3);
+    expect(top.find((m) => m.exchange_index === 3)?.type).toBe("temperature_drop");
+    // An uncertain drop does not get the reserved slot.
+    const shaky = withDeltas([
+      scored(0, 3.0),
+      scored(1, 3.0, { risk: { probability: 0.9 } }),
+      scored(2, 3.0, { risk: { probability: 0.9 } }),
+      scored(3, 1.5, {}, 0.2),
+      scored(4, 1.5, { risk: { probability: 0.9 } }),
+    ]);
+    expect(findLearningMoments(shaky, exchanges, 3).map((m) => m.exchange_index)).not.toContain(3);
+  });
+
   it("returns nothing on a flat, clean call", () => {
     const scores = withDeltas([scored(0, 1.5), scored(1, 1.6, { rep_move: level(2.5) })]);
     expect(findLearningMoments(scores, [ex(0, false), ex(1)])).toEqual([]);

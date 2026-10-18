@@ -14,7 +14,8 @@ import {
   type ScoredExchange,
 } from "./trajectory.ts";
 
-export const SCORING_VERSION = 1;
+/** Bumped when the scale or thresholds change so old and new rows are not compared blindly. v2: five temperature levels (Committed). */
+export const SCORING_VERSION = 2;
 
 export type AskFn = (state: unknown, questions: Record<string, unknown>) => Promise<JevResponse>;
 

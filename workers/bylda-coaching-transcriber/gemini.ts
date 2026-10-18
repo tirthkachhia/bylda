@@ -10,7 +10,9 @@ import {
 const BASE = "https://generativelanguage.googleapis.com";
 const UPLOAD_TIMEOUT_MS = 600_000;
 const POLL_TIMEOUT_MS = 60_000;
-const GENERATE_TIMEOUT_MS = 600_000;
+// 13 minutes: the queue consumer is cut off at 15, and download + upload need the rest.
+// Gemini slows under several parallel jobs; a 35-minute recording exceeded 10 minutes.
+const GENERATE_TIMEOUT_MS = 780_000;
 const MAX_OUTPUT_TOKENS = 65_536;
 
 export type FetchLike = typeof fetch;

@@ -2,6 +2,7 @@
 // summary, coaching value, and a call-quality composite. Pure module. All weights
 // and thresholds live in WEIGHTS/THRESHOLDS so they can change without re-scoring.
 import type { Exchange } from "./exchanges.ts";
+import { TEMPERATURE_MAX } from "./jev-questions.ts";
 
 export type LevelAnswer = {
   /** Probability-weighted level index, 0..3 for the 4-level questions. */
@@ -128,9 +129,16 @@ export function findLearningMoments(
       low_confidence: conf < THRESHOLDS.lowConfidence,
     });
   }
-  return moments
-    .sort((a, b) => b.score - a.score || a.exchange_index - b.exchange_index)
-    .slice(0, limit);
+  const ranked = moments.sort((a, b) => b.score - a.score || a.exchange_index - b.exchange_index);
+  const top = ranked.slice(0, limit);
+  // A call's sharpest confident temperature drop is always worth a slot: a run of
+  // risk flags must not push the moment the customer actually cooled off the list.
+  if (limit > 0 && !top.some((m) => m.type === "temperature_drop")) {
+    const bestDrop = ranked.find((m) => m.type === "temperature_drop" && !m.low_confidence);
+    if (bestDrop)
+      top.splice(Math.min(top.length, limit - 1), top.length === limit ? 1 : 0, bestDrop);
+  }
+  return top;
 }
 
 /**
@@ -153,9 +161,9 @@ export function coachingValue(input: {
   const duration = durationSeconds ?? 0;
   const w = WEIGHTS.coachingValue;
   const score = Math.round(
-    w.peak * clamp01(peak / 3) +
-      w.loss * clamp01(loss / 3) +
-      w.drop * clamp01(-biggestDrop / 3) +
+    w.peak * clamp01(peak / TEMPERATURE_MAX) +
+      w.loss * clamp01(loss / TEMPERATURE_MAX) +
+      w.drop * clamp01(-biggestDrop / TEMPERATURE_MAX) +
       w.duration * clamp01(duration / WEIGHTS.durationCapSeconds) +
       w.risk * clamp01(riskCount / THRESHOLDS.highRiskCount),
   );
@@ -187,7 +195,7 @@ export function qualityScore(input: {
     w.repMove * repMove +
       w.coverage * coverage +
       w.lowRisk * clamp01(1 - input.riskRate) +
-      w.finalTemperature * clamp01(input.finalTemperature / 3),
+      w.finalTemperature * clamp01(input.finalTemperature / TEMPERATURE_MAX),
   );
 }
 

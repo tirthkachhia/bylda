@@ -2,6 +2,7 @@
 // code so every moment has a readable name even before Claude explains it.
 // Pure module, shared by the worker, analyze-call, and the UI.
 import type { Exchange } from "./exchanges.ts";
+import { TEMPERATURE_LABELS, TEMPERATURE_MAX } from "./jev-questions.ts";
 import type { LearningMoment } from "./trajectory.ts";
 
 export type MomentSignals = Pick<
@@ -59,7 +60,7 @@ export function callVerdict(
   options: { peakAt?: string; dropAt?: string } = {},
 ): string {
   const level = (t: number) =>
-    ["Cold", "Warm", "Hot", "Critical"][Math.round(Math.min(3, Math.max(0, t)))];
+    TEMPERATURE_LABELS[Math.round(Math.min(TEMPERATURE_MAX, Math.max(0, t)))];
   const parts: string[] = [];
   const lead =
     summary.coaching_value_label === "high"

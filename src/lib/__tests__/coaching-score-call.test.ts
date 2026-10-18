@@ -66,7 +66,7 @@ describe("answersToScore", () => {
         model: "m",
         usage: {},
         answers: {
-          customer_temperature: scoreAnswer(3.4),
+          customer_temperature: scoreAnswer(4.6),
           rep_move: scoreAnswer(-0.2),
           playbook_step: { type: "choice", choice: "g2", probabilities: {}, confidence: 0.7 },
           rep_introduced_risk: { type: "noul", noul: 1.2 },
@@ -77,7 +77,7 @@ describe("answersToScore", () => {
     expect(score).toMatchObject({
       exchange_index: 2,
       truncated: true,
-      temperature: { score: 3 },
+      temperature: { score: 4 },
       rep_move: { score: 0 },
       playbook_step: { choice: "g2", confidence: 0.7 },
       risk: { probability: 1 },

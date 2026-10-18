@@ -7,6 +7,8 @@ import {
   guidelinesFromPlaybook,
   REP_MOVE_QUESTION,
   selectWindow,
+  TEMPERATURE_LEVELS,
+  TEMPERATURE_MAX,
   TEMPERATURE_QUESTION,
   type RenderedExchange,
 } from "../../../supabase/functions/_shared/coaching/jev-questions";
@@ -37,17 +39,20 @@ const exchanges = [
 ];
 
 describe("question definitions", () => {
-  it("temperature and rep_move have four ordered levels with summary and signals", () => {
+  it("temperature has five ordered levels and rep_move four, each with summary and signals", () => {
     for (const q of [TEMPERATURE_QUESTION, REP_MOVE_QUESTION]) {
       expect(q.type).toBe("score");
-      expect(q.criteria).toHaveLength(4);
       for (const level of q.criteria) {
         expect(level.summary.length).toBeGreaterThan(10);
         expect(level.signals.length).toBeGreaterThanOrEqual(2);
       }
     }
+    expect(REP_MOVE_QUESTION.criteria).toHaveLength(4);
+    expect(TEMPERATURE_QUESTION.criteria).toHaveLength(TEMPERATURE_LEVELS.length);
+    expect(TEMPERATURE_MAX).toBe(4);
     expect(TEMPERATURE_QUESTION.criteria[0].summary).toMatch(/^Cold/);
     expect(TEMPERATURE_QUESTION.criteria[3].summary).toMatch(/^Critical/);
+    expect(TEMPERATURE_QUESTION.criteria[4].summary).toMatch(/^Committed/);
   });
 });
 
