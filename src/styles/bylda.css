@@ -1,0 +1,321 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Bylda V1 design tokens — CLAUDE.md §3
+   Source: Figma "Bylda — Behavioral Intelligence (V1)", page 01 Foundations
+   (1:2 → 3:2) and the page-02 components, pulled 2026-09-30.
+
+   THE ONLY FILE IN src/** ALLOWED TO CONTAIN A RAW COLOUR (tokens:check).
+
+   Layer 1 — PRIMITIVE (:root, --by-*)       raw values, Figma `primitive/*`.
+                                              Never referenced by a component.
+   Layer 2 — SEMANTIC  (@theme, --color-by-*) references primitives, Figma
+                                              `surface/*`, `text/*`, `border/*`,
+                                              plus signal pairs. Tailwind builds
+                                              utilities from THESE names only:
+                                              bg-by-surface-raised, text-by-text-
+                                              secondary, border-by-border-engraved…
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/newsreader/400-italic.css";
+@import "@fontsource/newsreader/500.css";
+@import "@fontsource/geist-mono/300.css";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+@import "@fontsource/cinzel/400.css";
+
+/* ── Layer 1 — primitives (Figma `primitive/*`) ──────────────────────────── */
+:root {
+  --by-pearl-0: #f8f7f5;
+  --by-pearl-50: #f2f1ee;
+  --by-pearl-100: #eae8e4;
+  --by-white: #ffffff;
+  --by-silver-200: #e5e3df;
+  --by-silver-300: #d3d0cb;
+  --by-silver-500: #9b9892;
+  --by-silver-600: #6e6c68;
+  --by-graphite-700: #3a3a3f;
+  --by-graphite-800: #2a2a2e;
+  --by-graphite-900: #1b1b1e;
+  --by-ink: #0b0b0c;
+
+  /* Behavioral signal — direction only, never decoration */
+  --by-improve: #2f7d5b;
+  --by-improve-bg: #e7f2ec;
+  --by-regress: #c2413b;
+  --by-regress-bg: #f8e7e5;
+  --by-attention: #c27a1a;
+  --by-attention-bg: #f8eedc;
+  --by-info: #6a5ad0;
+  --by-info-bg: #eeebfa;
+
+  /* Translucent whites used on the dark rail/sidebar (Figma, 37:51) */
+  --by-white-a05: rgb(255 255 255 / 0.05);
+  --by-white-a10: rgb(255 255 255 / 0.1);
+  /* Modal scrim */
+  --by-ink-a40: rgb(11 11 12 / 0.4);
+
+  /* The ONLY gradient in the product — the warm-metal avatar monogram (4:35).
+     CLAUDE.md §13.2: Block / Call's thumbnail gradient was removed — flat surface. */
+  --by-avatar-metal: linear-gradient(135deg, rgb(222 217 209) 0%, rgb(158 153 145) 71.43%);
+
+  /* The one soft shadow (50:27312). CLAUDE.md §13.3: menus, popovers, modals
+     and hero cards (A11 first insight) only. */
+  --by-shadow-float: 0 12px 32px 0 rgb(0 0 0 / 0.12);
+}
+
+/* ── Layer 2 — semantic (Figma `surface/*`, `text/*`, `border/*`) ────────── */
+@theme inline {
+  /* surface/* */
+  --color-by-surface-canvas: var(--by-pearl-0);
+  --color-by-surface-raised: var(--by-white);
+  --color-by-surface-inset: var(--by-pearl-50);
+  --color-by-surface-rail: var(--by-ink);
+  --color-by-surface-sidebar: var(--by-graphite-900);
+  /* foundation semantics for primitives Figma binds directly on components */
+  --color-by-surface-hover: var(--by-pearl-50);
+  --color-by-surface-muted: var(--by-pearl-100);
+  --color-by-surface-control-dark: var(--by-ink);
+  --color-by-surface-rail-active: var(--by-graphite-800);
+  --color-by-surface-rail-chip: var(--by-graphite-900);
+  --color-by-surface-sidebar-hover: var(--by-white-a05);
+  --color-by-surface-sidebar-active: var(--by-white-a10);
+  --color-by-surface-scrim: var(--by-ink-a40);
+
+  /* text/* */
+  --color-by-text-primary: var(--by-ink);
+  --color-by-text-secondary: var(--by-silver-600);
+  --color-by-text-tertiary: var(--by-silver-500);
+  --color-by-text-on-dark: var(--by-pearl-100);
+  --color-by-text-on-dark-muted: var(--by-silver-500);
+  --color-by-text-on-control: var(--by-white);
+  --color-by-text-sidebar: var(--by-silver-300);
+
+  /* border/* */
+  --color-by-border-engraved: var(--by-silver-200);
+  --color-by-border-strong: var(--by-silver-300); /* Figma border/strong — form inputs (§13.1) */
+  --color-by-border-control: var(--by-silver-300); /* = border-strong, kept for the kit */
+  --color-by-border-rail: var(--by-graphite-700);
+  --color-by-border-focus: var(--by-graphite-800); /* = focus-ring, kept for the kit */
+
+  /* focus/* — focused input border + focus ring (A1 26:80, §13.1) */
+  --color-by-focus-ring: var(--by-graphite-800);
+
+  /* feedback/* — form errors ONLY. Same value as regress, own token, so signal
+     colours stay behavioral (§13.1, §13.7). */
+  --color-by-feedback-error: var(--by-regress);
+
+  /* signal — behavioral direction ONLY */
+  --color-by-signal-improve: var(--by-improve);
+  --color-by-signal-improve-bg: var(--by-improve-bg);
+  --color-by-signal-regress: var(--by-regress);
+  --color-by-signal-regress-bg: var(--by-regress-bg);
+  --color-by-signal-attention: var(--by-attention);
+  --color-by-signal-attention-bg: var(--by-attention-bg);
+  --color-by-signal-info: var(--by-info);
+  --color-by-signal-info-bg: var(--by-info-bg);
+
+  /* Radius — controls/inputs 6, cards 10, always (CLAUDE.md §13.5). Figma's
+     4px/2px on controls and cards is ignored; badge/bar are for badges, kbd
+     and skeleton bars only — never a control or a card. */
+  --radius-by-bar: 2px; /* skeleton bars (Y13) */
+  --radius-by-badge: 4px; /* Badge / APP, kbd */
+  --radius-by-control: 6px; /* buttons, inputs, evidence block */
+  --radius-by-tile: 8px; /* icon tiles, search field, bell */
+  --radius-by-card: 10px; /* insight card, message blocks, rail items */
+  --radius-by-menu: 12px; /* menus & popovers */
+  --radius-by-pill: 999px; /* tags, avatars, reactions */
+
+  /* Elevation — exactly one soft shadow: menus, popovers, modals, hero cards (§13.3) */
+  --shadow-by-float: var(--by-shadow-float);
+
+  /* Fonts */
+  --font-by-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-by-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-by-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-by-brand: "Cinzel", "Newsreader", serif; /* stand-in for Ragnar/Nordic */
+
+  /* Shell geometry (App Shell / Navigation v2, 37:51 · Top Bar, 36:52) */
+  --spacing-by-rail: 64px;
+  --spacing-by-sidebar: 248px;
+  --spacing-by-topbar: 56px;
+  --spacing-by-context: 344px;
+  --spacing-by-drawer: 400px; /* N1 notifications drawer */
+  --spacing-by-ask: 440px; /* S3 Ask Bylda panel */
+  --spacing-by-menu: 280px; /* menus & popovers */
+  --spacing-by-search: 300px; /* top-bar search */
+
+  /* Motion — 180–220ms ease-out, nothing bounces */
+  --ease-by-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --animate-by-resolve: by-resolve 220ms var(--ease-by-out) both;
+  --animate-by-slide-right: by-slide-right 180ms var(--ease-by-out) both;
+}
+
+@keyframes by-resolve {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes by-slide-right {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ── Type — the 16 named Figma styles (letter-spacing is % of size) ──────── */
+@utility type-brand-logo {
+  font-family: var(--font-by-brand);
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+}
+@utility type-display-xl {
+  font-family: var(--font-by-serif);
+  font-weight: 500;
+  font-size: 44px;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+@utility type-display-l {
+  font-family: var(--font-by-serif);
+  font-weight: 500;
+  font-size: 30px;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+}
+@utility type-display-label {
+  font-family: var(--font-by-sans);
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+@utility type-editorial-h1 {
+  font-family: var(--font-by-serif);
+  font-weight: 500;
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+}
+@utility type-editorial-h2 {
+  font-family: var(--font-by-serif);
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+@utility type-editorial-insight {
+  font-family: var(--font-by-serif);
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+}
+@utility type-editorial-quote {
+  font-family: var(--font-by-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.45;
+}
+@utility type-ui-title {
+  font-family: var(--font-by-sans);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+}
+@utility type-ui-body {
+  font-family: var(--font-by-sans);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.003em;
+}
+@utility type-ui-body-strong {
+  font-family: var(--font-by-sans);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.003em;
+}
+@utility type-ui-small {
+  font-family: var(--font-by-sans);
+  font-weight: 400;
+  font-size: 12.5px;
+  line-height: 1.45;
+  letter-spacing: -0.002em;
+}
+@utility type-ui-label {
+  font-family: var(--font-by-sans);
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+@utility type-mono-data {
+  font-family: var(--font-by-mono);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.4;
+}
+@utility type-mono-micro {
+  font-family: var(--font-by-mono);
+  font-weight: 500;
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+}
+@utility type-mono-metric {
+  font-family: var(--font-by-mono);
+  font-weight: 300;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+/* Imagery token — the avatar monogram, the only gradient (CLAUDE.md §13.2) */
+@utility bg-by-avatar-metal {
+  background-image: var(--by-avatar-metal);
+}
+
+/* V1 surfaces opt in with .bylda — sets the canvas + base type without
+   touching the legacy theme the quarantined routes still use. */
+@layer base {
+  .bylda {
+    background-color: var(--color-by-surface-canvas);
+    color: var(--color-by-text-primary);
+    font-family: var(--font-by-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.003em;
+    -webkit-font-smoothing: antialiased;
+  }
+  .bylda :focus-visible {
+    outline: 2px solid var(--color-by-border-focus);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bylda *,
+  .bylda *::before,
+  .bylda *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

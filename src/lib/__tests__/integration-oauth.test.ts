@@ -36,6 +36,12 @@ describe("oauthProviderName", () => {
     expect(credentialProvider("sendgrid")?.name).toBe("SendGrid");
   });
 
+  it("exposes HubSpot, Salesforce, and Close as OAuth CRM connectors", () => {
+    expect(oauthProviderName("hubspot")).toBe("HubSpot");
+    expect(oauthProviderName("salesforce")).toBe("Salesforce");
+    expect(oauthProviderName("close_io")).toBe("Close");
+  });
+
   it("does not expose unknown integrations as OAuth connectors", () => {
     expect(oauthProviderName("unknown-provider")).toBeNull();
   });

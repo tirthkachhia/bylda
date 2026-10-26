@@ -1,5 +1,14 @@
 project_id = "ipidfqwlszuhjgjygbvx"
 
+[storage]
+file_size_limit = "100MiB"
+
+[functions.signup-email]
+verify_jwt = false
+
+[functions.signup-email-unsubscribe]
+verify_jwt = false
+
 # AI tool functions — verify_jwt = true adds gateway-level auth before the
 # function runs. The functions also validate internally for defence-in-depth.
 [functions.validate-idea]
@@ -112,8 +121,32 @@ verify_jwt = true
 [functions.analyze-call]
 verify_jwt = true
 
+# Internal bridge for the Cloudflare transcriber worker; authenticates with
+# COACHING_WORKER_SECRET, then calls analyze-call with the runtime's service key.
+[functions.coaching-analyze]
+verify_jwt = false
+
+# User-triggered re-score + re-analysis; enqueues a score message on the worker.
+[functions.coaching-rescore]
+verify_jwt = true
+
+# Typed, tenant-scoped Context Package assembly for AI consumers.
+[functions.context-package]
+verify_jwt = true
+
 # Builds the org-specific extraction/write-back profile from the short CRM setup interview.
 [functions.generate-crm-intelligence-profile]
+verify_jwt = true
+
+# Multi-CRM + connected-source ingest into canonical entities and memory.
+[functions.sync-crm]
+verify_jwt = true
+
+# Legacy GoHighLevel sync — kept for existing clients.
+[functions.sync-gohighlevel]
+verify_jwt = true
+
+[functions.write-call-to-gohighlevel]
 verify_jwt = true
 
 # Dialers authenticate with a per-organization HMAC URL, not a Supabase JWT.
@@ -188,3 +221,9 @@ verify_jwt = true
 # Public campaign engagement tracker (open pixel / click redirect / unsubscribe).
 [functions.track-event]
 verify_jwt = false
+
+[functions.coaching-report]
+verify_jwt = true
+
+[functions.coaching-playbook-guidelines]
+verify_jwt = true

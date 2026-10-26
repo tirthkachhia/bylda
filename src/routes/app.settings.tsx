@@ -48,6 +48,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { blockIfGuest } from "@/lib/guest";
+import { SignupEmailPreference } from "@/components/app/SignupEmails";
 
 export const Route = createFileRoute("/app/settings")({
   validateSearch: (s: Record<string, unknown>): { tab?: string } => ({
@@ -85,7 +86,7 @@ function SettingsPage() {
 
       {/* Tab bar */}
       <div
-        className="flex gap-1 rounded-2xl p-1"
+        className="flex gap-1 rounded-by-card p-1"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
         {TABS.map(({ key, label, icon: Icon }) => {
@@ -94,8 +95,10 @@ function SettingsPage() {
           return (
             <button
               key={key}
+              aria-label={label}
+              aria-pressed={active}
               onClick={() => setTab(key)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-[12.5px] font-medium transition-all duration-150 sm:justify-start sm:px-3"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-by-card py-2 text-[12.5px] font-medium transition-all duration-150 sm:justify-start sm:px-3"
               style={
                 active
                   ? {
@@ -120,7 +123,7 @@ function SettingsPage() {
       </div>
 
       <div>
-        {tab === "profile" && <ProfileTab />}
+        {tab === "profile" && <><ProfileTab /><SignupEmailPreference /></>}
         {tab === "context" && <BusinessContextTab />}
         {tab === "organization" && <OrgTab />}
         {tab === "team" && <TeamTab />}
@@ -143,7 +146,7 @@ function Section({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-2xl shadow-card"
+      className="overflow-hidden rounded-by-card shadow-card"
       style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
     >
       <div
@@ -191,7 +194,7 @@ function SaveButton({
   return (
     <button
       onClick={onClick}
-      className="mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-semibold text-white transition-all duration-200"
+      className="mt-5 inline-flex items-center gap-2 rounded-by-card px-4 py-2 text-[13px] font-semibold text-white transition-all duration-200"
       style={{
         background: "linear-gradient(135deg, var(--primary), var(--accent))",
         boxShadow: "0 4px 16px color-mix(in oklab, var(--primary) 30%, transparent)",
@@ -304,7 +307,7 @@ function TeamTab() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="teammate@company.com"
-                  className="rounded-xl"
+                  className="rounded-by-card"
                   style={{ background: "var(--surface-2)" }}
                 />
               </Field>
@@ -313,7 +316,7 @@ function TeamTab() {
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as "admin" | "member")}
-                className="h-10 rounded-xl px-3 text-[13px]"
+                className="h-10 rounded-by-card px-3 text-[13px]"
                 style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
               >
                 <option value="member">Member</option>
@@ -323,7 +326,7 @@ function TeamTab() {
             <button
               onClick={invite}
               disabled={inviting}
-              className="inline-flex h-10 items-center gap-2 rounded-xl px-4 text-[13px] font-semibold text-white disabled:opacity-60"
+              className="inline-flex h-10 items-center gap-2 rounded-by-card px-4 text-[13px] font-semibold text-white disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))" }}
             >
               <UserPlus className="h-4 w-4" />
@@ -455,7 +458,7 @@ function ProfileTab() {
       {/* Avatar preview */}
       <div className="mb-5 flex items-center gap-4">
         <div
-          className="flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-bold text-white shadow-card"
+          className="flex h-14 w-14 items-center justify-center rounded-by-card text-lg font-bold text-white shadow-card"
           style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))" }}
         >
           {initials}
@@ -477,7 +480,7 @@ function ProfileTab() {
           <Input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="rounded-xl"
+            className="rounded-by-card"
             style={{ background: "var(--surface-2)" }}
           />
         </Field>
@@ -485,7 +488,7 @@ function ProfileTab() {
           <Input
             value={user?.email ?? ""}
             disabled
-            className="rounded-xl opacity-50"
+            className="rounded-by-card opacity-50"
             style={{ background: "var(--surface-2)" }}
           />
         </Field>
@@ -494,7 +497,7 @@ function ProfileTab() {
             placeholder="https://..."
             value={avatarUrl}
             onChange={(e) => setAvatarUrl(e.target.value)}
-            className="rounded-xl"
+            className="rounded-by-card"
             style={{ background: "var(--surface-2)" }}
           />
         </Field>
@@ -554,7 +557,7 @@ function OrgTab() {
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="rounded-xl"
+            className="rounded-by-card"
             style={{ background: "var(--surface-2)" }}
           />
         </Field>
@@ -562,7 +565,7 @@ function OrgTab() {
           <Input
             value={businessType}
             onChange={(e) => setBusinessType(e.target.value)}
-            className="rounded-xl"
+            className="rounded-by-card"
             style={{ background: "var(--surface-2)" }}
           />
         </Field>
@@ -570,13 +573,13 @@ function OrgTab() {
           <Input
             value={niche}
             onChange={(e) => setNiche(e.target.value)}
-            className="rounded-xl"
+            className="rounded-by-card"
             style={{ background: "var(--surface-2)" }}
           />
         </Field>
         <Field label="Stage">
           <select
-            className="flex h-9 w-full rounded-xl px-3 text-sm outline-none transition"
+            className="flex h-9 w-full rounded-by-card px-3 text-sm outline-none transition"
             style={{
               background: "var(--surface-2)",
               border: "1px solid var(--border)",
@@ -594,7 +597,7 @@ function OrgTab() {
           <Input
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            className="rounded-xl"
+            className="rounded-by-card"
             style={{ background: "var(--surface-2)" }}
           />
         </Field>
@@ -655,7 +658,7 @@ function PlanTab() {
           return (
             <div
               key={p.plan}
-              className="relative rounded-2xl p-4 transition-all duration-200"
+              className="relative rounded-by-card p-4 transition-all duration-200"
               style={{
                 background: isCurrent
                   ? "color-mix(in oklab, var(--primary) 6%, var(--surface))"
@@ -708,7 +711,7 @@ function PlanTab() {
               </ul>
               {!isCurrent && (
                 <button
-                  className="mt-4 w-full rounded-xl py-1.5 text-[12px] font-semibold transition"
+                  className="mt-4 w-full rounded-by-card py-1.5 text-[12px] font-semibold transition"
                   style={{
                     background: "color-mix(in oklab, var(--primary) 10%, transparent)",
                     border: "1px solid color-mix(in oklab, var(--primary) 25%, transparent)",
@@ -784,7 +787,7 @@ function ConnectorsTab() {
     <div className="space-y-4">
       {/* Header */}
       <div
-        className="flex items-center justify-between rounded-2xl px-5 py-4"
+        className="flex items-center justify-between rounded-by-card px-5 py-4"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
         <div>
@@ -800,7 +803,7 @@ function ConnectorsTab() {
         </div>
         <div className="flex items-center gap-2">
           <div
-            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11.5px] font-medium"
+            className="flex items-center gap-1.5 rounded-by-card px-3 py-1.5 text-[11.5px] font-medium"
             style={{
               background:
                 connectedCount > 0
@@ -819,7 +822,7 @@ function ConnectorsTab() {
       {/* Connected integrations list */}
       {connectedCount === 0 ? (
         <div
-          className="flex flex-col items-center justify-center rounded-2xl py-14 text-center"
+          className="flex flex-col items-center justify-center rounded-by-card py-14 text-center"
           style={{
             background: "var(--surface)",
             border: "1px dashed var(--border)",
@@ -861,7 +864,7 @@ function ConnectorsTab() {
 
       {/* Browse more link */}
       <div
-        className="flex items-center justify-between rounded-2xl px-5 py-3"
+        className="flex items-center justify-between rounded-by-card px-5 py-3"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
         <div className="text-[12.5px]" style={{ color: "var(--muted-foreground)" }}>
@@ -912,7 +915,7 @@ function ConnectorRow({
 
   return (
     <div
-      className="overflow-hidden rounded-2xl transition-all duration-200"
+      className="overflow-hidden rounded-by-card transition-all duration-200"
       style={{
         background: "var(--surface)",
         border: "1px solid color-mix(in oklab, var(--success) 25%, transparent)",
@@ -987,7 +990,7 @@ function DangerTab() {
 
   return (
     <div
-      className="overflow-hidden rounded-2xl"
+      className="overflow-hidden rounded-by-card"
       style={{
         background: "color-mix(in oklab, var(--destructive) 4%, var(--surface))",
         border: "1px solid color-mix(in oklab, var(--destructive) 25%, transparent)",
@@ -1027,7 +1030,7 @@ function DangerTab() {
         <Button
           variant="destructive"
           onClick={() => setOpen(true)}
-          className="mt-5 gap-2 rounded-xl"
+          className="mt-5 gap-2 rounded-by-card"
         >
           <Trash2 className="h-4 w-4" /> Delete account
         </Button>
@@ -1046,7 +1049,7 @@ function DangerTab() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="DELETE"
-            className="rounded-xl"
+            className="rounded-by-card"
           />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>

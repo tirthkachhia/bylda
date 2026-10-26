@@ -50,6 +50,9 @@ type TokenPayload = Record<string, unknown> & {
   asana_user?: { gid?: string; name?: string; email?: string };
   airtable_user?: { id?: string; email?: string };
   owner?: { user?: { id?: string; name?: string } };
+  instance_url?: string;
+  api_domain?: string;
+  hub_id?: number | string;
 };
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://app.usebylda.com";
@@ -190,6 +193,30 @@ function accountMetadata(provider: OAuthProviderKey, payload: TokenPayload) {
     return {
       id: String(payload.airtable_user?.id ?? ""),
       label: String(payload.airtable_user?.email ?? "Airtable account"),
+    };
+  }
+  if (provider === "salesforce") {
+    return {
+      id: String(payload.instance_url ?? payload.id ?? ""),
+      label: payload.instance_url ? `Salesforce ${payload.instance_url}` : "Salesforce account",
+    };
+  }
+  if (provider === "hubspot") {
+    return {
+      id: String(payload.hub_id ?? payload.organization_id ?? ""),
+      label: payload.hub_id ? `HubSpot portal ${payload.hub_id}` : "HubSpot account",
+    };
+  }
+  if (provider === "close") {
+    return {
+      id: String(payload.organization_id ?? payload.id ?? ""),
+      label: "Close account",
+    };
+  }
+  if (provider === "pipedrive") {
+    return {
+      id: String(payload.api_domain ?? payload.organization_id ?? ""),
+      label: String(payload.api_domain ?? "Pipedrive account"),
     };
   }
   return {
@@ -404,6 +431,9 @@ Deno.serve(async (req) => {
     identity_url: providerPayload.id ?? null,
     data_center: providerPayload.dc ?? null,
     api_endpoint: providerPayload.api_endpoint ?? null,
+    instance_url: providerPayload.instance_url ?? null,
+    api_domain: providerPayload.api_domain ?? null,
+    hub_id: providerPayload.hub_id ?? null,
     cloud_id: providerPayload.atlassian_site?.id ?? null,
     site_url: providerPayload.atlassian_site?.url ?? null,
     user_id: providerPayload.asana_user?.gid ?? providerPayload.sub ?? null,

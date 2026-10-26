@@ -34,7 +34,9 @@ import {
   readyModeStatusQuery,
   saveIntegration,
   startIntegrationOAuth,
+  syncGoHighLevel,
   syncSalesforce,
+  syncCrm as syncConnectedCrm,
   type MaskedIntegration,
 } from "@/lib/queries";
 import {
@@ -120,6 +122,7 @@ function ConnectModal({
   const { user, currentOrgId } = useAuth();
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncReport, setSyncReport] = useState<string | null>(null);
   const [credentialValues, setCredentialValues] = useState<Record<string, string>>({});
   const [shopDomain, setShopDomain] = useState("");
   const [useCredentialFallback, setUseCredentialFallback] = useState(false);
@@ -261,14 +264,30 @@ function ConnectModal({
 
   const syncCrm = async () => {
     if (blockIfGuest("Sign up to sync CRM data.")) return;
-    if (!user || item.key !== "salesforce") return;
+    if (!user || !["salesforce", "gohighlevel", "close_io"].includes(item.key)) return;
     setWorking(true);
     setError(null);
     try {
-      const result = await syncSalesforce();
-      toast.success(
-        `Salesforce synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
-      );
+      if (item.key === "close_io") {
+        const result = await syncConnectedCrm("close_io");
+        const close = result.results.find((row) => row.provider === "close_io");
+        if (!result.ok || close?.error) throw new Error(close?.error ?? "Close sync failed");
+        const report = `Close synced: ${result.contacts_imported} contacts, ${result.calls_imported} calls, and ${result.transcripts_imported} transcripts`;
+        setSyncReport([report, close?.conversation_warning].filter(Boolean).join(". "));
+        toast.success(report);
+        if (close?.conversation_warning) toast.warning(close.conversation_warning);
+      } else if (item.key === "gohighlevel") {
+        const result = await syncGoHighLevel();
+        toast.success(
+          `GoHighLevel synced: ${result.contacts_imported} contacts, ${result.opportunities_imported ?? 0} opportunities, ${result.calls_imported} calls, and ${result.transcripts_imported} transcripts`,
+        );
+        if (result.conversation_warning) toast.warning(result.conversation_warning);
+      } else {
+        const result = await syncSalesforce();
+        toast.success(
+          `Salesforce synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
+        );
+      }
       onSaved();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not sync Salesforce data");
@@ -291,7 +310,7 @@ function ConnectModal({
         {isReadyMode ? (
           <div className="space-y-4 pt-1">
             <div
-              className="rounded-xl p-4"
+              className="rounded-by-card p-4"
               style={{
                 background: "color-mix(in oklab, var(--primary) 7%, var(--surface-2))",
                 border: "1px solid color-mix(in oklab, var(--primary) 22%, transparent)",
@@ -370,7 +389,7 @@ function ConnectModal({
             )}
 
             <div
-              className="rounded-xl p-4"
+              className="rounded-by-card p-4"
               style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
             >
               <div className="text-[12.5px] font-semibold">Step 2 — Send it to your admin</div>
@@ -393,7 +412,7 @@ function ConnectModal({
             </div>
 
             <div
-              className="rounded-xl p-4"
+              className="rounded-by-card p-4"
               style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -472,7 +491,7 @@ function ConnectModal({
         ) : providerName && !usingCredentialFallback ? (
           <div className="space-y-4 pt-1">
             <div
-              className="rounded-xl p-4"
+              className="rounded-by-card p-4"
               style={{
                 background: "color-mix(in oklab, var(--success) 7%, var(--surface-2))",
                 border: "1px solid color-mix(in oklab, var(--success) 22%, transparent)",
@@ -515,7 +534,7 @@ function ConnectModal({
 
             {connection && (
               <div
-                className="rounded-xl px-4 py-3"
+                className="rounded-by-card px-4 py-3"
                 style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
               >
                 <div
@@ -551,10 +570,13 @@ function ConnectModal({
                 </Button>
               )}
             </div>
-            {connection && item.key === "salesforce" && (
+            {syncReport && <p role="status" className="text-sm">{syncReport}</p>}
+            {connection && ["salesforce", "gohighlevel", "close_io"].includes(item.key) && (
               <Button variant="outline" className="w-full" onClick={syncCrm} disabled={working}>
                 <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${working ? "animate-spin" : ""}`} />
-                Sync contacts and opportunities
+                {["gohighlevel", "close_io"].includes(item.key)
+                  ? "Sync contacts, opportunities, calls, and transcripts"
+                  : "Sync contacts and opportunities"}
               </Button>
             )}
             {hasCredentialFallback && !connection && (
@@ -574,7 +596,7 @@ function ConnectModal({
         ) : credentialFields.length > 0 ? (
           <div className="space-y-4 pt-1">
             <div
-              className="rounded-xl p-4"
+              className="rounded-by-card p-4"
               style={{
                 background: "color-mix(in oklab, var(--success) 7%, var(--surface-2))",
                 border: "1px solid color-mix(in oklab, var(--success) 22%, transparent)",
@@ -601,7 +623,7 @@ function ConnectModal({
             {connection ? (
               <>
                 <div
-                  className="rounded-xl px-4 py-3"
+                  className="rounded-by-card px-4 py-3"
                   style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
                 >
                   <div
@@ -673,6 +695,12 @@ function ConnectModal({
                 </Button>
               )}
             </div>
+            {connection && item.key === "gohighlevel" && (
+              <Button variant="outline" className="w-full" onClick={syncCrm} disabled={working}>
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${working ? "animate-spin" : ""}`} />
+                Sync contacts, opportunities, calls, and transcripts
+              </Button>
+            )}
             {providerName && !connection && (
               <Button
                 variant="ghost"
@@ -690,7 +718,7 @@ function ConnectModal({
         ) : (
           <div className="space-y-4 pt-1">
             <div
-              className="rounded-xl p-4"
+              className="rounded-by-card p-4"
               style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
             >
               <div className="flex items-start gap-3">
@@ -736,21 +764,14 @@ function IntegrationCard({
     !providerName && !isReadyMode && credentialFieldsForIntegration(item).length > 0;
   return (
     <div
-      className="bylda-card flex cursor-pointer flex-col p-4 transition-all duration-200 hover:scale-[1.01]"
+      className="grid items-center gap-4 rounded-by-card border border-border bg-surface p-5 sm:grid-cols-[160px_1fr_180px]"
       style={{
         border: isConnected
           ? "1px solid color-mix(in oklab, var(--success) 30%, transparent)"
           : undefined,
       }}
-      onClick={onClick}
     >
-      {isConnected && (
-        <div
-          className="-mx-4 -mt-4 mb-3 h-[2px] rounded-t-2xl"
-          style={{ background: "linear-gradient(90deg, transparent, var(--success), transparent)" }}
-        />
-      )}
-      <div className="mb-3 flex items-start justify-between gap-2">
+      <div className="flex items-center gap-3">
         <IntegrationIcon slug={item.iconSlug} name={item.name} />
         <StatusPill tone={isConnected ? "success" : "muted"}>
           {isConnected
@@ -774,7 +795,7 @@ function IntegrationCard({
           {item.description}
         </p>
       </div>
-      <div className="mt-3 flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span
           className="rounded-full px-2 py-0.5 text-[10.5px] font-medium"
           style={{
@@ -837,6 +858,17 @@ function IntegrationsPage() {
           .catch((error) => {
             toast.error(error instanceof Error ? error.message : "Salesforce sync failed");
           });
+      } else if (provider === "gohighlevel") {
+        void syncGoHighLevel()
+          .then((result) => {
+            toast.success(
+              `GoHighLevel synced: ${result.contacts_imported} contacts, ${result.calls_imported} calls, and ${result.transcripts_imported} transcripts`,
+            );
+            if (result.conversation_warning) toast.warning(result.conversation_warning);
+          })
+          .catch((error) => {
+            toast.error(error instanceof Error ? error.message : "GoHighLevel sync failed");
+          });
       }
     } else if (status === "cancelled") toast.info("Account connection cancelled");
     else toast.error("Account connection failed. Please try again.");
@@ -872,15 +904,15 @@ function IntegrationsPage() {
   const connectedCount = connected.filter((entry) => entry.is_connected).length;
 
   return (
-    <>
+    <div className="mx-auto max-w-4xl space-y-7 py-8">
       <PageHeader
         eyebrow="Integrations"
-        title="Connect your sales stack."
+        title="Connected, quietly."
         description="Use secure account sign-in where OAuth is configured, or add encrypted API credentials for the rest of your tools."
       />
 
       <div
-        className="rounded-2xl px-5 py-4"
+        className="rounded-by-card px-5 py-4"
         style={{
           background: "color-mix(in oklab, var(--primary) 6%, var(--surface))",
           border: "1px solid color-mix(in oklab, var(--primary) 18%, var(--border))",
@@ -905,7 +937,7 @@ function IntegrationsPage() {
 
       {connectedCount > 0 && (
         <div
-          className="flex items-center gap-3 rounded-2xl px-5 py-3"
+          className="flex items-center gap-3 rounded-by-card px-5 py-3"
           style={{
             background: "color-mix(in oklab, var(--success) 8%, var(--surface))",
             border: "1px solid color-mix(in oklab, var(--success) 25%, transparent)",
@@ -934,7 +966,7 @@ function IntegrationsPage() {
             autoComplete="off"
             data-1p-ignore
             data-lpignore="true"
-            className="w-full rounded-xl py-2.5 pl-10 pr-10 text-[13px] outline-none"
+            className="w-full rounded-by-card py-2.5 pl-10 pr-10 text-[13px] outline-none"
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
@@ -980,7 +1012,7 @@ function IntegrationsPage() {
           >
             Popular
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3">
             {popularItems.map((item) => (
               <IntegrationCard
                 key={item.key}
@@ -1002,7 +1034,7 @@ function IntegrationsPage() {
         </div>
         {filtered.length === 0 ? (
           <div
-            className="rounded-2xl py-16 text-center"
+            className="rounded-by-card py-16 text-center"
             style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}
           >
             <Search className="mx-auto mb-3 h-8 w-8" style={{ color: "var(--muted-foreground)" }} />
@@ -1012,15 +1044,17 @@ function IntegrationsPage() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((item) => (
-              <IntegrationCard
-                key={item.key}
-                item={item}
-                isConnected={isConnected(item)}
-                onClick={() => openConnector(item)}
-              />
-            ))}
+          <div className="grid gap-3">
+            {filtered
+              .filter((item) => !popularItems.some((popular) => popular.key === item.key))
+              .map((item) => (
+                <IntegrationCard
+                  key={item.key}
+                  item={item}
+                  isConnected={isConnected(item)}
+                  onClick={() => openConnector(item)}
+                />
+              ))}
           </div>
         )}
       </section>
@@ -1035,6 +1069,6 @@ function IntegrationsPage() {
           onSaved={refresh}
         />
       )}
-    </>
+    </div>
   );
 }

@@ -620,11 +620,6 @@ export function buildVerticalExtractionTool(vertical: SalesVerticalProfile) {
       type: "object",
       properties: {
         summary: { type: "string", description: "2-3 sentence factual call summary." },
-        sentiment_score: { type: "number", description: "Prospect sentiment from -1 to 1." },
-        talk_ratio: {
-          type: "number",
-          description: "Estimated fraction of talk time by the rep, 0 to 1.",
-        },
         objections: { type: "array", items: { type: "string" } },
         competitor_mentions: { type: "array", items: { type: "string" } },
         next_steps_extracted: { type: "array", items: { type: "string" } },
@@ -676,6 +671,7 @@ export function buildVerticalSystemPrompt(vertical: SalesVerticalProfile) {
     `You are a ${vertical.label} sales conversation-intelligence analyst.`,
     vertical.objective,
     "Extract only what the transcript or labeled CRM context supports. Never guess missing values.",
+    "Analyze observable conduct, not emotion or internal states. Never score sentiment, infer feelings, personality, honesty or motivation. Do not estimate talk time, speaking pace, interruptions or response latency from plain text.",
     "Every vertical field must include a short transcript quote and calibrated confidence.",
     `Questions to answer: ${vertical.insightQuestions.join(" ")}`,
     `Rules: ${vertical.complianceRules.join(" ")}`,
@@ -762,12 +758,8 @@ export function normalizeCallExtraction(
       : {};
   return {
     summary: typeof raw.summary === "string" ? raw.summary.trim() : "",
-    sentiment_score:
-      typeof raw.sentiment_score === "number"
-        ? Math.max(-1, Math.min(1, raw.sentiment_score))
-        : null,
-    talk_ratio:
-      typeof raw.talk_ratio === "number" ? Math.max(0, Math.min(1, raw.talk_ratio)) : null,
+    sentiment_score: null,
+    talk_ratio: null,
     objections: stringArray(raw.objections),
     competitor_mentions: stringArray(raw.competitor_mentions),
     next_steps_extracted: stringArray(raw.next_steps_extracted),

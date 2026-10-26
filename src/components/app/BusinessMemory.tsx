@@ -649,8 +649,8 @@ export function BusinessMemory({ userId, orgId }: { userId: string; orgId: strin
             What business memory does
           </div>
           <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-            Every entry you add here is remembered by Bylda and used automatically in your Launchpad
-            tools, research, and strategy outputs. The more context you give, the more personalized
+            Every entry you add here is remembered by Bylda and used as context for your AI
+            tools, research, and sales insights. The more context you give, the more personalized
             every AI output becomes.
           </p>
         </div>

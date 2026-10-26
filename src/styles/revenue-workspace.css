@@ -1,0 +1,87 @@
+/* Shared, Figma-inspired revenue workspace. Scoped away from the public site. */
+.light.revenue-workspace {
+  --background: #fafafa;
+  --foreground: #242424;
+  --surface: #fff;
+  --surface-2: #f5f5f5;
+  --surface-offset: #fafafa;
+  --surface-secondary: #fff;
+  --surface-tertiary: #eee;
+  --bg-elevated: #fff;
+  --bg-panel: #f5f5f5;
+  --card: #fff;
+  --card-foreground: #242424;
+  --muted: #f4f4f4;
+  --muted-foreground: #737373;
+  --text-faint: #969696;
+  --primary: #242424;
+  --primary-foreground: #fff;
+  --secondary: #f3f3f3;
+  --secondary-foreground: #242424;
+  --accent: #f0f0f0;
+  --accent-foreground: #242424;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #737373;
+  --divider: #e5e5e5;
+}
+.revenue-workspace h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+.revenue-workspace button,
+.revenue-workspace a {
+  touch-action: manipulation;
+}
+.revenue-workspace :focus-visible {
+  outline: 2px solid #525252;
+  outline-offset: 4px;
+}
+
+/* Bridge existing live screens to the imported V1 foundations without replacing
+   their forms, event handlers, data queries, upload flows, or CRM actions. */
+.v1-workspace {
+  --background: var(--by-pearl-0);
+  --foreground: var(--by-ink);
+  --border: var(--by-silver-200);
+  --card: var(--by-white);
+  --muted: var(--by-pearl-50);
+  --muted-foreground: var(--by-silver-600);
+  --primary: var(--by-ink);
+  --ring: var(--by-graphite-800);
+}
+.v1-workspace h1,
+.v1-workspace #workspace-content .font-serif {
+  font-family: Newsreader, Georgia, serif;
+}
+.v1-workspace :focus-visible {
+  outline-color: var(--by-graphite-800);
+}
+.v1-workspace #workspace-content { background: var(--by-pearl-0); }
+.v1-workspace #workspace-content > * { max-width: 1440px; margin-inline: auto; }
+.v1-workspace #workspace-content h1 {
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.v1-workspace #workspace-content h2 {
+  font-family: Newsreader, Georgia, serif;
+  letter-spacing: -0.01em;
+}
+.v1-workspace #workspace-content button,
+.v1-workspace #workspace-content input,
+.v1-workspace #workspace-content textarea,
+.v1-workspace #workspace-content select {
+  border-radius: 6px;
+}
+.v1-workspace #workspace-content .font-mono {
+  font-family: "Geist Mono", monospace;
+}
+.v1-workspace #workspace-content table { font-size: 12.5px; }
+.v1-workspace #workspace-content th { font-weight: 600; }
+@media (max-width: 640px) {
+  .v1-workspace #workspace-content { padding: 16px 12px; }
+  .v1-workspace #workspace-content h1 { font-size: 26px; }
+}

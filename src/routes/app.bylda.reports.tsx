@@ -104,7 +104,7 @@ function Reports() {
 
       {tab === "activity" && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-by-card border border-border bg-surface p-5">
             <div className="font-display text-[14px] font-semibold tracking-tight">
               Usage by tool
             </div>
@@ -132,7 +132,7 @@ function Reports() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="rounded-by-card border border-border bg-surface p-5">
             <div className="font-display text-[14px] font-semibold tracking-tight">Run health</div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <Stat label="Succeeded" value={succeeded} icon={CheckCircle2} tone="emerald" />
@@ -209,7 +209,7 @@ function Reports() {
 
           {/* Breakdown by category */}
           {Object.keys(roi.runsByCategory).length > 0 && (
-            <div className="rounded-xl border border-border bg-surface p-5">
+            <div className="rounded-by-card border border-border bg-surface p-5">
               <div className="font-display text-[14px] font-semibold tracking-tight mb-4">
                 Runs by category
               </div>
@@ -265,7 +265,7 @@ function RoiCard({
   sublabel?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-by-card border border-border bg-surface p-4">
       <div className="flex items-center gap-2 mb-2">
         <span style={{ color, opacity: 0.8 }}>
           <Icon className="h-3.5 w-3.5" />
@@ -304,7 +304,7 @@ function KPI({
         ? "text-emerald-400"
         : "text-foreground";
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-by-card border border-border bg-surface p-4">
       <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         <Icon className="h-3 w-3" />
         {label}

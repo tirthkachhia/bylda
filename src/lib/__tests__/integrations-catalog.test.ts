@@ -28,7 +28,6 @@ describe("ReadyMode integration", () => {
       key: "readymode",
       name: "ReadyMode",
       category: "CRM & Sales",
-      popular: true,
     });
     expect(readymode?.comingSoon).not.toBe(true);
   });
@@ -45,7 +44,10 @@ describe("API credential fallback", () => {
 
   it("preserves every field required by multi-credential connectors", () => {
     expect(credentialFieldsForIntegration(getCatalogByKey("twilio")!)).toHaveLength(3);
-    expect(credentialFieldsForIntegration(getCatalogByKey("gohighlevel")!)).toHaveLength(2);
+    // GoHighLevel now uses managed OAuth, not the legacy two-key connection.
+    expect(getCatalogByKey("gohighlevel")?.inputType).toBe("oauth");
+    expect(credentialFieldsForIntegration(getCatalogByKey("gohighlevel")!)).toHaveLength(0);
+    expect(oauthProviderName("gohighlevel")).toBeTruthy();
     expect(credentialFieldsForIntegration(getCatalogByKey("sendgrid")!)).toHaveLength(2);
   });
 

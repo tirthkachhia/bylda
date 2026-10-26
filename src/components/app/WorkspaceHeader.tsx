@@ -43,9 +43,8 @@ export function WorkspaceHeader({
             </div>
           )}
           <h1
-            className="font-bold leading-tight"
+            className="type-editorial-h1"
             style={{
-              fontSize: "clamp(1.25rem, 2vw + 0.75rem, 1.75rem)",
               color: "var(--foreground)",
               letterSpacing: "-0.01em",
             }}

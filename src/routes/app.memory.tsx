@@ -260,7 +260,7 @@ function MemoryPage() {
 
       {/* Status bar */}
       <div
-        className="grid grid-cols-3 gap-px rounded-xl overflow-hidden"
+        className="grid grid-cols-3 gap-px rounded-by-card overflow-hidden"
         style={{ border: "1px solid var(--border)", background: "var(--border)" }}
       >
         {[
@@ -367,7 +367,7 @@ function MemoryPage() {
           {/* Empty state */}
           {!isLoading && sources.length === 0 && (
             <div
-              className="rounded-xl p-8 text-center"
+              className="rounded-by-card p-8 text-center"
               style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}
             >
               <Inbox
@@ -386,7 +386,7 @@ function MemoryPage() {
           {/* Connected sources list */}
           {sources.length > 0 && (
             <div
-              className="rounded-xl overflow-hidden"
+              className="rounded-by-card overflow-hidden"
               style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
               <div
@@ -484,7 +484,7 @@ function MemoryPage() {
                     key={sourceType}
                     onClick={() => !alreadyAdded && handleConnectSource(sourceType)}
                     disabled={alreadyAdded || addSourceMutation.isPending}
-                    className="flex items-center gap-3 rounded-xl p-4 text-left transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center gap-3 rounded-by-card p-4 text-left transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
                     onMouseEnter={(e) => {
                       if (!alreadyAdded)
@@ -534,7 +534,7 @@ function MemoryPage() {
 
           {/* URL ingest */}
           <div
-            className="rounded-xl p-5"
+            className="rounded-by-card p-5"
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
             <div className="flex items-center gap-2 mb-3">
@@ -628,7 +628,7 @@ function MemoryPage() {
             </div>
           ) : filteredArtifacts.length > 0 ? (
             <div
-              className="rounded-xl overflow-hidden"
+              className="rounded-by-card overflow-hidden"
               style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
               <div
@@ -710,7 +710,7 @@ function MemoryPage() {
             </div>
           ) : (
             <div
-              className="rounded-xl p-8 text-center"
+              className="rounded-by-card p-8 text-center"
               style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}
             >
               <Database
@@ -734,7 +734,7 @@ function MemoryPage() {
       {activeTab === "query" && (
         <div className="space-y-4">
           <div
-            className="rounded-xl p-5"
+            className="rounded-by-card p-5"
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
             <div className="flex items-center gap-2 mb-3">
@@ -836,7 +836,7 @@ function MemoryPage() {
           {/* Answer block */}
           {queryMutation.isPending && (
             <div
-              className="flex items-center gap-3 rounded-xl p-5"
+              className="flex items-center gap-3 rounded-by-card p-5"
               style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
               <Loader2
@@ -851,7 +851,7 @@ function MemoryPage() {
 
           {queryAnswer && !queryMutation.isPending && (
             <div
-              className="rounded-xl p-5 space-y-3"
+              className="rounded-by-card p-5 space-y-3"
               style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -887,7 +887,7 @@ function MemoryPage() {
           {/* Sources improve grounding, but never block the chat box. */}
           {indexedSources.length === 0 && (
             <div
-              className="flex items-center gap-4 rounded-xl p-5"
+              className="flex items-center gap-4 rounded-by-card p-5"
               style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
             >
               <AlertCircle

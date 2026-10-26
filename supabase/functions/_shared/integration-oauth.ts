@@ -53,19 +53,22 @@ export const OAUTH_PROVIDERS: Record<OAuthProviderKey, OAuthProvider> = {
       "crm.objects.contacts.write",
       "crm.objects.deals.read",
       "crm.objects.deals.write",
+      "crm.objects.companies.read",
     ],
   },
   gohighlevel: {
     key: "gohighlevel",
     clientIdEnv: "GHL_CLIENT_ID",
     clientSecretEnv: "GHL_CLIENT_SECRET",
-    authorizeUrl: "https://marketplace.leadconnectorhq.com/oauth/chooselocation",
+    authorizeUrl: "https://marketplace.gohighlevel.com/v2/oauth/chooselocation",
     tokenUrl: "https://services.leadconnectorhq.com/oauth/token",
     scopes: [
       "contacts.readonly",
       "contacts.write",
       "opportunities.readonly",
       "opportunities.write",
+      "conversations.readonly",
+      "conversations/message.readonly",
     ],
     tokenFieldStyle: "gohighlevel",
   },
@@ -245,8 +248,7 @@ export const INTEGRATION_PROVIDER: Record<string, OAuthProviderKey> = {
   xero: "xero",
 };
 
-export const CALLBACK_URL =
-  "https://ipidfqwlszuhjgjygbvx.supabase.co/functions/v1/integration-oauth-callback";
+export const CALLBACK_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/integration-oauth-callback`;
 
 export function scopesForIntegration(integrationKey: string, provider: OAuthProvider) {
   const scoped: Record<string, string[]> = {

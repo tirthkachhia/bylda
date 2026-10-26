@@ -1,5 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { normalizeCall } from "../_shared/call-normalize.ts";
+import {
+  emitDomainEvent,
+  markRawObjectProcessed,
+  resolveCallEntities,
+  sha256Hex,
+  storeTranscriptMemory,
+  storeRawObject,
+  upsertExternalObject,
+} from "../_shared/context-ingestion.ts";
 
 const MINIMUM_DURATION_SECONDS = 45;
 
@@ -107,14 +116,42 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+  let rawObjectId: string | null = null;
+  try {
+    rawObjectId = await storeRawObject(admin, {
+      organizationId: orgId,
+      provider: call.provider,
+      objectType: "call",
+      externalId: call.providerCallId,
+      idempotencyKey: call.providerCallId,
+      payload: raw as Record<string, unknown>,
+    });
+  } catch (error) {
+    console.error(
+      "[ingest-call-webhook] raw object",
+      error instanceof Error ? error.message : error,
+    );
+    return json({ error: "Could not retain raw call payload" }, 500);
+  }
+
+  const customerPhone = call.direction === "inbound" ? call.fromNumber : call.toNumber;
+  const entityResolution = await resolveCallEntities(admin, {
+    organizationId: orgId,
+    provider: call.provider,
+    contactId: call.contactId,
+    leadId: call.leadId,
+    externalContactId: call.externalContactId,
+    externalLeadId: call.externalLeadId,
+    customerPhone,
+  });
   const status = call.connected ? "completed" : "missed";
   const { data: storedCall, error: callError } = await admin
     .from("calls")
     .upsert(
       {
         organization_id: orgId,
-        contact_id: call.contactId ?? null,
-        lead_id: call.leadId ?? null,
+        contact_id: entityResolution.contactId,
+        lead_id: entityResolution.leadId,
         direction: call.direction,
         status,
         duration: call.duration,
@@ -131,6 +168,11 @@ Deno.serve(async (req) => {
           skip_reason: skipReason,
           transcription_status: transcriptionStatus,
           received_at: new Date().toISOString(),
+          entity_resolution: {
+            method: entityResolution.method,
+            confidence: entityResolution.confidence,
+            ambiguous: entityResolution.ambiguous,
+          },
         },
       },
       { onConflict: "organization_id,provider,provider_call_id" },
@@ -142,28 +184,138 @@ Deno.serve(async (req) => {
     return json({ error: "Could not store call" }, 500);
   }
 
-  let transcriptStored = false;
-  if (eligible && transcript) {
-    const { error } = await admin.from("call_transcripts").upsert(
-      {
-        call_id: storedCall.id,
-        organization_id: orgId,
-        transcript_text: transcript,
-        speaker_segments: call.speakerSegments,
+  await Promise.all([
+    markRawObjectProcessed(admin, rawObjectId, "call", storedCall.id),
+    upsertExternalObject(admin, {
+      organizationId: orgId,
+      provider: call.provider,
+      externalObjectType: "call",
+      externalObjectId: call.providerCallId,
+      canonicalType: "call",
+      canonicalId: storedCall.id,
+    }),
+    emitDomainEvent(admin, {
+      organizationId: orgId,
+      eventKey: `call:${call.provider}:${call.providerCallId}:received`,
+      eventType: "conversation.received",
+      source: "ingest-call-webhook",
+      subjectType: "call",
+      subjectId: storedCall.id,
+      payload: {
+        provider: call.provider,
+        contact_id: entityResolution.contactId,
+        lead_id: entityResolution.leadId,
       },
-      { onConflict: "call_id" },
-    );
-    if (error) {
-      console.error("[ingest-call-webhook] transcript", error.message);
-      return json({ error: "Call stored but transcript could not be stored" }, 500);
+    }),
+  ]);
+  if (entityResolution.contactId || entityResolution.leadId) {
+    await emitDomainEvent(admin, {
+      organizationId: orgId,
+      eventKey: `call:${call.provider}:${call.providerCallId}:linked`,
+      eventType: "conversation.linked",
+      source: "ingest-call-webhook",
+      subjectType: "call",
+      subjectId: storedCall.id,
+      payload: {
+        contact_id: entityResolution.contactId,
+        lead_id: entityResolution.leadId,
+        confidence: entityResolution.confidence,
+        method: entityResolution.method,
+      },
+    });
+  }
+
+  let transcriptStored = false;
+  let transcriptId: string | null = null;
+  let analysisNeeded = false;
+  let transcriptHash: string | null = null;
+  if (eligible && transcript) {
+    let companyId: string | null = null;
+    if (entityResolution.leadId) {
+      const { data: linkedLead } = await admin
+        .from("leads")
+        .select("company_id")
+        .eq("id", entityResolution.leadId)
+        .maybeSingle();
+      companyId = linkedLead?.company_id ? String(linkedLead.company_id) : null;
     }
-    transcriptStored = true;
+    if (!companyId && entityResolution.contactId) {
+      const { data: linkedContact } = await admin
+        .from("contacts")
+        .select("company_id")
+        .eq("id", entityResolution.contactId)
+        .maybeSingle();
+      companyId = linkedContact?.company_id ? String(linkedContact.company_id) : null;
+    }
+    try {
+      transcriptHash = await sha256Hex(transcript);
+      const storedTranscript = await storeTranscriptMemory(admin, {
+        organizationId: orgId,
+        callId: storedCall.id,
+        contactId: entityResolution.contactId,
+        leadId: entityResolution.leadId,
+        companyId,
+        transcript,
+        transcriptHash,
+        speakerSegments: call.speakerSegments,
+        occurredAt: call.startedAt,
+      });
+      transcriptId = storedTranscript.transcriptId;
+      transcriptStored = true;
+      const { data: existingInsight } = await admin
+        .from("call_insights")
+        .select("analysis_version,transcript_hash")
+        .eq("call_id", storedCall.id)
+        .maybeSingle();
+      analysisNeeded =
+        storedTranscript.changed ||
+        !existingInsight ||
+        Number(existingInsight.analysis_version ?? 0) < 2 ||
+        existingInsight.transcript_hash !== transcriptHash;
+      if (storedTranscript.changed) {
+        await emitDomainEvent(admin, {
+          organizationId: orgId,
+          eventKey: `call:${call.provider}:${call.providerCallId}:transcribed:${transcriptHash}`,
+          eventType: "conversation.transcribed",
+          source: "ingest-call-webhook",
+          subjectType: "call",
+          subjectId: storedCall.id,
+          payload: { transcript_id: transcriptId, transcript_hash: transcriptHash },
+        });
+      }
+    } catch (error) {
+      console.error(
+        "[ingest-call-webhook] transcript memory",
+        error instanceof Error ? error.message : error,
+      );
+      return json({ error: "Transcript and memory could not be stored" }, 500);
+    }
   }
 
   // Analyze in the background after a qualifying transcript lands. The
   // service-role token is accepted only for this server-to-server path; normal
   // browser calls still require an authenticated organization member.
-  if (transcriptStored) {
+  let analysisJobId: string | null = null;
+  let analysisAttemptToken: string | null = null;
+  if (transcriptStored && analysisNeeded && transcriptId && transcriptHash) {
+    const { data, error } = await admin.rpc("claim_call_analysis", {
+      p_organization_id: orgId,
+      p_call_id: storedCall.id,
+      p_transcript_id: transcriptId,
+      p_transcript_hash: transcriptHash,
+      p_analysis_version: 2,
+    });
+    if (error) {
+      console.error("[ingest-call-webhook] analysis claim", error.message);
+      return json({ error: "Call stored but analysis could not be queued" }, 500);
+    }
+    const claim = Array.isArray(data) ? data[0] : data;
+    analysisJobId = claim?.job_id ? String(claim.job_id) : null;
+    analysisAttemptToken = claim?.attempt_token ? String(claim.attempt_token) : null;
+  }
+  if (analysisJobId && analysisAttemptToken) {
+    const jobId = analysisJobId;
+    const attemptToken = analysisAttemptToken;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const analysisRequest = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-call`, {
       method: "POST",
@@ -172,18 +324,38 @@ Deno.serve(async (req) => {
         apikey: serviceKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ call_id: storedCall.id }),
+      body: JSON.stringify({
+        call_id: storedCall.id,
+        analysis_job_id: jobId,
+        analysis_attempt_token: attemptToken,
+      }),
     })
       .then(async (response) => {
         if (!response.ok) {
-          console.error("[ingest-call-webhook] analysis", response.status, await response.text());
+          const detail = await response.text();
+          console.error("[ingest-call-webhook] analysis", response.status, detail);
+          await admin
+            .from("call_analysis_jobs")
+            .update({ status: "failed", error_message: `Dispatch returned ${response.status}` })
+            .eq("id", jobId)
+            .eq("attempt_token", attemptToken)
+            .eq("status", "queued");
         }
       })
-      .catch((error) => {
+      .catch(async (error) => {
         console.error(
           "[ingest-call-webhook] analysis",
           error instanceof Error ? error.message : error,
         );
+        await admin
+          .from("call_analysis_jobs")
+          .update({
+            status: "failed",
+            error_message: error instanceof Error ? error.message : "Analysis dispatch failed",
+          })
+          .eq("id", jobId)
+          .eq("attempt_token", attemptToken)
+          .eq("status", "queued");
       });
     const edgeRuntime = (
       globalThis as unknown as {
@@ -200,8 +372,9 @@ Deno.serve(async (req) => {
     provider: call.provider,
     eligible_for_ai: eligible,
     transcript_stored: transcriptStored,
-    analysis_queued: transcriptStored,
+    analysis_queued: Boolean(analysisJobId && analysisAttemptToken),
     transcription_status: transcriptionStatus,
     skip_reason: skipReason,
+    entity_resolution: entityResolution,
   });
 });

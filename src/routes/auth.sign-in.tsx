@@ -23,7 +23,7 @@ function SignIn() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/app/crm/calls" });
+    navigate({ to: "/app" });
   };
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your revenue workspace.">

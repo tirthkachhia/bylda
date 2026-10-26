@@ -1,4 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  emitDomainEvent,
+  markRawObjectProcessed,
+  sha256Hex,
+  storeRawObject,
+  upsertExternalObject,
+} from "../_shared/context-ingestion.ts";
+import { resolveCompany } from "../_shared/crmObjects.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +47,100 @@ type GhlOpportunity = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+type GhlCallMessage = {
+  id: string;
+  contactId?: string;
+  conversationId?: string;
+  dateAdded?: string;
+  direction?: "inbound" | "outbound";
+  status?: string;
+  messageType?: string;
+  userId?: string;
+  from?: string;
+  to?: string;
+  meta?: { callDuration?: number | string; callStatus?: string };
+};
+
+type TranscriptSegment = {
+  mediaChannel?: number | string;
+  sentenceIndex?: number | string;
+  startTime?: number | string;
+  endTime?: number | string;
+  transcript?: string;
+  confidence?: number | string;
+};
+
+async function fetchCallMessagesV3(
+  headers: Record<string, string>,
+  locationId: string,
+): Promise<{ response: Response; messages: GhlCallMessage[] }> {
+  const searchResponse = await fetch(
+    `https://services.leadconnectorhq.com/conversations/search?locationId=${encodeURIComponent(locationId)}&limit=100&sort=desc&sortBy=last_message_date&lastMessageType=TYPE_CALL`,
+    { headers },
+  );
+  if (!searchResponse.ok) return { response: searchResponse, messages: [] };
+
+  const searchPayload = (await searchResponse.json().catch(() => ({}))) as {
+    conversations?: Array<{ id?: string }>;
+  };
+  const conversationIds = (searchPayload.conversations ?? [])
+    .map((conversation) => conversation.id)
+    .filter((id): id is string => Boolean(id));
+  const messages: GhlCallMessage[] = [];
+
+  for (let offset = 0; offset < conversationIds.length; offset += 5) {
+    const batches = await Promise.all(
+      conversationIds.slice(offset, offset + 5).map(async (conversationId) => {
+        const response = await fetch(
+          `https://services.leadconnectorhq.com/conversations/${encodeURIComponent(conversationId)}/messages?limit=100&type=TYPE_CALL`,
+          { headers },
+        );
+        if (!response.ok) return [];
+        const payload = (await response.json().catch(() => ({}))) as {
+          messages?: { messages?: GhlCallMessage[] };
+        };
+        return payload.messages?.messages ?? [];
+      }),
+    );
+    messages.push(...batches.flat());
+  }
+
+  return {
+    response: searchResponse,
+    messages: [...new Map(messages.filter((message) => message.id).map((message) => [message.id, message])).values()],
+  };
+}
+
+function transcriptSegments(payload: unknown): TranscriptSegment[] {
+  if (Array.isArray(payload)) return payload as TranscriptSegment[];
+  if (!payload || typeof payload !== "object") return [];
+  const record = payload as Record<string, unknown>;
+  for (const key of ["transcriptions", "transcription", "sentences", "data", "results"]) {
+    const value = record[key];
+    if (Array.isArray(value)) return value as TranscriptSegment[];
+    if (value && typeof value === "object") return [value as TranscriptSegment];
+  }
+  return typeof record.transcript === "string" ? [record as TranscriptSegment] : [];
+}
+
+function transcriptText(segments: TranscriptSegment[]) {
+  return [...segments]
+    .sort((a, b) => Number(a.sentenceIndex ?? 0) - Number(b.sentenceIndex ?? 0))
+    .map((segment) => segment.transcript?.trim() ?? "")
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
+function callStatus(message: GhlCallMessage) {
+  const value = String(message.meta?.callStatus ?? message.status ?? "").toLowerCase();
+  if (value.includes("voicemail")) return "voicemail";
+  if (value.includes("miss") || value.includes("no-answer") || value.includes("no_answer"))
+    return "missed";
+  if (value.includes("fail") || value.includes("busy") || value.includes("cancel")) return "failed";
+  return "completed";
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -89,6 +191,7 @@ Deno.serve(async (req) => {
     ]);
     let token = storedCredential;
     let locationId = storedLocationId;
+    let grantedScopes: string[] = [];
     if (storedCredential.startsWith("{")) {
       try {
         const oauth = JSON.parse(storedCredential) as {
@@ -101,6 +204,7 @@ Deno.serve(async (req) => {
         };
         token = oauth.access_token ?? "";
         locationId = oauth.location_id ?? storedLocationId;
+        grantedScopes = Array.isArray(oauth.scope) ? oauth.scope : [];
         const expiresAt = oauth.expires_at ? new Date(oauth.expires_at).getTime() : 0;
         if (expiresAt > 0 && expiresAt <= Date.now() + 60_000) {
           const clientId = Deno.env.get("GHL_CLIENT_ID");
@@ -194,6 +298,80 @@ Deno.serve(async (req) => {
     const opportunities: GhlOpportunity[] =
       opportunitiesPayload.opportunities ?? opportunitiesPayload.results ?? [];
 
+    // Retain provider truth before normalization so imports can be replayed.
+    const rawContactIds = new Map<string, string | null>();
+    const rawOpportunityIds = new Map<string, string | null>();
+    await Promise.all([
+      ...contacts
+        .filter((contact) => contact.id)
+        .map(async (contact) => {
+          const payload = contact as unknown as Record<string, unknown>;
+          const snapshotHash = await sha256Hex(JSON.stringify(payload));
+          rawContactIds.set(
+            contact.id,
+            await storeRawObject(admin, {
+              organizationId: orgId,
+              provider: "gohighlevel",
+              objectType: "contact",
+              externalId: contact.id,
+              idempotencyKey: `${contact.id}:${snapshotHash}`,
+              payload,
+            }),
+          );
+        }),
+      ...opportunities
+        .filter((opportunity) => opportunity.id)
+        .map(async (opportunity) => {
+          const payload = opportunity as unknown as Record<string, unknown>;
+          const snapshotHash = await sha256Hex(JSON.stringify(payload));
+          rawOpportunityIds.set(
+            opportunity.id,
+            await storeRawObject(admin, {
+              organizationId: orgId,
+              provider: "gohighlevel",
+              objectType: "opportunity",
+              externalId: opportunity.id,
+              idempotencyKey: `${opportunity.id}:${snapshotHash}`,
+              payload,
+            }),
+          );
+        }),
+    ]);
+
+    const companyIds = new Map<string, string>();
+    for (const companyName of [
+      ...new Set(
+        contacts
+          .map((contact) => contact.companyName?.trim())
+          .filter((name): name is string => Boolean(name)),
+      ),
+    ]) {
+      const company = await resolveCompany(admin, orgId, { name: companyName });
+      if (company) companyIds.set(companyName.toLowerCase(), company.id);
+    }
+
+    const contactExternalIds = contacts.map((contact) => contact.id).filter(Boolean);
+    const existingContactsResult = contactExternalIds.length
+      ? await admin
+          .from("contacts")
+          .select("id,external_id,company_id")
+          .eq("org_id", orgId)
+          .eq("external_source", "gohighlevel")
+          .in("external_id", contactExternalIds)
+      : { data: [], error: null };
+    if (existingContactsResult.error) {
+      throw new Error(`Existing contact lookup failed: ${existingContactsResult.error.message}`);
+    }
+    const existingContacts = existingContactsResult.data;
+    const contactIdByExternal = new Map<string, { id: string; companyId: string | null }>();
+    for (const row of existingContacts ?? []) {
+      if (!row.external_id) continue;
+      contactIdByExternal.set(String(row.external_id), {
+        id: String(row.id),
+        companyId: row.company_id ? String(row.company_id) : null,
+      });
+    }
+
     const contactRows = contacts
       .filter((c) => c.id)
       .map((c) => {
@@ -206,6 +384,11 @@ Deno.serve(async (req) => {
           email: c.email ?? null,
           phone: c.phone ?? null,
           company: c.companyName ?? null,
+          company_id: c.companyName
+            ? (companyIds.get(c.companyName.trim().toLowerCase()) ??
+              contactIdByExternal.get(c.id)?.companyId ??
+              null)
+            : (contactIdByExternal.get(c.id)?.companyId ?? null),
           status: "new",
           source: c.source ?? "GoHighLevel",
           tags: Array.isArray(c.tags) ? c.tags : [],
@@ -221,43 +404,308 @@ Deno.serve(async (req) => {
       const { data, error } = await admin
         .from("contacts")
         .upsert(contactRows, { onConflict: "org_id,external_source,external_id" })
-        .select("id");
+        .select("id,external_id,company_id");
       if (error) throw new Error(`Contact import failed: ${error.message}`);
       contactsImported = data?.length ?? contactRows.length;
+      for (const row of data ?? []) {
+        if (!row.external_id) continue;
+        const externalId = String(row.external_id);
+        contactIdByExternal.set(externalId, {
+          id: String(row.id),
+          companyId: row.company_id ? String(row.company_id) : null,
+        });
+        await Promise.all([
+          upsertExternalObject(admin, {
+            organizationId: orgId,
+            provider: "gohighlevel",
+            externalObjectType: "contact",
+            externalObjectId: externalId,
+            canonicalType: "contact",
+            canonicalId: String(row.id),
+          }),
+          markRawObjectProcessed(
+            admin,
+            rawContactIds.get(externalId) ?? null,
+            "contact",
+            String(row.id),
+          ),
+        ]);
+      }
+    }
+
+    const opportunityExternalIds = opportunities
+      .map((opportunity) => opportunity.id)
+      .filter(Boolean);
+    const existingLeadsResult = opportunityExternalIds.length
+      ? await admin
+          .from("leads")
+          .select("id,external_id,contact_id,company_id")
+          .eq("organization_id", orgId)
+          .eq("external_source", "gohighlevel")
+          .in("external_id", opportunityExternalIds)
+      : { data: [], error: null };
+    if (existingLeadsResult.error) {
+      throw new Error(`Existing opportunity lookup failed: ${existingLeadsResult.error.message}`);
+    }
+    const existingLeads = existingLeadsResult.data;
+    const existingLeadByExternal = new Map<
+      string,
+      { contactId: string | null; companyId: string | null }
+    >();
+    for (const row of existingLeads ?? []) {
+      if (!row.external_id) continue;
+      existingLeadByExternal.set(String(row.external_id), {
+        contactId: row.contact_id ? String(row.contact_id) : null,
+        companyId: row.company_id ? String(row.company_id) : null,
+      });
     }
 
     const leadRows = opportunities
       .filter((o) => o.id)
-      .map((o) => ({
-        organization_id: orgId,
-        user_id: user.id,
-        name: o.name ?? o.contact?.name ?? "GoHighLevel opportunity",
-        email: o.contact?.email ?? null,
-        phone: o.contact?.phone ?? null,
-        company: o.contact?.companyName ?? null,
-        stage: "New",
-        source: o.source ?? "GoHighLevel",
-        value: o.monetaryValue ?? null,
-        external_source: "gohighlevel",
-        external_id: o.id,
-        external_data: {
-          status: o.status,
-          pipeline_id: o.pipelineId,
-          pipeline_stage_id: o.pipelineStageId,
-          contact_id: o.contactId,
-        },
-        updated_at: new Date().toISOString(),
-      }));
+      .map((o) => {
+        const linkedContact = o.contactId ? contactIdByExternal.get(o.contactId) : undefined;
+        const existingLead = existingLeadByExternal.get(o.id);
+        return {
+          organization_id: orgId,
+          user_id: user.id,
+          name: o.name ?? o.contact?.name ?? "GoHighLevel opportunity",
+          email: o.contact?.email ?? null,
+          phone: o.contact?.phone ?? null,
+          company: o.contact?.companyName ?? null,
+          contact_id: linkedContact?.id ?? existingLead?.contactId ?? null,
+          company_id:
+            linkedContact?.companyId ??
+            (o.contact?.companyName
+              ? (companyIds.get(o.contact.companyName.trim().toLowerCase()) ??
+                existingLead?.companyId ??
+                null)
+              : (existingLead?.companyId ?? null)),
+          stage: "New",
+          source: o.source ?? "GoHighLevel",
+          value: o.monetaryValue ?? null,
+          external_source: "gohighlevel",
+          external_id: o.id,
+          external_data: {
+            status: o.status,
+            pipeline_id: o.pipelineId,
+            pipeline_stage_id: o.pipelineStageId,
+            contact_id: o.contactId,
+          },
+          updated_at: new Date().toISOString(),
+        };
+      });
 
     let opportunitiesImported = 0;
     if (leadRows.length) {
       const { data, error } = await admin
         .from("leads")
         .upsert(leadRows, { onConflict: "organization_id,external_source,external_id" })
-        .select("id");
+        .select("id,external_id");
       if (error) throw new Error(`Opportunity import failed: ${error.message}`);
       opportunitiesImported = data?.length ?? leadRows.length;
+      for (const row of data ?? []) {
+        if (!row.external_id) continue;
+        const externalId = String(row.external_id);
+        await Promise.all([
+          upsertExternalObject(admin, {
+            organizationId: orgId,
+            provider: "gohighlevel",
+            externalObjectType: "opportunity",
+            externalObjectId: externalId,
+            canonicalType: "lead",
+            canonicalId: String(row.id),
+          }),
+          markRawObjectProcessed(
+            admin,
+            rawOpportunityIds.get(externalId) ?? null,
+            "lead",
+            String(row.id),
+          ),
+        ]);
+      }
     }
+
+    // HighLevel exposes completed phone calls as Conversation messages. Import
+    // those records and attach HighLevel's transcript when available. Repeated
+    // syncs are safe because provider message IDs are unique per organization.
+    let callsReceived = 0;
+    let callsImported = 0;
+    let transcriptsImported = 0;
+    let analysesQueued = 0;
+    let callSyncWarning: string | null = null;
+    let callMessagesResponse = await fetch(
+      `https://services.leadconnectorhq.com/conversations/messages/export?locationId=${encodeURIComponent(locationId)}&channel=Call&limit=100&sortBy=createdAt&sortOrder=desc`,
+      {
+        // HighLevel's export endpoint remains on the legacy API version even
+        // though the per-message transcription endpoint uses v3.
+        headers: { ...headers, Version: "2021-04-15" },
+      },
+    );
+    let callPayload: { messages?: GhlCallMessage[] } | null = null;
+    if (callMessagesResponse.ok) {
+      callPayload = (await callMessagesResponse.json()) as { messages?: GhlCallMessage[] };
+    } else if (callMessagesResponse.status === 401 || callMessagesResponse.status === 403) {
+      const fallback = await fetchCallMessagesV3(headers, locationId);
+      callMessagesResponse = fallback.response;
+      callPayload = { messages: fallback.messages };
+    }
+
+    if (callMessagesResponse.ok) {
+      const messages = (callPayload?.messages ?? []).filter((message) => Boolean(message.id));
+      callsReceived = messages.length;
+
+      const { data: leadMappings } = await admin
+        .from("leads")
+        .select("id,external_data")
+        .eq("organization_id", orgId)
+        .eq("external_source", "gohighlevel");
+      const leadByContactId = new Map<string, string>();
+      for (const row of leadMappings ?? []) {
+        const externalData =
+          row.external_data && typeof row.external_data === "object"
+            ? (row.external_data as Record<string, unknown>)
+            : {};
+        if (externalData.contact_id) {
+          leadByContactId.set(String(externalData.contact_id), String(row.id));
+        }
+      }
+
+      const callRows = messages.map((message) => ({
+        organization_id: orgId,
+        contact_id: message.contactId
+          ? (contactIdByExternal.get(message.contactId)?.id ?? null)
+          : null,
+        lead_id: message.contactId ? (leadByContactId.get(message.contactId) ?? null) : null,
+        direction: message.direction === "inbound" ? "inbound" : "outbound",
+        status: callStatus(message),
+        duration: Number.isFinite(Number(message.meta?.callDuration))
+          ? Math.max(0, Math.round(Number(message.meta?.callDuration)))
+          : null,
+        disposition: message.meta?.callStatus ?? message.status ?? null,
+        from_number: message.from ?? null,
+        to_number: message.to ?? null,
+        provider: "gohighlevel",
+        provider_call_id: message.id,
+        started_at: message.dateAdded ?? null,
+        metadata: {
+          ingestion: "gohighlevel-conversations-sync",
+          location_id: locationId,
+          conversation_id: message.conversationId ?? null,
+          message_type: message.messageType ?? null,
+          ghl_user_id: message.userId ?? null,
+          synced_at: new Date().toISOString(),
+        },
+      }));
+
+      if (callRows.length) {
+        const { data: storedCalls, error: callsError } = await admin
+          .from("calls")
+          .upsert(callRows, { onConflict: "organization_id,provider,provider_call_id" })
+          .select("id,provider_call_id");
+        if (callsError) throw new Error(`Call import failed: ${callsError.message}`);
+        callsImported = storedCalls?.length ?? callRows.length;
+        const callIdByMessage = new Map(
+          (storedCalls ?? []).map((row) => [String(row.provider_call_id), String(row.id)]),
+        );
+
+        for (let offset = 0; offset < messages.length; offset += 5) {
+          const batch = messages.slice(offset, offset + 5);
+          const transcriptResults = await Promise.all(
+            batch.map(async (message) => {
+              const callId = callIdByMessage.get(message.id);
+              if (!callId || callStatus(message) !== "completed") return null;
+              const response = await fetch(
+                `https://services.leadconnectorhq.com/conversations/locations/${encodeURIComponent(locationId)}/messages/${encodeURIComponent(message.id)}/transcription`,
+                { headers },
+              );
+              if (!response.ok) return null;
+              const segments = transcriptSegments(await response.json().catch(() => null));
+              const text = transcriptText(segments);
+              return text ? { callId, text, segments } : null;
+            }),
+          );
+
+          for (const result of transcriptResults.filter(
+            (item): item is { callId: string; text: string; segments: TranscriptSegment[] } =>
+              item !== null,
+          )) {
+            const { error: transcriptError } = await admin.from("call_transcripts").upsert(
+              {
+                call_id: result.callId,
+                organization_id: orgId,
+                transcript_text: result.text,
+                speaker_segments: result.segments,
+              },
+              { onConflict: "call_id" },
+            );
+            if (transcriptError) {
+              console.error("[sync-gohighlevel] transcript", transcriptError.message);
+              continue;
+            }
+            transcriptsImported += 1;
+
+            const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+            const analysisRequest = fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/analyze-call`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${serviceKey}`,
+                  apikey: serviceKey,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ call_id: result.callId }),
+              },
+            ).then(async (response) => {
+              if (!response.ok) {
+                console.error(
+                  "[sync-gohighlevel] analysis",
+                  response.status,
+                  await response.text(),
+                );
+              }
+            });
+            const edgeRuntime = (
+              globalThis as unknown as {
+                EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void };
+              }
+            ).EdgeRuntime;
+            if (edgeRuntime) edgeRuntime.waitUntil(analysisRequest);
+            else await analysisRequest;
+            analysesQueued += 1;
+          }
+        }
+      }
+    } else if (callMessagesResponse.status === 401 || callMessagesResponse.status === 403) {
+      const requiredScopes = ["conversations.readonly", "conversations/message.readonly"];
+      const missingScopes = requiredScopes.filter((scope) => !grantedScopes.includes(scope));
+      callSyncWarning = missingScopes.length
+        ? `Reconnect GoHighLevel: the saved token is missing ${missingScopes.join(" and ")}.`
+        : "GoHighLevel denied conversation access even though the saved token lists both required scopes. Confirm Bylda is installed for this sub-account.";
+    } else {
+      callSyncWarning = `HighLevel call sync returned HTTP ${callMessagesResponse.status}.`;
+      console.error(
+        "[sync-gohighlevel] calls",
+        callMessagesResponse.status,
+        (await callMessagesResponse.text()).slice(0, 500),
+      );
+    }
+
+    await emitDomainEvent(admin, {
+      organizationId: orgId,
+      eventKey: `gohighlevel:${locationId}:sync:${new Date().toISOString().slice(0, 13)}`,
+      eventType: "crm.sync.completed",
+      source: "sync-gohighlevel",
+      subjectType: "integration",
+      payload: {
+        provider: "gohighlevel",
+        location_id: locationId,
+        contacts_imported: contactsImported,
+        opportunities_imported: opportunitiesImported,
+        calls_imported: callsImported,
+        transcripts_imported: transcriptsImported,
+      },
+    });
 
     return json({
       ok: true,
@@ -266,6 +714,11 @@ Deno.serve(async (req) => {
       contacts_imported: contactsImported,
       opportunities_received: opportunities.length,
       opportunities_imported: opportunitiesImported,
+      calls_received: callsReceived,
+      calls_imported: callsImported,
+      transcripts_imported: transcriptsImported,
+      analyses_queued: analysesQueued,
+      call_sync_warning: callSyncWarning,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GoHighLevel sync failed";

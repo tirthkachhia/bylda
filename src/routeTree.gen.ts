@@ -9,115 +9,96 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as PricingRouteImport } from './routes/pricing'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as DemoRouteImport } from './routes/demo'
-import { Route as AppRouteImport } from './routes/app'
-import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as FFormIdRouteImport } from './routes/f.$formId'
-import { Route as BookSlugRouteImport } from './routes/book.$slug'
-import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
-import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
-import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
-import { Route as AuthInviteRouteImport } from './routes/auth.invite'
-import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
-import { Route as AppWorkflowTemplatesRouteImport } from './routes/app.workflow-templates'
-import { Route as AppTutorialsRouteImport } from './routes/app.tutorials'
-import { Route as AppTemplatesRouteImport } from './routes/app.templates'
-import { Route as AppSopLibraryRouteImport } from './routes/app.sop-library'
-import { Route as AppSettingsRouteImport } from './routes/app.settings'
-import { Route as AppScaleRouteImport } from './routes/app.scale'
-import { Route as AppRoadmapRouteImport } from './routes/app.roadmap'
-import { Route as AppResearchRouteImport } from './routes/app.research'
-import { Route as AppReputationRouteImport } from './routes/app.reputation'
-import { Route as AppPlaybookRouteImport } from './routes/app.playbook'
-import { Route as AppMonitoringRouteImport } from './routes/app.monitoring'
-import { Route as AppMissionControlRouteImport } from './routes/app.mission-control'
-import { Route as AppMissionBriefingRouteImport } from './routes/app.mission-briefing'
-import { Route as AppMentorRouteImport } from './routes/app.mentor'
-import { Route as AppMemoryRouteImport } from './routes/app.memory'
-import { Route as AppLeadsRouteImport } from './routes/app.leads'
-import { Route as AppLaunchpadPathRouteImport } from './routes/app.launchpad-path'
-import { Route as AppLaunchControlRouteImport } from './routes/app.launch-control'
-import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
-import { Route as AppGalaxyRouteImport } from './routes/app.galaxy'
-import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
-import { Route as AppContactsRouteImport } from './routes/app.contacts'
-import { Route as AppCommandCenterRouteImport } from './routes/app.command-center'
-import { Route as AppByldaOsRouteImport } from './routes/app.bylda-os'
-import { Route as AppByldaHomeRouteImport } from './routes/app.bylda-home'
-import { Route as AppByldaFullRouteImport } from './routes/app.bylda-full'
-import { Route as AppBuilderRouteImport } from './routes/app.builder'
-import { Route as AppBillingRouteImport } from './routes/app.billing'
-import { Route as AppAutomationsRouteImport } from './routes/app.automations'
-import { Route as AppAssetsRouteImport } from './routes/app.assets'
-import { Route as AppAiDashboardRouteImport } from './routes/app.ai-dashboard'
-import { Route as AppAdminRouteImport } from './routes/app.admin'
-import { Route as AppActivityRouteImport } from './routes/app.activity'
 import { Route as AppAcademyRouteImport } from './routes/app.academy'
-import { Route as AppLaunchpadIndexRouteImport } from './routes/app.launchpad.index'
-import { Route as AppByldaIndexRouteImport } from './routes/app.bylda.index'
-import { Route as AppScaleTeamRouteImport } from './routes/app.scale.team'
-import { Route as AppScaleReportsRouteImport } from './routes/app.scale.reports'
-import { Route as AppScalePipelineRouteImport } from './routes/app.scale.pipeline'
-import { Route as AppScaleCampaignsRouteImport } from './routes/app.scale.campaigns'
-import { Route as AppScaleAutomationsRouteImport } from './routes/app.scale.automations'
-import { Route as AppOutcomesCategoryRouteImport } from './routes/app.outcomes.$category'
-import { Route as AppLaunchpadMissionsRouteImport } from './routes/app.launchpad.missions'
-import { Route as AppLaunchpadMentorsRouteImport } from './routes/app.launchpad.mentors'
-import { Route as AppLaunchpadHistoryRouteImport } from './routes/app.launchpad.history'
-import { Route as AppLaunchpadFirstCustomersRouteImport } from './routes/app.launchpad.first-customers'
-import { Route as AppLaunchpadCourseRouteImport } from './routes/app.launchpad.course'
-import { Route as AppLaunchpadByldaRouteImport } from './routes/app.launchpad.bylda'
-import { Route as AppLaunchpadToolRouteImport } from './routes/app.launchpad.$tool'
-import { Route as AppCrmWaitlistRouteImport } from './routes/app.crm.waitlist'
-import { Route as AppCrmTasksRouteImport } from './routes/app.crm.tasks'
-import { Route as AppCrmSetupRouteImport } from './routes/app.crm.setup'
-import { Route as AppCrmFormsRouteImport } from './routes/app.crm.forms'
-import { Route as AppCrmDuplicatesRouteImport } from './routes/app.crm.duplicates'
-import { Route as AppCrmConversationsRouteImport } from './routes/app.crm.conversations'
-import { Route as AppCrmCompaniesRouteImport } from './routes/app.crm.companies'
-import { Route as AppCrmCampaignsRouteImport } from './routes/app.crm.campaigns'
-import { Route as AppCrmCallsRouteImport } from './routes/app.crm.calls'
-import { Route as AppCrmCalendarRouteImport } from './routes/app.crm.calendar'
-import { Route as AppCrmAutomationsRouteImport } from './routes/app.crm.automations'
-import { Route as AppCrmAccountsRouteImport } from './routes/app.crm.accounts'
-import { Route as AppByldaWorkflowsRouteImport } from './routes/app.bylda.workflows'
-import { Route as AppByldaReportsRouteImport } from './routes/app.bylda.reports'
-import { Route as AppByldaLeadsRouteImport } from './routes/app.bylda.leads'
-import { Route as AppByldaCrmRouteImport } from './routes/app.bylda.crm'
-import { Route as AppByldaClientsRouteImport } from './routes/app.bylda.clients'
-import { Route as AppByldaOsSlugRouteImport } from './routes/app.bylda-os.$slug'
-import { Route as AppBillingReturnRouteImport } from './routes/app.billing.return'
+import { Route as AppActivityRouteImport } from './routes/app.activity'
+import { Route as AppAdminRouteImport } from './routes/app.admin'
+import { Route as AppAiDashboardRouteImport } from './routes/app.ai-dashboard'
+import { Route as AppAssetsRouteImport } from './routes/app.assets'
+import { Route as AppAutomationsRouteImport } from './routes/app.automations'
+import { Route as AppBillingRouteImport } from './routes/app.billing'
+import { Route as AppBuilderRouteImport } from './routes/app.builder'
+import { Route as AppByldaFullRouteImport } from './routes/app.bylda-full'
+import { Route as AppByldaHomeRouteImport } from './routes/app.bylda-home'
+import { Route as AppByldaOsRouteImport } from './routes/app.bylda-os'
+import { Route as AppCommandCenterRouteImport } from './routes/app.command-center'
+import { Route as AppContactsRouteImport } from './routes/app.contacts'
+import { Route as AppContextMemoryRouteImport } from './routes/app.context-memory'
+import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
+import { Route as AppGalaxyRouteImport } from './routes/app.galaxy'
+import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
+import { Route as AppLaunchControlRouteImport } from './routes/app.launch-control'
+import { Route as AppLaunchpadPathRouteImport } from './routes/app.launchpad-path'
+import { Route as AppLeadsRouteImport } from './routes/app.leads'
+import { Route as AppMemoryRouteImport } from './routes/app.memory'
+import { Route as AppMentorRouteImport } from './routes/app.mentor'
+import { Route as AppMissionBriefingRouteImport } from './routes/app.mission-briefing'
+import { Route as AppMissionControlRouteImport } from './routes/app.mission-control'
+import { Route as AppMonitoringRouteImport } from './routes/app.monitoring'
+import { Route as AppPlaybookRouteImport } from './routes/app.playbook'
+import { Route as AppReputationRouteImport } from './routes/app.reputation'
+import { Route as AppResearchRouteImport } from './routes/app.research'
+import { Route as AppRoadmapRouteImport } from './routes/app.roadmap'
+import { Route as AppScaleRouteImport } from './routes/app.scale'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppSopLibraryRouteImport } from './routes/app.sop-library'
+import { Route as AppTemplatesRouteImport } from './routes/app.templates'
+import { Route as AppTutorialsRouteImport } from './routes/app.tutorials'
+import { Route as AppWorkflowTemplatesRouteImport } from './routes/app.workflow-templates'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as AuthInviteRouteImport } from './routes/auth.invite'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
+import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
+import { Route as BookSlugRouteImport } from './routes/book.$slug'
+import { Route as FFormIdRouteImport } from './routes/f.$formId'
 import { Route as AppAcademyModuleRouteImport } from './routes/app.academy.$module'
+import { Route as AppBillingReturnRouteImport } from './routes/app.billing.return'
+import { Route as AppByldaOsSlugRouteImport } from './routes/app.bylda-os.$slug'
+import { Route as AppByldaIndexRouteImport } from './routes/app.bylda.index'
+import { Route as AppByldaClientsRouteImport } from './routes/app.bylda.clients'
+import { Route as AppByldaCrmRouteImport } from './routes/app.bylda.crm'
+import { Route as AppByldaLeadsRouteImport } from './routes/app.bylda.leads'
+import { Route as AppByldaReportsRouteImport } from './routes/app.bylda.reports'
+import { Route as AppByldaWorkflowsRouteImport } from './routes/app.bylda.workflows'
+import { Route as AppCrmAccountsRouteImport } from './routes/app.crm.accounts'
+import { Route as AppCrmAutomationsRouteImport } from './routes/app.crm.automations'
+import { Route as AppCrmCalendarRouteImport } from './routes/app.crm.calendar'
+import { Route as AppCrmCallsRouteImport } from './routes/app.crm.calls'
+import { Route as AppCrmCampaignsRouteImport } from './routes/app.crm.campaigns'
+import { Route as AppCrmCompaniesRouteImport } from './routes/app.crm.companies'
+import { Route as AppCrmConversationsRouteImport } from './routes/app.crm.conversations'
+import { Route as AppCrmDuplicatesRouteImport } from './routes/app.crm.duplicates'
+import { Route as AppCrmFormsRouteImport } from './routes/app.crm.forms'
+import { Route as AppCrmSetupRouteImport } from './routes/app.crm.setup'
+import { Route as AppCrmTasksRouteImport } from './routes/app.crm.tasks'
+import { Route as AppCrmWaitlistRouteImport } from './routes/app.crm.waitlist'
+import { Route as AppLaunchpadIndexRouteImport } from './routes/app.launchpad.index'
+import { Route as AppLaunchpadToolRouteImport } from './routes/app.launchpad.$tool'
+import { Route as AppLaunchpadByldaRouteImport } from './routes/app.launchpad.bylda'
+import { Route as AppLaunchpadCourseRouteImport } from './routes/app.launchpad.course'
+import { Route as AppLaunchpadFirstCustomersRouteImport } from './routes/app.launchpad.first-customers'
+import { Route as AppLaunchpadHistoryRouteImport } from './routes/app.launchpad.history'
+import { Route as AppLaunchpadMentorsRouteImport } from './routes/app.launchpad.mentors'
+import { Route as AppLaunchpadMissionsRouteImport } from './routes/app.launchpad.missions'
+import { Route as AppOutcomesCategoryRouteImport } from './routes/app.outcomes.$category'
+import { Route as AppScaleAutomationsRouteImport } from './routes/app.scale.automations'
+import { Route as AppScaleCampaignsRouteImport } from './routes/app.scale.campaigns'
+import { Route as AppScalePipelineRouteImport } from './routes/app.scale.pipeline'
+import { Route as AppScaleReportsRouteImport } from './routes/app.scale.reports'
+import { Route as AppScaleTeamRouteImport } from './routes/app.scale.team'
 import { Route as AppLaunchpadOutputsIdRouteImport } from './routes/app.launchpad.outputs.$id'
 
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoRoute = DemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/app',
-  path: '/app',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -125,9 +106,29 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -135,199 +136,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const FFormIdRoute = FFormIdRouteImport.update({
-  id: '/f/$formId',
-  path: '/f/$formId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BookSlugRoute = BookSlugRouteImport.update({
-  id: '/book/$slug',
-  path: '/book/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthSignUpRoute = AuthSignUpRouteImport.update({
-  id: '/auth/sign-up',
-  path: '/auth/sign-up',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthSignInRoute = AuthSignInRouteImport.update({
-  id: '/auth/sign-in',
-  path: '/auth/sign-in',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/auth/reset-password',
-  path: '/auth/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthInviteRoute = AuthInviteRouteImport.update({
-  id: '/auth/invite',
-  path: '/auth/invite',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/auth/forgot-password',
-  path: '/auth/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppWorkflowTemplatesRoute = AppWorkflowTemplatesRouteImport.update({
-  id: '/workflow-templates',
-  path: '/workflow-templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTutorialsRoute = AppTutorialsRouteImport.update({
-  id: '/tutorials',
-  path: '/tutorials',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTemplatesRoute = AppTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSopLibraryRoute = AppSopLibraryRouteImport.update({
-  id: '/sop-library',
-  path: '/sop-library',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppScaleRoute = AppScaleRouteImport.update({
-  id: '/scale',
-  path: '/scale',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoadmapRoute = AppRoadmapRouteImport.update({
-  id: '/roadmap',
-  path: '/roadmap',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppResearchRoute = AppResearchRouteImport.update({
-  id: '/research',
-  path: '/research',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReputationRoute = AppReputationRouteImport.update({
-  id: '/reputation',
-  path: '/reputation',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPlaybookRoute = AppPlaybookRouteImport.update({
-  id: '/playbook',
-  path: '/playbook',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMonitoringRoute = AppMonitoringRouteImport.update({
-  id: '/monitoring',
-  path: '/monitoring',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMissionControlRoute = AppMissionControlRouteImport.update({
-  id: '/mission-control',
-  path: '/mission-control',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMissionBriefingRoute = AppMissionBriefingRouteImport.update({
-  id: '/mission-briefing',
-  path: '/mission-briefing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMentorRoute = AppMentorRouteImport.update({
-  id: '/mentor',
-  path: '/mentor',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMemoryRoute = AppMemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLeadsRoute = AppLeadsRouteImport.update({
-  id: '/leads',
-  path: '/leads',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchpadPathRoute = AppLaunchpadPathRouteImport.update({
-  id: '/launchpad-path',
-  path: '/launchpad-path',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchControlRoute = AppLaunchControlRouteImport.update({
-  id: '/launch-control',
-  path: '/launch-control',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
-  id: '/integrations',
-  path: '/integrations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGalaxyRoute = AppGalaxyRouteImport.update({
-  id: '/galaxy',
-  path: '/galaxy',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppContactsRoute = AppContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCommandCenterRoute = AppCommandCenterRouteImport.update({
-  id: '/command-center',
-  path: '/command-center',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaOsRoute = AppByldaOsRouteImport.update({
-  id: '/bylda-os',
-  path: '/bylda-os',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaHomeRoute = AppByldaHomeRouteImport.update({
-  id: '/bylda-home',
-  path: '/bylda-home',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaFullRoute = AppByldaFullRouteImport.update({
-  id: '/bylda-full',
-  path: '/bylda-full',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBuilderRoute = AppBuilderRouteImport.update({
-  id: '/builder',
-  path: '/builder',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBillingRoute = AppBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAutomationsRoute = AppAutomationsRouteImport.update({
-  id: '/automations',
-  path: '/automations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAssetsRoute = AppAssetsRouteImport.update({
-  id: '/assets',
-  path: '/assets',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAiDashboardRoute = AppAiDashboardRouteImport.update({
-  id: '/ai-dashboard',
-  path: '/ai-dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminRoute = AppAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AppAcademyRoute = AppAcademyRouteImport.update({
+  id: '/academy',
+  path: '/academy',
   getParentRoute: () => AppRoute,
 } as any)
 const AppActivityRoute = AppActivityRouteImport.update({
@@ -335,9 +146,309 @@ const AppActivityRoute = AppActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAcademyRoute = AppAcademyRouteImport.update({
-  id: '/academy',
-  path: '/academy',
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAiDashboardRoute = AppAiDashboardRouteImport.update({
+  id: '/ai-dashboard',
+  path: '/ai-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssetsRoute = AppAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAutomationsRoute = AppAutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBillingRoute = AppBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBuilderRoute = AppBuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaFullRoute = AppByldaFullRouteImport.update({
+  id: '/bylda-full',
+  path: '/bylda-full',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaHomeRoute = AppByldaHomeRouteImport.update({
+  id: '/bylda-home',
+  path: '/bylda-home',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaOsRoute = AppByldaOsRouteImport.update({
+  id: '/bylda-os',
+  path: '/bylda-os',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCommandCenterRoute = AppCommandCenterRouteImport.update({
+  id: '/command-center',
+  path: '/command-center',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContactsRoute = AppContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContextMemoryRoute = AppContextMemoryRouteImport.update({
+  id: '/context-memory',
+  path: '/context-memory',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGalaxyRoute = AppGalaxyRouteImport.update({
+  id: '/galaxy',
+  path: '/galaxy',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLaunchControlRoute = AppLaunchControlRouteImport.update({
+  id: '/launch-control',
+  path: '/launch-control',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLaunchpadPathRoute = AppLaunchpadPathRouteImport.update({
+  id: '/launchpad-path',
+  path: '/launchpad-path',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLeadsRoute = AppLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMemoryRoute = AppMemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMentorRoute = AppMentorRouteImport.update({
+  id: '/mentor',
+  path: '/mentor',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMissionBriefingRoute = AppMissionBriefingRouteImport.update({
+  id: '/mission-briefing',
+  path: '/mission-briefing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMissionControlRoute = AppMissionControlRouteImport.update({
+  id: '/mission-control',
+  path: '/mission-control',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMonitoringRoute = AppMonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPlaybookRoute = AppPlaybookRouteImport.update({
+  id: '/playbook',
+  path: '/playbook',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReputationRoute = AppReputationRouteImport.update({
+  id: '/reputation',
+  path: '/reputation',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppResearchRoute = AppResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRoadmapRoute = AppRoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScaleRoute = AppScaleRouteImport.update({
+  id: '/scale',
+  path: '/scale',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSopLibraryRoute = AppSopLibraryRouteImport.update({
+  id: '/sop-library',
+  path: '/sop-library',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTutorialsRoute = AppTutorialsRouteImport.update({
+  id: '/tutorials',
+  path: '/tutorials',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkflowTemplatesRoute = AppWorkflowTemplatesRouteImport.update({
+  id: '/workflow-templates',
+  path: '/workflow-templates',
+  getParentRoute: () => AppRoute,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthInviteRoute = AuthInviteRouteImport.update({
+  id: '/auth/invite',
+  path: '/auth/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSignInRoute = AuthSignInRouteImport.update({
+  id: '/auth/sign-in',
+  path: '/auth/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSignUpRoute = AuthSignUpRouteImport.update({
+  id: '/auth/sign-up',
+  path: '/auth/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookSlugRoute = BookSlugRouteImport.update({
+  id: '/book/$slug',
+  path: '/book/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FFormIdRoute = FFormIdRouteImport.update({
+  id: '/f/$formId',
+  path: '/f/$formId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAcademyModuleRoute = AppAcademyModuleRouteImport.update({
+  id: '/$module',
+  path: '/$module',
+  getParentRoute: () => AppAcademyRoute,
+} as any)
+const AppBillingReturnRoute = AppBillingReturnRouteImport.update({
+  id: '/return',
+  path: '/return',
+  getParentRoute: () => AppBillingRoute,
+} as any)
+const AppByldaOsSlugRoute = AppByldaOsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => AppByldaOsRoute,
+} as any)
+const AppByldaIndexRoute = AppByldaIndexRouteImport.update({
+  id: '/bylda/',
+  path: '/bylda/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaClientsRoute = AppByldaClientsRouteImport.update({
+  id: '/bylda/clients',
+  path: '/bylda/clients',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaCrmRoute = AppByldaCrmRouteImport.update({
+  id: '/bylda/crm',
+  path: '/bylda/crm',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaLeadsRoute = AppByldaLeadsRouteImport.update({
+  id: '/bylda/leads',
+  path: '/bylda/leads',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaReportsRoute = AppByldaReportsRouteImport.update({
+  id: '/bylda/reports',
+  path: '/bylda/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppByldaWorkflowsRoute = AppByldaWorkflowsRouteImport.update({
+  id: '/bylda/workflows',
+  path: '/bylda/workflows',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmAccountsRoute = AppCrmAccountsRouteImport.update({
+  id: '/crm/accounts',
+  path: '/crm/accounts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmAutomationsRoute = AppCrmAutomationsRouteImport.update({
+  id: '/crm/automations',
+  path: '/crm/automations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmCalendarRoute = AppCrmCalendarRouteImport.update({
+  id: '/crm/calendar',
+  path: '/crm/calendar',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmCallsRoute = AppCrmCallsRouteImport.update({
+  id: '/crm/calls',
+  path: '/crm/calls',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmCampaignsRoute = AppCrmCampaignsRouteImport.update({
+  id: '/crm/campaigns',
+  path: '/crm/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmCompaniesRoute = AppCrmCompaniesRouteImport.update({
+  id: '/crm/companies',
+  path: '/crm/companies',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmConversationsRoute = AppCrmConversationsRouteImport.update({
+  id: '/crm/conversations',
+  path: '/crm/conversations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmDuplicatesRoute = AppCrmDuplicatesRouteImport.update({
+  id: '/crm/duplicates',
+  path: '/crm/duplicates',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmFormsRoute = AppCrmFormsRouteImport.update({
+  id: '/crm/forms',
+  path: '/crm/forms',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmSetupRoute = AppCrmSetupRouteImport.update({
+  id: '/crm/setup',
+  path: '/crm/setup',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmTasksRoute = AppCrmTasksRouteImport.update({
+  id: '/crm/tasks',
+  path: '/crm/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmWaitlistRoute = AppCrmWaitlistRouteImport.update({
+  id: '/crm/waitlist',
+  path: '/crm/waitlist',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLaunchpadIndexRoute = AppLaunchpadIndexRouteImport.update({
@@ -345,54 +456,19 @@ const AppLaunchpadIndexRoute = AppLaunchpadIndexRouteImport.update({
   path: '/launchpad/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppByldaIndexRoute = AppByldaIndexRouteImport.update({
-  id: '/bylda/',
-  path: '/bylda/',
+const AppLaunchpadToolRoute = AppLaunchpadToolRouteImport.update({
+  id: '/launchpad/$tool',
+  path: '/launchpad/$tool',
   getParentRoute: () => AppRoute,
 } as any)
-const AppScaleTeamRoute = AppScaleTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScaleReportsRoute = AppScaleReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScalePipelineRoute = AppScalePipelineRouteImport.update({
-  id: '/pipeline',
-  path: '/pipeline',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScaleCampaignsRoute = AppScaleCampaignsRouteImport.update({
-  id: '/campaigns',
-  path: '/campaigns',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppScaleAutomationsRoute = AppScaleAutomationsRouteImport.update({
-  id: '/automations',
-  path: '/automations',
-  getParentRoute: () => AppScaleRoute,
-} as any)
-const AppOutcomesCategoryRoute = AppOutcomesCategoryRouteImport.update({
-  id: '/outcomes/$category',
-  path: '/outcomes/$category',
+const AppLaunchpadByldaRoute = AppLaunchpadByldaRouteImport.update({
+  id: '/launchpad/bylda',
+  path: '/launchpad/bylda',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLaunchpadMissionsRoute = AppLaunchpadMissionsRouteImport.update({
-  id: '/launchpad/missions',
-  path: '/launchpad/missions',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchpadMentorsRoute = AppLaunchpadMentorsRouteImport.update({
-  id: '/launchpad/mentors',
-  path: '/launchpad/mentors',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLaunchpadHistoryRoute = AppLaunchpadHistoryRouteImport.update({
-  id: '/launchpad/history',
-  path: '/launchpad/history',
+const AppLaunchpadCourseRoute = AppLaunchpadCourseRouteImport.update({
+  id: '/launchpad/course',
+  path: '/launchpad/course',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLaunchpadFirstCustomersRoute =
@@ -401,120 +477,50 @@ const AppLaunchpadFirstCustomersRoute =
     path: '/launchpad/first-customers',
     getParentRoute: () => AppRoute,
   } as any)
-const AppLaunchpadCourseRoute = AppLaunchpadCourseRouteImport.update({
-  id: '/launchpad/course',
-  path: '/launchpad/course',
+const AppLaunchpadHistoryRoute = AppLaunchpadHistoryRouteImport.update({
+  id: '/launchpad/history',
+  path: '/launchpad/history',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLaunchpadByldaRoute = AppLaunchpadByldaRouteImport.update({
-  id: '/launchpad/bylda',
-  path: '/launchpad/bylda',
+const AppLaunchpadMentorsRoute = AppLaunchpadMentorsRouteImport.update({
+  id: '/launchpad/mentors',
+  path: '/launchpad/mentors',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLaunchpadToolRoute = AppLaunchpadToolRouteImport.update({
-  id: '/launchpad/$tool',
-  path: '/launchpad/$tool',
+const AppLaunchpadMissionsRoute = AppLaunchpadMissionsRouteImport.update({
+  id: '/launchpad/missions',
+  path: '/launchpad/missions',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCrmWaitlistRoute = AppCrmWaitlistRouteImport.update({
-  id: '/crm/waitlist',
-  path: '/crm/waitlist',
+const AppOutcomesCategoryRoute = AppOutcomesCategoryRouteImport.update({
+  id: '/outcomes/$category',
+  path: '/outcomes/$category',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCrmTasksRoute = AppCrmTasksRouteImport.update({
-  id: '/crm/tasks',
-  path: '/crm/tasks',
-  getParentRoute: () => AppRoute,
+const AppScaleAutomationsRoute = AppScaleAutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
+  getParentRoute: () => AppScaleRoute,
 } as any)
-const AppCrmSetupRoute = AppCrmSetupRouteImport.update({
-  id: '/crm/setup',
-  path: '/crm/setup',
-  getParentRoute: () => AppRoute,
+const AppScaleCampaignsRoute = AppScaleCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AppScaleRoute,
 } as any)
-const AppCrmFormsRoute = AppCrmFormsRouteImport.update({
-  id: '/crm/forms',
-  path: '/crm/forms',
-  getParentRoute: () => AppRoute,
+const AppScalePipelineRoute = AppScalePipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => AppScaleRoute,
 } as any)
-const AppCrmDuplicatesRoute = AppCrmDuplicatesRouteImport.update({
-  id: '/crm/duplicates',
-  path: '/crm/duplicates',
-  getParentRoute: () => AppRoute,
+const AppScaleReportsRoute = AppScaleReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppScaleRoute,
 } as any)
-const AppCrmConversationsRoute = AppCrmConversationsRouteImport.update({
-  id: '/crm/conversations',
-  path: '/crm/conversations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCompaniesRoute = AppCrmCompaniesRouteImport.update({
-  id: '/crm/companies',
-  path: '/crm/companies',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCampaignsRoute = AppCrmCampaignsRouteImport.update({
-  id: '/crm/campaigns',
-  path: '/crm/campaigns',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCallsRoute = AppCrmCallsRouteImport.update({
-  id: '/crm/calls',
-  path: '/crm/calls',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmCalendarRoute = AppCrmCalendarRouteImport.update({
-  id: '/crm/calendar',
-  path: '/crm/calendar',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmAutomationsRoute = AppCrmAutomationsRouteImport.update({
-  id: '/crm/automations',
-  path: '/crm/automations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCrmAccountsRoute = AppCrmAccountsRouteImport.update({
-  id: '/crm/accounts',
-  path: '/crm/accounts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaWorkflowsRoute = AppByldaWorkflowsRouteImport.update({
-  id: '/bylda/workflows',
-  path: '/bylda/workflows',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaReportsRoute = AppByldaReportsRouteImport.update({
-  id: '/bylda/reports',
-  path: '/bylda/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaLeadsRoute = AppByldaLeadsRouteImport.update({
-  id: '/bylda/leads',
-  path: '/bylda/leads',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaCrmRoute = AppByldaCrmRouteImport.update({
-  id: '/bylda/crm',
-  path: '/bylda/crm',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaClientsRoute = AppByldaClientsRouteImport.update({
-  id: '/bylda/clients',
-  path: '/bylda/clients',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppByldaOsSlugRoute = AppByldaOsSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => AppByldaOsRoute,
-} as any)
-const AppBillingReturnRoute = AppBillingReturnRouteImport.update({
-  id: '/return',
-  path: '/return',
-  getParentRoute: () => AppBillingRoute,
-} as any)
-const AppAcademyModuleRoute = AppAcademyModuleRouteImport.update({
-  id: '/$module',
-  path: '/$module',
-  getParentRoute: () => AppAcademyRoute,
+const AppScaleTeamRoute = AppScaleTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppScaleRoute,
 } as any)
 const AppLaunchpadOutputsIdRoute = AppLaunchpadOutputsIdRouteImport.update({
   id: '/launchpad/outputs/$id',
@@ -543,6 +549,7 @@ export interface FileRoutesByFullPath {
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
+  '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
   '/app/integrations': typeof AppIntegrationsRoute
@@ -629,6 +636,7 @@ export interface FileRoutesByTo {
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
+  '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
   '/app/integrations': typeof AppIntegrationsRoute
@@ -717,6 +725,7 @@ export interface FileRoutesById {
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
+  '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
   '/app/integrations': typeof AppIntegrationsRoute
@@ -806,6 +815,7 @@ export interface FileRouteTypes {
     | '/app/bylda-os'
     | '/app/command-center'
     | '/app/contacts'
+    | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
     | '/app/integrations'
@@ -892,6 +902,7 @@ export interface FileRouteTypes {
     | '/app/bylda-os'
     | '/app/command-center'
     | '/app/contacts'
+    | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
     | '/app/integrations'
@@ -979,6 +990,7 @@ export interface FileRouteTypes {
     | '/app/bylda-os'
     | '/app/command-center'
     | '/app/contacts'
+    | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
     | '/app/integrations'
@@ -1065,39 +1077,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo': {
-      id: '/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof DemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AppRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -1107,11 +1091,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -1121,277 +1133,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/f/$formId': {
-      id: '/f/$formId'
-      path: '/f/$formId'
-      fullPath: '/f/$formId'
-      preLoaderRoute: typeof FFormIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/book/$slug': {
-      id: '/book/$slug'
-      path: '/book/$slug'
-      fullPath: '/book/$slug'
-      preLoaderRoute: typeof BookSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/sign-up': {
-      id: '/auth/sign-up'
-      path: '/auth/sign-up'
-      fullPath: '/auth/sign-up'
-      preLoaderRoute: typeof AuthSignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/sign-in': {
-      id: '/auth/sign-in'
-      path: '/auth/sign-in'
-      fullPath: '/auth/sign-in'
-      preLoaderRoute: typeof AuthSignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/reset-password': {
-      id: '/auth/reset-password'
-      path: '/auth/reset-password'
-      fullPath: '/auth/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/invite': {
-      id: '/auth/invite'
-      path: '/auth/invite'
-      fullPath: '/auth/invite'
-      preLoaderRoute: typeof AuthInviteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/forgot-password': {
-      id: '/auth/forgot-password'
-      path: '/auth/forgot-password'
-      fullPath: '/auth/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/workflow-templates': {
-      id: '/app/workflow-templates'
-      path: '/workflow-templates'
-      fullPath: '/app/workflow-templates'
-      preLoaderRoute: typeof AppWorkflowTemplatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/tutorials': {
-      id: '/app/tutorials'
-      path: '/tutorials'
-      fullPath: '/app/tutorials'
-      preLoaderRoute: typeof AppTutorialsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/templates': {
-      id: '/app/templates'
-      path: '/templates'
-      fullPath: '/app/templates'
-      preLoaderRoute: typeof AppTemplatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/sop-library': {
-      id: '/app/sop-library'
-      path: '/sop-library'
-      fullPath: '/app/sop-library'
-      preLoaderRoute: typeof AppSopLibraryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/settings': {
-      id: '/app/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/scale': {
-      id: '/app/scale'
-      path: '/scale'
-      fullPath: '/app/scale'
-      preLoaderRoute: typeof AppScaleRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/roadmap': {
-      id: '/app/roadmap'
-      path: '/roadmap'
-      fullPath: '/app/roadmap'
-      preLoaderRoute: typeof AppRoadmapRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/research': {
-      id: '/app/research'
-      path: '/research'
-      fullPath: '/app/research'
-      preLoaderRoute: typeof AppResearchRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/reputation': {
-      id: '/app/reputation'
-      path: '/reputation'
-      fullPath: '/app/reputation'
-      preLoaderRoute: typeof AppReputationRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/playbook': {
-      id: '/app/playbook'
-      path: '/playbook'
-      fullPath: '/app/playbook'
-      preLoaderRoute: typeof AppPlaybookRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/monitoring': {
-      id: '/app/monitoring'
-      path: '/monitoring'
-      fullPath: '/app/monitoring'
-      preLoaderRoute: typeof AppMonitoringRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/mission-control': {
-      id: '/app/mission-control'
-      path: '/mission-control'
-      fullPath: '/app/mission-control'
-      preLoaderRoute: typeof AppMissionControlRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/mission-briefing': {
-      id: '/app/mission-briefing'
-      path: '/mission-briefing'
-      fullPath: '/app/mission-briefing'
-      preLoaderRoute: typeof AppMissionBriefingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/mentor': {
-      id: '/app/mentor'
-      path: '/mentor'
-      fullPath: '/app/mentor'
-      preLoaderRoute: typeof AppMentorRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/memory': {
-      id: '/app/memory'
-      path: '/memory'
-      fullPath: '/app/memory'
-      preLoaderRoute: typeof AppMemoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/leads': {
-      id: '/app/leads'
-      path: '/leads'
-      fullPath: '/app/leads'
-      preLoaderRoute: typeof AppLeadsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad-path': {
-      id: '/app/launchpad-path'
-      path: '/launchpad-path'
-      fullPath: '/app/launchpad-path'
-      preLoaderRoute: typeof AppLaunchpadPathRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launch-control': {
-      id: '/app/launch-control'
-      path: '/launch-control'
-      fullPath: '/app/launch-control'
-      preLoaderRoute: typeof AppLaunchControlRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/integrations': {
-      id: '/app/integrations'
-      path: '/integrations'
-      fullPath: '/app/integrations'
-      preLoaderRoute: typeof AppIntegrationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/galaxy': {
-      id: '/app/galaxy'
-      path: '/galaxy'
-      fullPath: '/app/galaxy'
-      preLoaderRoute: typeof AppGalaxyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/dashboard': {
-      id: '/app/dashboard'
-      path: '/dashboard'
-      fullPath: '/app/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/contacts': {
-      id: '/app/contacts'
-      path: '/contacts'
-      fullPath: '/app/contacts'
-      preLoaderRoute: typeof AppContactsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/command-center': {
-      id: '/app/command-center'
-      path: '/command-center'
-      fullPath: '/app/command-center'
-      preLoaderRoute: typeof AppCommandCenterRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda-os': {
-      id: '/app/bylda-os'
-      path: '/bylda-os'
-      fullPath: '/app/bylda-os'
-      preLoaderRoute: typeof AppByldaOsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda-home': {
-      id: '/app/bylda-home'
-      path: '/bylda-home'
-      fullPath: '/app/bylda-home'
-      preLoaderRoute: typeof AppByldaHomeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda-full': {
-      id: '/app/bylda-full'
-      path: '/bylda-full'
-      fullPath: '/app/bylda-full'
-      preLoaderRoute: typeof AppByldaFullRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/builder': {
-      id: '/app/builder'
-      path: '/builder'
-      fullPath: '/app/builder'
-      preLoaderRoute: typeof AppBuilderRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/billing': {
-      id: '/app/billing'
-      path: '/billing'
-      fullPath: '/app/billing'
-      preLoaderRoute: typeof AppBillingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/automations': {
-      id: '/app/automations'
-      path: '/automations'
-      fullPath: '/app/automations'
-      preLoaderRoute: typeof AppAutomationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/assets': {
-      id: '/app/assets'
-      path: '/assets'
-      fullPath: '/app/assets'
-      preLoaderRoute: typeof AppAssetsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/ai-dashboard': {
-      id: '/app/ai-dashboard'
-      path: '/ai-dashboard'
-      fullPath: '/app/ai-dashboard'
-      preLoaderRoute: typeof AppAiDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/admin': {
-      id: '/app/admin'
-      path: '/admin'
-      fullPath: '/app/admin'
-      preLoaderRoute: typeof AppAdminRouteImport
+    '/app/academy': {
+      id: '/app/academy'
+      path: '/academy'
+      fullPath: '/app/academy'
+      preLoaderRoute: typeof AppAcademyRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/activity': {
@@ -1401,228 +1147,312 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/academy': {
-      id: '/app/academy'
-      path: '/academy'
-      fullPath: '/app/academy'
-      preLoaderRoute: typeof AppAcademyRouteImport
+    '/app/admin': {
+      id: '/app/admin'
+      path: '/admin'
+      fullPath: '/app/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/launchpad/': {
-      id: '/app/launchpad/'
-      path: '/launchpad'
-      fullPath: '/app/launchpad/'
-      preLoaderRoute: typeof AppLaunchpadIndexRouteImport
+    '/app/ai-dashboard': {
+      id: '/app/ai-dashboard'
+      path: '/ai-dashboard'
+      fullPath: '/app/ai-dashboard'
+      preLoaderRoute: typeof AppAiDashboardRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/app/assets': {
+      id: '/app/assets'
+      path: '/assets'
+      fullPath: '/app/assets'
+      preLoaderRoute: typeof AppAssetsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/automations': {
+      id: '/app/automations'
+      path: '/automations'
+      fullPath: '/app/automations'
+      preLoaderRoute: typeof AppAutomationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/billing': {
+      id: '/app/billing'
+      path: '/billing'
+      fullPath: '/app/billing'
+      preLoaderRoute: typeof AppBillingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/builder': {
+      id: '/app/builder'
+      path: '/builder'
+      fullPath: '/app/builder'
+      preLoaderRoute: typeof AppBuilderRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/bylda-full': {
+      id: '/app/bylda-full'
+      path: '/bylda-full'
+      fullPath: '/app/bylda-full'
+      preLoaderRoute: typeof AppByldaFullRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/bylda-home': {
+      id: '/app/bylda-home'
+      path: '/bylda-home'
+      fullPath: '/app/bylda-home'
+      preLoaderRoute: typeof AppByldaHomeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/bylda-os': {
+      id: '/app/bylda-os'
+      path: '/bylda-os'
+      fullPath: '/app/bylda-os'
+      preLoaderRoute: typeof AppByldaOsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/command-center': {
+      id: '/app/command-center'
+      path: '/command-center'
+      fullPath: '/app/command-center'
+      preLoaderRoute: typeof AppCommandCenterRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/contacts': {
+      id: '/app/contacts'
+      path: '/contacts'
+      fullPath: '/app/contacts'
+      preLoaderRoute: typeof AppContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/context-memory': {
+      id: '/app/context-memory'
+      path: '/context-memory'
+      fullPath: '/app/context-memory'
+      preLoaderRoute: typeof AppContextMemoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/dashboard': {
+      id: '/app/dashboard'
+      path: '/dashboard'
+      fullPath: '/app/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/galaxy': {
+      id: '/app/galaxy'
+      path: '/galaxy'
+      fullPath: '/app/galaxy'
+      preLoaderRoute: typeof AppGalaxyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/integrations': {
+      id: '/app/integrations'
+      path: '/integrations'
+      fullPath: '/app/integrations'
+      preLoaderRoute: typeof AppIntegrationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launch-control': {
+      id: '/app/launch-control'
+      path: '/launch-control'
+      fullPath: '/app/launch-control'
+      preLoaderRoute: typeof AppLaunchControlRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad-path': {
+      id: '/app/launchpad-path'
+      path: '/launchpad-path'
+      fullPath: '/app/launchpad-path'
+      preLoaderRoute: typeof AppLaunchpadPathRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/leads': {
+      id: '/app/leads'
+      path: '/leads'
+      fullPath: '/app/leads'
+      preLoaderRoute: typeof AppLeadsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/memory': {
+      id: '/app/memory'
+      path: '/memory'
+      fullPath: '/app/memory'
+      preLoaderRoute: typeof AppMemoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/mentor': {
+      id: '/app/mentor'
+      path: '/mentor'
+      fullPath: '/app/mentor'
+      preLoaderRoute: typeof AppMentorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/mission-briefing': {
+      id: '/app/mission-briefing'
+      path: '/mission-briefing'
+      fullPath: '/app/mission-briefing'
+      preLoaderRoute: typeof AppMissionBriefingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/mission-control': {
+      id: '/app/mission-control'
+      path: '/mission-control'
+      fullPath: '/app/mission-control'
+      preLoaderRoute: typeof AppMissionControlRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/monitoring': {
+      id: '/app/monitoring'
+      path: '/monitoring'
+      fullPath: '/app/monitoring'
+      preLoaderRoute: typeof AppMonitoringRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/playbook': {
+      id: '/app/playbook'
+      path: '/playbook'
+      fullPath: '/app/playbook'
+      preLoaderRoute: typeof AppPlaybookRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/reputation': {
+      id: '/app/reputation'
+      path: '/reputation'
+      fullPath: '/app/reputation'
+      preLoaderRoute: typeof AppReputationRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/research': {
+      id: '/app/research'
+      path: '/research'
+      fullPath: '/app/research'
+      preLoaderRoute: typeof AppResearchRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/roadmap': {
+      id: '/app/roadmap'
+      path: '/roadmap'
+      fullPath: '/app/roadmap'
+      preLoaderRoute: typeof AppRoadmapRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/scale': {
+      id: '/app/scale'
+      path: '/scale'
+      fullPath: '/app/scale'
+      preLoaderRoute: typeof AppScaleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sop-library': {
+      id: '/app/sop-library'
+      path: '/sop-library'
+      fullPath: '/app/sop-library'
+      preLoaderRoute: typeof AppSopLibraryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/templates': {
+      id: '/app/templates'
+      path: '/templates'
+      fullPath: '/app/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tutorials': {
+      id: '/app/tutorials'
+      path: '/tutorials'
+      fullPath: '/app/tutorials'
+      preLoaderRoute: typeof AppTutorialsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/workflow-templates': {
+      id: '/app/workflow-templates'
+      path: '/workflow-templates'
+      fullPath: '/app/workflow-templates'
+      preLoaderRoute: typeof AppWorkflowTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/invite': {
+      id: '/auth/invite'
+      path: '/auth/invite'
+      fullPath: '/auth/invite'
+      preLoaderRoute: typeof AuthInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/sign-in': {
+      id: '/auth/sign-in'
+      path: '/auth/sign-in'
+      fullPath: '/auth/sign-in'
+      preLoaderRoute: typeof AuthSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/sign-up': {
+      id: '/auth/sign-up'
+      path: '/auth/sign-up'
+      fullPath: '/auth/sign-up'
+      preLoaderRoute: typeof AuthSignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book/$slug': {
+      id: '/book/$slug'
+      path: '/book/$slug'
+      fullPath: '/book/$slug'
+      preLoaderRoute: typeof BookSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/$formId': {
+      id: '/f/$formId'
+      path: '/f/$formId'
+      fullPath: '/f/$formId'
+      preLoaderRoute: typeof FFormIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/academy/$module': {
+      id: '/app/academy/$module'
+      path: '/$module'
+      fullPath: '/app/academy/$module'
+      preLoaderRoute: typeof AppAcademyModuleRouteImport
+      parentRoute: typeof AppAcademyRoute
+    }
+    '/app/billing/return': {
+      id: '/app/billing/return'
+      path: '/return'
+      fullPath: '/app/billing/return'
+      preLoaderRoute: typeof AppBillingReturnRouteImport
+      parentRoute: typeof AppBillingRoute
+    }
+    '/app/bylda-os/$slug': {
+      id: '/app/bylda-os/$slug'
+      path: '/$slug'
+      fullPath: '/app/bylda-os/$slug'
+      preLoaderRoute: typeof AppByldaOsSlugRouteImport
+      parentRoute: typeof AppByldaOsRoute
     }
     '/app/bylda/': {
       id: '/app/bylda/'
       path: '/bylda'
       fullPath: '/app/bylda/'
       preLoaderRoute: typeof AppByldaIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/scale/team': {
-      id: '/app/scale/team'
-      path: '/team'
-      fullPath: '/app/scale/team'
-      preLoaderRoute: typeof AppScaleTeamRouteImport
-      parentRoute: typeof AppScaleRoute
-    }
-    '/app/scale/reports': {
-      id: '/app/scale/reports'
-      path: '/reports'
-      fullPath: '/app/scale/reports'
-      preLoaderRoute: typeof AppScaleReportsRouteImport
-      parentRoute: typeof AppScaleRoute
-    }
-    '/app/scale/pipeline': {
-      id: '/app/scale/pipeline'
-      path: '/pipeline'
-      fullPath: '/app/scale/pipeline'
-      preLoaderRoute: typeof AppScalePipelineRouteImport
-      parentRoute: typeof AppScaleRoute
-    }
-    '/app/scale/campaigns': {
-      id: '/app/scale/campaigns'
-      path: '/campaigns'
-      fullPath: '/app/scale/campaigns'
-      preLoaderRoute: typeof AppScaleCampaignsRouteImport
-      parentRoute: typeof AppScaleRoute
-    }
-    '/app/scale/automations': {
-      id: '/app/scale/automations'
-      path: '/automations'
-      fullPath: '/app/scale/automations'
-      preLoaderRoute: typeof AppScaleAutomationsRouteImport
-      parentRoute: typeof AppScaleRoute
-    }
-    '/app/outcomes/$category': {
-      id: '/app/outcomes/$category'
-      path: '/outcomes/$category'
-      fullPath: '/app/outcomes/$category'
-      preLoaderRoute: typeof AppOutcomesCategoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/missions': {
-      id: '/app/launchpad/missions'
-      path: '/launchpad/missions'
-      fullPath: '/app/launchpad/missions'
-      preLoaderRoute: typeof AppLaunchpadMissionsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/mentors': {
-      id: '/app/launchpad/mentors'
-      path: '/launchpad/mentors'
-      fullPath: '/app/launchpad/mentors'
-      preLoaderRoute: typeof AppLaunchpadMentorsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/history': {
-      id: '/app/launchpad/history'
-      path: '/launchpad/history'
-      fullPath: '/app/launchpad/history'
-      preLoaderRoute: typeof AppLaunchpadHistoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/first-customers': {
-      id: '/app/launchpad/first-customers'
-      path: '/launchpad/first-customers'
-      fullPath: '/app/launchpad/first-customers'
-      preLoaderRoute: typeof AppLaunchpadFirstCustomersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/course': {
-      id: '/app/launchpad/course'
-      path: '/launchpad/course'
-      fullPath: '/app/launchpad/course'
-      preLoaderRoute: typeof AppLaunchpadCourseRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/bylda': {
-      id: '/app/launchpad/bylda'
-      path: '/launchpad/bylda'
-      fullPath: '/app/launchpad/bylda'
-      preLoaderRoute: typeof AppLaunchpadByldaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/launchpad/$tool': {
-      id: '/app/launchpad/$tool'
-      path: '/launchpad/$tool'
-      fullPath: '/app/launchpad/$tool'
-      preLoaderRoute: typeof AppLaunchpadToolRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/waitlist': {
-      id: '/app/crm/waitlist'
-      path: '/crm/waitlist'
-      fullPath: '/app/crm/waitlist'
-      preLoaderRoute: typeof AppCrmWaitlistRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/tasks': {
-      id: '/app/crm/tasks'
-      path: '/crm/tasks'
-      fullPath: '/app/crm/tasks'
-      preLoaderRoute: typeof AppCrmTasksRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/setup': {
-      id: '/app/crm/setup'
-      path: '/crm/setup'
-      fullPath: '/app/crm/setup'
-      preLoaderRoute: typeof AppCrmSetupRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/forms': {
-      id: '/app/crm/forms'
-      path: '/crm/forms'
-      fullPath: '/app/crm/forms'
-      preLoaderRoute: typeof AppCrmFormsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/duplicates': {
-      id: '/app/crm/duplicates'
-      path: '/crm/duplicates'
-      fullPath: '/app/crm/duplicates'
-      preLoaderRoute: typeof AppCrmDuplicatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/conversations': {
-      id: '/app/crm/conversations'
-      path: '/crm/conversations'
-      fullPath: '/app/crm/conversations'
-      preLoaderRoute: typeof AppCrmConversationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/companies': {
-      id: '/app/crm/companies'
-      path: '/crm/companies'
-      fullPath: '/app/crm/companies'
-      preLoaderRoute: typeof AppCrmCompaniesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/campaigns': {
-      id: '/app/crm/campaigns'
-      path: '/crm/campaigns'
-      fullPath: '/app/crm/campaigns'
-      preLoaderRoute: typeof AppCrmCampaignsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/calls': {
-      id: '/app/crm/calls'
-      path: '/crm/calls'
-      fullPath: '/app/crm/calls'
-      preLoaderRoute: typeof AppCrmCallsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/calendar': {
-      id: '/app/crm/calendar'
-      path: '/crm/calendar'
-      fullPath: '/app/crm/calendar'
-      preLoaderRoute: typeof AppCrmCalendarRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/automations': {
-      id: '/app/crm/automations'
-      path: '/crm/automations'
-      fullPath: '/app/crm/automations'
-      preLoaderRoute: typeof AppCrmAutomationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/crm/accounts': {
-      id: '/app/crm/accounts'
-      path: '/crm/accounts'
-      fullPath: '/app/crm/accounts'
-      preLoaderRoute: typeof AppCrmAccountsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda/workflows': {
-      id: '/app/bylda/workflows'
-      path: '/bylda/workflows'
-      fullPath: '/app/bylda/workflows'
-      preLoaderRoute: typeof AppByldaWorkflowsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda/reports': {
-      id: '/app/bylda/reports'
-      path: '/bylda/reports'
-      fullPath: '/app/bylda/reports'
-      preLoaderRoute: typeof AppByldaReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda/leads': {
-      id: '/app/bylda/leads'
-      path: '/bylda/leads'
-      fullPath: '/app/bylda/leads'
-      preLoaderRoute: typeof AppByldaLeadsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/bylda/crm': {
-      id: '/app/bylda/crm'
-      path: '/bylda/crm'
-      fullPath: '/app/bylda/crm'
-      preLoaderRoute: typeof AppByldaCrmRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/bylda/clients': {
@@ -1632,26 +1462,215 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppByldaClientsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/bylda-os/$slug': {
-      id: '/app/bylda-os/$slug'
-      path: '/$slug'
-      fullPath: '/app/bylda-os/$slug'
-      preLoaderRoute: typeof AppByldaOsSlugRouteImport
-      parentRoute: typeof AppByldaOsRoute
+    '/app/bylda/crm': {
+      id: '/app/bylda/crm'
+      path: '/bylda/crm'
+      fullPath: '/app/bylda/crm'
+      preLoaderRoute: typeof AppByldaCrmRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/app/billing/return': {
-      id: '/app/billing/return'
-      path: '/return'
-      fullPath: '/app/billing/return'
-      preLoaderRoute: typeof AppBillingReturnRouteImport
-      parentRoute: typeof AppBillingRoute
+    '/app/bylda/leads': {
+      id: '/app/bylda/leads'
+      path: '/bylda/leads'
+      fullPath: '/app/bylda/leads'
+      preLoaderRoute: typeof AppByldaLeadsRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/app/academy/$module': {
-      id: '/app/academy/$module'
-      path: '/$module'
-      fullPath: '/app/academy/$module'
-      preLoaderRoute: typeof AppAcademyModuleRouteImport
-      parentRoute: typeof AppAcademyRoute
+    '/app/bylda/reports': {
+      id: '/app/bylda/reports'
+      path: '/bylda/reports'
+      fullPath: '/app/bylda/reports'
+      preLoaderRoute: typeof AppByldaReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/bylda/workflows': {
+      id: '/app/bylda/workflows'
+      path: '/bylda/workflows'
+      fullPath: '/app/bylda/workflows'
+      preLoaderRoute: typeof AppByldaWorkflowsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/accounts': {
+      id: '/app/crm/accounts'
+      path: '/crm/accounts'
+      fullPath: '/app/crm/accounts'
+      preLoaderRoute: typeof AppCrmAccountsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/automations': {
+      id: '/app/crm/automations'
+      path: '/crm/automations'
+      fullPath: '/app/crm/automations'
+      preLoaderRoute: typeof AppCrmAutomationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/calendar': {
+      id: '/app/crm/calendar'
+      path: '/crm/calendar'
+      fullPath: '/app/crm/calendar'
+      preLoaderRoute: typeof AppCrmCalendarRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/calls': {
+      id: '/app/crm/calls'
+      path: '/crm/calls'
+      fullPath: '/app/crm/calls'
+      preLoaderRoute: typeof AppCrmCallsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/campaigns': {
+      id: '/app/crm/campaigns'
+      path: '/crm/campaigns'
+      fullPath: '/app/crm/campaigns'
+      preLoaderRoute: typeof AppCrmCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/companies': {
+      id: '/app/crm/companies'
+      path: '/crm/companies'
+      fullPath: '/app/crm/companies'
+      preLoaderRoute: typeof AppCrmCompaniesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/conversations': {
+      id: '/app/crm/conversations'
+      path: '/crm/conversations'
+      fullPath: '/app/crm/conversations'
+      preLoaderRoute: typeof AppCrmConversationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/duplicates': {
+      id: '/app/crm/duplicates'
+      path: '/crm/duplicates'
+      fullPath: '/app/crm/duplicates'
+      preLoaderRoute: typeof AppCrmDuplicatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/forms': {
+      id: '/app/crm/forms'
+      path: '/crm/forms'
+      fullPath: '/app/crm/forms'
+      preLoaderRoute: typeof AppCrmFormsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/setup': {
+      id: '/app/crm/setup'
+      path: '/crm/setup'
+      fullPath: '/app/crm/setup'
+      preLoaderRoute: typeof AppCrmSetupRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/tasks': {
+      id: '/app/crm/tasks'
+      path: '/crm/tasks'
+      fullPath: '/app/crm/tasks'
+      preLoaderRoute: typeof AppCrmTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/crm/waitlist': {
+      id: '/app/crm/waitlist'
+      path: '/crm/waitlist'
+      fullPath: '/app/crm/waitlist'
+      preLoaderRoute: typeof AppCrmWaitlistRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/': {
+      id: '/app/launchpad/'
+      path: '/launchpad'
+      fullPath: '/app/launchpad/'
+      preLoaderRoute: typeof AppLaunchpadIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/$tool': {
+      id: '/app/launchpad/$tool'
+      path: '/launchpad/$tool'
+      fullPath: '/app/launchpad/$tool'
+      preLoaderRoute: typeof AppLaunchpadToolRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/bylda': {
+      id: '/app/launchpad/bylda'
+      path: '/launchpad/bylda'
+      fullPath: '/app/launchpad/bylda'
+      preLoaderRoute: typeof AppLaunchpadByldaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/course': {
+      id: '/app/launchpad/course'
+      path: '/launchpad/course'
+      fullPath: '/app/launchpad/course'
+      preLoaderRoute: typeof AppLaunchpadCourseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/first-customers': {
+      id: '/app/launchpad/first-customers'
+      path: '/launchpad/first-customers'
+      fullPath: '/app/launchpad/first-customers'
+      preLoaderRoute: typeof AppLaunchpadFirstCustomersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/history': {
+      id: '/app/launchpad/history'
+      path: '/launchpad/history'
+      fullPath: '/app/launchpad/history'
+      preLoaderRoute: typeof AppLaunchpadHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/mentors': {
+      id: '/app/launchpad/mentors'
+      path: '/launchpad/mentors'
+      fullPath: '/app/launchpad/mentors'
+      preLoaderRoute: typeof AppLaunchpadMentorsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/launchpad/missions': {
+      id: '/app/launchpad/missions'
+      path: '/launchpad/missions'
+      fullPath: '/app/launchpad/missions'
+      preLoaderRoute: typeof AppLaunchpadMissionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/outcomes/$category': {
+      id: '/app/outcomes/$category'
+      path: '/outcomes/$category'
+      fullPath: '/app/outcomes/$category'
+      preLoaderRoute: typeof AppOutcomesCategoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/scale/automations': {
+      id: '/app/scale/automations'
+      path: '/automations'
+      fullPath: '/app/scale/automations'
+      preLoaderRoute: typeof AppScaleAutomationsRouteImport
+      parentRoute: typeof AppScaleRoute
+    }
+    '/app/scale/campaigns': {
+      id: '/app/scale/campaigns'
+      path: '/campaigns'
+      fullPath: '/app/scale/campaigns'
+      preLoaderRoute: typeof AppScaleCampaignsRouteImport
+      parentRoute: typeof AppScaleRoute
+    }
+    '/app/scale/pipeline': {
+      id: '/app/scale/pipeline'
+      path: '/pipeline'
+      fullPath: '/app/scale/pipeline'
+      preLoaderRoute: typeof AppScalePipelineRouteImport
+      parentRoute: typeof AppScaleRoute
+    }
+    '/app/scale/reports': {
+      id: '/app/scale/reports'
+      path: '/reports'
+      fullPath: '/app/scale/reports'
+      preLoaderRoute: typeof AppScaleReportsRouteImport
+      parentRoute: typeof AppScaleRoute
+    }
+    '/app/scale/team': {
+      id: '/app/scale/team'
+      path: '/team'
+      fullPath: '/app/scale/team'
+      preLoaderRoute: typeof AppScaleTeamRouteImport
+      parentRoute: typeof AppScaleRoute
     }
     '/app/launchpad/outputs/$id': {
       id: '/app/launchpad/outputs/$id'
@@ -1733,6 +1752,7 @@ interface AppRouteChildren {
   AppByldaOsRoute: typeof AppByldaOsRouteWithChildren
   AppCommandCenterRoute: typeof AppCommandCenterRoute
   AppContactsRoute: typeof AppContactsRoute
+  AppContextMemoryRoute: typeof AppContextMemoryRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppGalaxyRoute: typeof AppGalaxyRoute
   AppIntegrationsRoute: typeof AppIntegrationsRoute
@@ -1799,6 +1819,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppByldaOsRoute: AppByldaOsRouteWithChildren,
   AppCommandCenterRoute: AppCommandCenterRoute,
   AppContactsRoute: AppContactsRoute,
+  AppContextMemoryRoute: AppContextMemoryRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppGalaxyRoute: AppGalaxyRoute,
   AppIntegrationsRoute: AppIntegrationsRoute,

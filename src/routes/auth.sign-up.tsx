@@ -14,16 +14,17 @@ function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailUpdates, setEmailUpdates] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/onboarding`,
-        data: { full_name: fullName },
+        data: { full_name: fullName, email_updates: emailUpdates },
       },
     });
     setLoading(false);
@@ -31,8 +32,10 @@ function SignUp() {
       toast.error(error.message);
       return;
     }
-    toast.success("Account created");
-    navigate({ to: "/onboarding" });
+    toast.success(
+      data.session ? "Account created" : "Check your email to confirm your account, then sign in.",
+    );
+    navigate({ to: data.session ? "/onboarding" : "/auth/sign-in" });
   };
 
   return (
@@ -68,6 +71,14 @@ function SignUp() {
             className="h-11 bg-surface-2"
           />
         </Field>
+        <label className="flex items-start gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={emailUpdates}
+            onChange={(e) => setEmailUpdates(e.target.checked)}
+          />
+          Send me Bylda product updates and tips. Optional; unsubscribe anytime.
+        </label>
         <Button className="w-full h-11 mt-2" type="submit" disabled={loading}>
           {loading ? "Creating…" : "Create pilot workspace"}
         </Button>

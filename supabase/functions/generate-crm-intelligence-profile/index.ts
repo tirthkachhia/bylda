@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import { callPAL } from "../_shared/pal/index.ts";
+import { generateWorkerProfile } from "../_shared/crm-profile-worker.ts";
 import {
   SALES_VERTICAL_PROFILES,
   resolveSalesVertical,
@@ -176,7 +176,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
-  const [{ data: member }, { data: context }] = await Promise.all([
+  const [{ data: member, error: membershipError }, { data: context }] = await Promise.all([
     admin
       .from("organization_members")
       .select("role")
@@ -189,10 +189,20 @@ Deno.serve(async (req: Request) => {
       .eq("organization_id", organizationId)
       .maybeSingle(),
   ]);
-  if (!member) return json({ error: "Forbidden" }, 403);
+  if (membershipError) return json({ error: "Could not verify workspace access. Please retry." }, 503);
+  if (!member) return json({ error: "You are not a member of this workspace. Select your workspace and retry." }, 403);
   if (!["owner", "admin"].includes(String(member.role))) {
     return json({ error: "Only workspace owners and admins can change CRM intelligence" }, 403);
   }
+
+  const { error: profileStoreError } = await admin
+    .from("crm_intelligence_profiles")
+    .select("organization_id")
+    .eq("organization_id", organizationId)
+    .limit(1);
+  if (profileStoreError) return json({
+    error: "CRM setup storage is unavailable. An administrator must verify the crm_intelligence_profiles migration on the app's Supabase project. Your existing setup was not changed.",
+  }, 503);
 
   const identity =
     context?.identity && typeof context.identity === "object"
@@ -206,7 +216,7 @@ Deno.serve(async (req: Request) => {
   let raw: Record<string, unknown> = {};
   let generatedBy = "industry_template";
   try {
-    const result = await callPAL(
+    const result = await generateWorkerProfile(
       {
         systemPrompt: [
           "You design evidence-backed CRM extraction profiles for sales teams.",
@@ -267,18 +277,12 @@ Deno.serve(async (req: Request) => {
         },
         maxTokens: 1800,
       },
-      { ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") },
-      "starter",
-      "crm-profile-builder",
-      JSON.stringify(answers),
+      authorization,
     );
     raw = result.toolResult ?? {};
     generatedBy = result.model;
   } catch (error) {
-    console.warn(
-      "[generate-crm-intelligence-profile] AI unavailable; using industry template",
-      error instanceof Error ? error.message : error,
-    );
+    return json({ error: error instanceof Error ? error.message : "AI setup failed. Please retry." }, 502);
   }
 
   const requestedBase = text(raw.base_profile, 30) as SalesVerticalKey;

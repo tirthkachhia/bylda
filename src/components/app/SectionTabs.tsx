@@ -6,7 +6,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Users,
   Workflow,
-  Crosshair,
   TrendingUp,
   Activity,
   Hourglass,
@@ -48,7 +47,6 @@ export const SECTIONS = {
       { to: "/app/crm/calendar", label: "Calendar", icon: Calendar },
       { to: "/app/crm/tasks", label: "Tasks", icon: CheckSquare },
       { to: "/app/crm/forms", label: "Forms", icon: FileText },
-      { to: "/app/launchpad/first-customers", label: "First Customers", icon: Crosshair },
       { to: "/app/crm/waitlist", label: "Waitlist", icon: Hourglass, adminOnly: true },
     ],
   },

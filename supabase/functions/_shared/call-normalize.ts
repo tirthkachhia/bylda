@@ -13,6 +13,8 @@ export type NormalizedCall = {
   startedAt?: string;
   contactId?: string;
   leadId?: string;
+  externalContactId?: string;
+  externalLeadId?: string;
 };
 
 function first(source: Record<string, unknown>, keys: string[]) {
@@ -85,6 +87,10 @@ export function normalizeCall(raw: Record<string, unknown>): NormalizedCall {
     text(first(source, ["provider", "dialer", "source", "integration"])) ??
     text(raw.provider) ??
     "generic";
+  const rawContactId = text(first(source, ["contact_id", "contactId", "external_contact_id"]));
+  const rawLeadId = text(
+    first(source, ["lead_id", "leadId", "opportunity_id", "external_opportunity_id"]),
+  );
 
   return {
     provider: provider
@@ -149,7 +155,9 @@ export function normalizeCall(raw: Record<string, unknown>): NormalizedCall {
         "timestamp",
       ]),
     ),
-    contactId: uuid(text(first(source, ["contact_id", "contactId"]))),
-    leadId: uuid(text(first(source, ["lead_id", "leadId", "opportunity_id"]))),
+    contactId: uuid(rawContactId),
+    leadId: uuid(rawLeadId),
+    externalContactId: rawContactId && !uuid(rawContactId) ? rawContactId : undefined,
+    externalLeadId: rawLeadId && !uuid(rawLeadId) ? rawLeadId : undefined,
   };
 }
