@@ -7,7 +7,7 @@ import type { ParsedTurn } from "./transcript-parse.ts";
 
 import { renderGuidelines, type Guideline } from "./guidelines.ts";
 
-export const ANALYSIS_MAX_CHARS = 40_000;
+export const ANALYSIS_MAX_CHARS = 120_000;
 
 export type PlaybookForPrompt = { name: string; version: number; content: string };
 
@@ -48,8 +48,20 @@ export function renderTranscriptForAnalysis(
   const full = lines ? lines.join("\n") : fallbackText;
   let text = full;
   if (full.length > maxChars) {
-    const cut = full.lastIndexOf("\n", maxChars);
-    text = full.slice(0, cut > 0 ? cut : maxChars);
+    const marker =
+      "\n[Middle transcript omitted from this legacy extraction; use the complete behavioral analysis for full-call conclusions.]\n";
+    if (maxChars < marker.length + 80) {
+      const cut = full.lastIndexOf("\n", maxChars);
+      text = full.slice(0, cut > 0 ? cut : maxChars);
+    } else {
+      const half = Math.floor((maxChars - marker.length) / 2);
+      const head = full.lastIndexOf("\n", half);
+      const tail = full.indexOf("\n", full.length - half);
+      text =
+        full.slice(0, head > 0 ? head : half) +
+        marker +
+        full.slice(tail >= 0 ? tail + 1 : full.length - half);
+    }
   }
   return { text, usedTone: !!lines, truncated: text.length < full.length, totalChars: full.length };
 }
@@ -67,7 +79,7 @@ export function buildPlaybookBlock(
 ): string {
   if (!playbook || !playbook.content.trim()) return "";
   const parts = [
-    "SALES PLAYBOOK: the manager's description of the process this rep is expected to follow. Evaluate the rep's conduct against it and fill playbook_adherence for each guideline you can judge. Use it to decide what matters and how to phrase coaching. It changes judgments, never the output format, and it is never transcript evidence: every supporting quote still comes from the transcript.",
+    "SALES PLAYBOOK: the manager's description of the process this rep is expected to follow. Evaluate the rep's conduct against it and fill playbook_adherence for each guideline you can judge. Judge applicable process objectives, allowing effective adaptation and different wording or ordering. Do not equate deviation with poor selling or adherence with effectiveness. It changes execution judgments only, never the output format, and it is never transcript evidence: every supporting quote still comes from the transcript.",
     `<sales_playbook name="${playbook.name.replace(/"/g, "'")}" version="${playbook.version}">`,
     playbook.content.trim(),
     "</sales_playbook>",
@@ -94,7 +106,14 @@ export function buildCoachingSystemPrompt(
     .join("\n\n");
 }
 
-export const ADHERENCE_STATUSES = ["followed", "partial", "missed", "not_applicable"] as const;
+export const ADHERENCE_STATUSES = [
+  "followed",
+  "adapted",
+  "partial",
+  "missed",
+  "not_applicable",
+  "not_observable",
+] as const;
 export type AdherenceStatus = (typeof ADHERENCE_STATUSES)[number];
 
 /**
@@ -107,8 +126,8 @@ export function buildPlaybookAdherenceTool(codes: string[] = []) {
   return {
     type: "array",
     description: coded
-      ? "One entry per guideline code in GUIDELINES, every code judged, in code order. status: followed (clear evidence the rep did it), partial (attempted but incomplete), missed (expected at this point in the call and not done), not_applicable (the call never reached a point where it applied). followed/partial require a short verbatim transcript quote (under 25 words); missed/not_applicable leave evidence_quote empty. note: one short sentence for partial or missed; empty for followed and not_applicable. Keep this list terse."
-      : "One entry per playbook guideline you can judge from this call. status: followed (clear evidence the rep did it), partial (attempted but incomplete), missed (expected at this point in the call and not done), not_applicable (the call never reached a point where it applied). followed/partial require a verbatim transcript quote; missed/not_applicable may leave evidence_quote empty. note explains the judgment in one or two sentences.",
+      ? "One entry per guideline code in GUIDELINES, every code judged, in code order. status: followed (clear evidence the rep did it), adapted (the objective fulfilled using different wording, order or approach), not_observable (missing evidence prevents judgment), partial (attempted but incomplete), missed (expected at this point in the call and not done), not_applicable (the call never reached a point where it applied). followed/partial require a short verbatim transcript quote (under 25 words); missed/not_applicable leave evidence_quote empty. note: one short sentence for partial or missed; empty for followed and not_applicable. Keep this list terse."
+      : "One entry per playbook guideline you can judge from this call. status: followed (clear evidence the rep did it), adapted (the objective fulfilled using different wording, order or approach), not_observable (missing evidence prevents judgment), partial (attempted but incomplete), missed (expected at this point in the call and not done), not_applicable (the call never reached a point where it applied). followed/partial require a verbatim transcript quote; missed/not_applicable may leave evidence_quote empty. note explains the judgment in one or two sentences.",
     items: {
       type: "object",
       properties: {
@@ -132,7 +151,7 @@ export const playbookAdherenceTool = buildPlaybookAdherenceTool();
 export const coachingTool = {
   type: "object",
   description:
-    "Coaching for the rep, grounded in verbatim quotes. strengths: what to keep doing. improvements: what to change, each tied to a playbook guideline when one applies and to the tone labels where they matter. next_call_focus: the single most valuable thing to do differently on the next call.",
+    "Coaching for the rep, grounded in verbatim quotes. strengths: useful selling to repeat, including effective adaptations. improvements: specific observed actions to change, with buyer-response evidence. Script deviations alone are not weaknesses. Do not invent product, eligibility, approval, or legal promises. A reported outcome is not externally verified. next_call_focus: the single most valuable thing to do differently on the next call.",
   properties: {
     strengths: {
       type: "array",
@@ -391,7 +410,7 @@ export function normalizePlaybookAdherence(
     if (!guideline || !ADHERENCE_STATUSES.includes(status as AdherenceStatus)) continue;
     if (known) seenCodes.add(known.code);
     const quoteOk = quoteAppears(item.evidence_quote, transcriptText);
-    const needsQuote = status === "followed" || status === "partial";
+    const needsQuote = status === "followed" || status === "adapted" || status === "partial";
     if (needsQuote && !quoteOk) continue;
     out.push({
       code: known?.code ?? null,

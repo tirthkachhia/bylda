@@ -25,7 +25,9 @@ export type ReportCall = {
 export type ReportMoment = {
   call_id: string;
   exchange_index: number;
-  type: "temperature_drop" | "risk_flag" | "weak_move";
+  type: "temperature_drop" | "risk_flag" | "weak_move" | "behavior_observation";
+  behavior_family?: string;
+  valence?: "strength" | "concern" | "mixed" | "unobservable";
   score: number;
   low_confidence: boolean;
   start_s: number | null;
@@ -43,7 +45,7 @@ export type ReportMoment = {
 export type ReportAdherence = {
   call_id: string;
   guideline: string;
-  status: "followed" | "partial" | "missed" | "not_applicable";
+  status: "followed" | "adapted" | "partial" | "missed" | "not_applicable" | "not_observable";
   /** Canonical guideline id when judged against extracted guidelines. */
   guideline_id?: string | null;
 };
@@ -143,18 +145,27 @@ export function groupThemes(
   moments: ReportMoment[],
   limits: { themes: number; momentsPerTheme: number } = REPORT_LIMITS,
 ): ReportTheme[] {
-  const byKey = new Map<string, { theme: ReportTheme; calls: Set<string> }>();
+  const byKey = new Map<
+    string,
+    { theme: ReportTheme; calls: Set<string>; positive?: ReportMoment }
+  >();
   for (const m of rankMoments(moments)) {
-    if (!m.playbook_guideline || !m.rep_text) continue;
+    if (!m.rep_text) continue;
+    const themeLabel =
+      m.playbook_guideline || m.behavior_family || m.headline || "General sales behavior";
     // A canonical id groups exactly; text is the fallback for older rows.
-    const key = m.guideline_id ? `id:${m.guideline_id}` : guidelineKey(m.playbook_guideline);
+    const key = m.behavior_family
+      ? `behavior:${m.behavior_family}`
+      : m.guideline_id
+        ? `id:${m.guideline_id}`
+        : guidelineKey(themeLabel);
     let entry = byKey.get(key);
     if (!entry) {
       entry = {
         theme: {
-          guideline: m.playbook_guideline,
+          guideline: themeLabel,
           guideline_id: m.guideline_id ?? null,
-          source: m.guideline_source ?? "general",
+          source: m.playbook_guideline ? (m.guideline_source ?? "general") : "general",
           call_count: 0,
           moment_count: 0,
           moments: [],
@@ -163,6 +174,7 @@ export function groupThemes(
       };
       byKey.set(key, entry);
     }
+    if (m.valence === "strength" && !entry.positive) entry.positive = m;
     entry.theme.moment_count += 1;
     entry.calls.add(m.call_id);
     if (
@@ -173,13 +185,21 @@ export function groupThemes(
     }
   }
   return [...byKey.values()]
-    .map(({ theme, calls }) => ({ ...theme, call_count: calls.size }))
-    .sort(
-      (a, b) =>
-        b.call_count - a.call_count ||
-        b.moment_count - a.moment_count ||
-        Number(b.source === "playbook") - Number(a.source === "playbook"),
-    )
+    .map(({ theme, calls, positive }) => {
+      if (
+        positive &&
+        limits.momentsPerTheme > 0 &&
+        !theme.moments.some(
+          (m) => m.call_id === positive.call_id && m.exchange_index === positive.exchange_index,
+        )
+      ) {
+        if (theme.moments.length >= limits.momentsPerTheme)
+          theme.moments[theme.moments.length - 1] = toCitedMoment(positive);
+        else theme.moments.push(toCitedMoment(positive));
+      }
+      return { ...theme, call_count: calls.size };
+    })
+    .sort((a, b) => b.call_count - a.call_count || b.moment_count - a.moment_count)
     .slice(0, limits.themes);
 }
 
@@ -190,7 +210,12 @@ export function tallyAdherence(
 ): AdherenceTally[] {
   const byKey = new Map<string, AdherenceTally>();
   for (const item of items) {
-    if (item.status === "not_applicable" || !item.guideline.trim()) continue;
+    if (
+      item.status === "not_applicable" ||
+      item.status === "not_observable" ||
+      !item.guideline.trim()
+    )
+      continue;
     const key = item.guideline_id ? `id:${item.guideline_id}` : guidelineKey(item.guideline);
     const tally = byKey.get(key) ?? {
       guideline: item.guideline,
@@ -199,7 +224,7 @@ export function tallyAdherence(
       partial: 0,
       missed: 0,
     };
-    tally[item.status] += 1;
+    tally[item.status === "adapted" ? "followed" : item.status] += 1;
     byKey.set(key, tally);
   }
   return [...byKey.values()]

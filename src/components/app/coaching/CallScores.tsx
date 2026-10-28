@@ -91,9 +91,17 @@ export function CallScores({ callId }: { callId: string }) {
 
   return (
     <div className="space-y-5 p-5 sm:p-6">
-      <p className="text-[15px] font-medium leading-7 text-[#333943]">{verdict}</p>
+      <p className="text-sm text-neutral-600">
+        Per-exchange signals for source review. They do not establish selling effectiveness or
+        policy compliance.
+      </p>
 
-      <Gauges summary={summary} />
+      <details>
+        <summary className="cursor-pointer text-xs font-semibold">
+          Legacy scoring indicators (not an effectiveness verdict)
+        </summary>
+        <Gauges summary={summary} />
+      </details>
 
       {moments.length > 0 && (
         <section>
@@ -248,19 +256,23 @@ function Gauges({ summary }: { summary: ScoreSummary }) {
         }
         note={
           value === "high"
-            ? "A warm customer was lost or risk is high"
+            ? "Customer-state changes or review flags were detected"
             : value === "medium"
               ? "Some signal; review if time allows"
-              : "Little to learn from this call"
+              : "Few signals under the legacy selector"
         }
       />
       <Gauge
-        title="Execution"
-        value={<span className="text-[18px] font-bold">{execution}</span>}
+        title="Rep response indicator"
+        value={
+          <span className="text-[18px] font-bold">
+            {move === null ? "Unknown" : `${move.toFixed(1)} / 3`}
+          </span>
+        }
         note={moveNote}
       />
       <Gauge
-        title="Compliance risk"
+        title="Flagged exchanges"
         value={
           <span
             className={`text-[18px] font-bold ${risk >= 5 ? "text-[#9b1c1c]" : risk > 0 ? "text-[#8a5b00]" : "text-[#28764d]"}`}
@@ -270,8 +282,8 @@ function Gauges({ summary }: { summary: ScoreSummary }) {
         }
         note={
           risk === 0
-            ? "No claims, pressure, or sensitive data by voice"
-            : "Statements a reviewer would question"
+            ? "No exchange flags; this does not establish compliance"
+            : "Exchange flags may describe the same incident; policy review is separate"
         }
       />
     </div>

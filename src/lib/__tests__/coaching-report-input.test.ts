@@ -84,6 +84,7 @@ describe("groupThemes", () => {
     ).toEqual([
       ["Spend a minu", "playbook", 2, 3],
       ["Do not cite ", "general", 1, 1],
+      ["Quoted befor", "general", 1, 1],
     ]);
     expect(themes[0].moments.map((m) => [m.call_id, m.exchange_index, m.at])).toEqual([
       ["c1", 9, "01:05"],

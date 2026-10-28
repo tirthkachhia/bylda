@@ -45,6 +45,7 @@ function CallsPage() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [seekSeconds, setSeekSeconds] = useState<number | null>(null);
   const [tab, setTab] = useState<DetailTab>("summary");
   const [showUpload, setShowUpload] = useState(false);
   const [view, setView] = useState<PageView>("calls");
@@ -52,7 +53,7 @@ function CallsPage() {
   const rep = repsQ.data?.find((item) => item.id === repId) ?? null;
 
   const load = useCallback(
-    async (forRep: string | null) => {
+    async (forRep: string | null, includeCallId?: string | null) => {
       if (!currentOrgId || !forRep) {
         setCalls([]);
         setLoading(false);
@@ -73,6 +74,22 @@ function CallsPage() {
           .limit(100);
         if (error) throw error;
         const rawCalls = callRows ?? [];
+        if (includeCallId && !rawCalls.some((c: any) => c.id === includeCallId)) {
+          const { data: citedCall, error: citedError } = await db
+            .from("calls")
+            .select(
+              "id,rep_id,contact_id,lead_id,provider,direction,status,duration,disposition,started_at,created_at,metadata",
+            )
+            .eq("organization_id", currentOrgId)
+            .eq("rep_id", forRep)
+            .eq("id", includeCallId)
+            .maybeSingle();
+          if (citedError || !citedCall)
+            throw new Error(
+              "The cited call is unavailable for this rep. No other recording was opened.",
+            );
+          rawCalls.unshift(citedCall);
+        }
         const callIds = rawCalls.map((call: any) => call.id);
         const contactIds = rawCalls.map((call: any) => call.contact_id).filter(Boolean);
         const leadIds = rawCalls.map((call: any) => call.lead_id).filter(Boolean);
@@ -145,6 +162,7 @@ function CallsPage() {
             ? current
             : (hydrated[0]?.id ?? null),
         );
+        return true;
       } catch (error) {
         setLoadError(
           error instanceof Error ? error.message : "Could not load call data. Please retry.",
@@ -152,6 +170,7 @@ function CallsPage() {
         toast.error("Could not load call data", {
           description: error instanceof Error ? error.message : "Unknown error",
         });
+        return false;
       } finally {
         setLoading(false);
       }
@@ -160,6 +179,8 @@ function CallsPage() {
   );
 
   useEffect(() => {
+    setSeekSeconds(null);
+    setSelectedId(null);
     void load(repId);
   }, [load, repId]);
 
@@ -169,13 +190,14 @@ function CallsPage() {
     (call) =>
       call.coaching_stage === "queued" ||
       call.coaching_stage === "transcribing" ||
-      call.coaching_stage === "scoring",
+      call.coaching_stage === "scoring" ||
+      call.coaching_stage === "analyzing",
   );
   useEffect(() => {
     if (!inFlight || !repId) return;
-    const timer = setInterval(() => void load(repId), 10_000);
+    const timer = setInterval(() => void load(repId, selectedId), 10_000);
     return () => clearInterval(timer);
-  }, [inFlight, repId, load]);
+  }, [inFlight, repId, selectedId, load]);
 
   const visibleCalls = useMemo(
     () =>
@@ -186,7 +208,7 @@ function CallsPage() {
       ),
     [calls, search],
   );
-  const selected = visibleCalls.find((call) => call.id === selectedId) ?? visibleCalls[0] ?? null;
+  const selected = calls.find((call) => call.id === selectedId) ?? visibleCalls[0] ?? null;
   const reviewed = calls.filter((call) => call.insight).length;
 
   async function changePlaybook(value: string) {
@@ -204,7 +226,7 @@ function CallsPage() {
   // 10-second poll picks up the stage changes (scoring → transcribed → reviewed).
   async function reanalyze(callId: string) {
     await rescoreCall(callId);
-    await load(repId);
+    await load(repId, selectedId);
   }
 
   // Delete the call row (transcript, scores, moments, and insights cascade) and
@@ -285,7 +307,7 @@ function CallsPage() {
             {view === "calls" && (
               <>
                 <button
-                  onClick={() => void load(repId)}
+                  onClick={() => void load(repId, selectedId)}
                   disabled={loading || !repId}
                   className="flex h-10 items-center gap-2 rounded-full border border-black/[0.1] bg-by-surface-raised px-4 text-[11px] font-semibold disabled:opacity-50"
                 >
@@ -313,9 +335,12 @@ function CallsPage() {
             <RepReportPanel
               repId={rep.id}
               repName={rep.name}
-              onOpenCall={(callId) => {
+              onOpenCall={async (callId, seconds) => {
+                if (!calls.some((c) => c.id === callId) && !(await load(repId, callId))) return;
+                setSearch("");
+                setSeekSeconds(seconds ?? null);
                 setSelectedId(callId);
-                setTab("scores");
+                setTab(seconds === undefined || seconds === null ? "summary" : "transcript");
                 setView("calls");
               }}
             />
@@ -345,7 +370,7 @@ function CallsPage() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-[12px] text-by-text-secondary">
                 <p>
                   <span className="font-semibold text-by-text-primary">{rep.name}</span> ·{" "}
-                  {calls.length} {calls.length === 1 ? "call" : "calls"} · {reviewed} reviewed
+                  {calls.length} {calls.length === 1 ? "call" : "calls"} · {reviewed} analyzed
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.12em]">
@@ -396,7 +421,10 @@ function CallsPage() {
                 className="mb-4 rounded-by-card border border-red-200 bg-red-50 p-4 text-sm text-red-800"
               >
                 Could not load this rep’s calls. {loadError}{" "}
-                <button onClick={() => void load(repId)} className="ml-2 font-semibold underline">
+                <button
+                  onClick={() => void load(repId, selectedId)}
+                  className="ml-2 font-semibold underline"
+                >
                   Retry
                 </button>
               </div>
@@ -438,13 +466,18 @@ function CallsPage() {
                 <CallList
                   calls={visibleCalls}
                   selectedId={selected?.id ?? null}
-                  onSelect={setSelectedId}
+                  onSelect={(id) => {
+                    setSeekSeconds(null);
+                    setSelectedId(id);
+                  }}
                   search={search}
                   onSearch={setSearch}
                 />
                 {selected && (
                   <CallDetail
+                    key={selected.id}
                     call={selected}
+                    seekSeconds={seekSeconds}
                     tab={tab}
                     onTab={setTab}
                     onReanalyze={reanalyze}

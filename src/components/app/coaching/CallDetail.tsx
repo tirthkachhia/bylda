@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { BookOpen, Clock3, FileText, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { conductMetrics } from "../../../../supabase/functions/_shared/observable-conduct";
@@ -10,6 +10,9 @@ import {
   type CoachingCall,
 } from "@/lib/coaching/calls";
 import { CallScores } from "./CallScores";
+import { BehaviorInsights } from "./BehaviorInsights";
+import { CallRecording } from "./CallRecording";
+import { secondsFromCitation, type BehaviorAnalysis } from "@/lib/coaching/behavior";
 
 export type DetailTab = "summary" | "scores" | "transcript";
 
@@ -35,7 +38,7 @@ type ConductObservation = {
 type AdherenceItem = {
   code?: string | null;
   guideline: string;
-  status: "followed" | "partial" | "missed" | "not_applicable";
+  status: "followed" | "adapted" | "partial" | "missed" | "not_applicable" | "not_observable";
   evidence_quote: string;
   note: string;
 };
@@ -44,12 +47,16 @@ type CoachingPoint = { point: string; evidence_quote: string; playbook_guideline
 
 const ADHERENCE_CLASS: Record<AdherenceItem["status"], string> = {
   followed: "bg-[#dff1e7] text-[#28764d]",
+  adapted: "bg-[#dff1e7] text-[#28764d]",
+  not_observable: "bg-[#ececea] text-[#5f656d]",
   partial: "bg-[#fdf1d6] text-[#8a5b00]",
   missed: "bg-[#fde2e2] text-[#9b1c1c]",
   not_applicable: "bg-[#ececea] text-[#5f656d]",
 };
 const ADHERENCE_LABEL: Record<AdherenceItem["status"], string> = {
   followed: "Followed",
+  adapted: "Adapted",
+  not_observable: "Unknown",
   partial: "Partial",
   missed: "Missed",
   not_applicable: "N/A",
@@ -62,13 +69,33 @@ export function CallDetail({
   onTab,
   onReanalyze,
   onDelete,
+  seekSeconds = null,
 }: {
   call: CoachingCall;
   tab: DetailTab;
+  seekSeconds?: number | null;
   onTab: (tab: DetailTab) => void;
   onReanalyze?: (callId: string) => Promise<void>;
   onDelete?: (callId: string) => Promise<void>;
 }) {
+  const [localSeek, setLocalSeek] = useState<number | null>(seekSeconds);
+  useEffect(() => {
+    setLocalSeek(seekSeconds);
+  }, [seekSeconds, call.id]);
+  const seek = (seconds: number) => {
+    setLocalSeek(seconds);
+    onTab("transcript");
+  };
+  useEffect(() => {
+    if (tab !== "transcript" || localSeek === null) return;
+    const timer = requestAnimationFrame(() => {
+      const elements = [...document.querySelectorAll<HTMLElement>("[data-call-time]")];
+      const closest =
+        elements.filter((e) => Number(e.dataset.callTime) <= localSeek).at(-1) ?? elements[0];
+      closest?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(timer);
+  }, [tab, localSeek, call.id]);
   const [deleting, setDeleting] = useState(false);
   async function remove() {
     if (!onDelete || deleting) return;
@@ -117,6 +144,12 @@ export function CallDetail({
 
   return (
     <main className="min-w-0 space-y-4">
+      {call.coaching_stage === "analysis_failed" && (
+        <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+          The latest analysis did not complete. Previous results are preserved; use Re-analyze to
+          retry.
+        </p>
+      )}
       <section className="overflow-hidden rounded-by-card border border-black/[0.09] bg-by-surface-raised">
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex items-center gap-4">
@@ -166,6 +199,7 @@ export function CallDetail({
           </div>
         </div>
       </section>
+      <CallRecording key={call.id} path={call.audio_path} seekSeconds={localSeek} />
       <section className="overflow-hidden rounded-by-card border border-black/[0.09] bg-by-surface-raised">
         <div className="flex items-center justify-between border-b border-black/[0.08] px-5">
           <div className="flex h-[58px] items-end gap-6">
@@ -191,11 +225,18 @@ export function CallDetail({
               </p>
             ) : (
               <>
-                {call.insight.summary && (
+                {vertical.behavior_analysis && (
+                  <BehaviorInsights
+                    analysis={vertical.behavior_analysis as BehaviorAnalysis}
+                    runId={vertical.behavior_analysis.run_id}
+                    onSeek={seek}
+                  />
+                )}
+                {!vertical.behavior_analysis && call.insight.summary && (
                   <p className="text-[14px] leading-7 text-[#333943]">{call.insight.summary}</p>
                 )}
 
-                {coaching.next_call_focus && (
+                {!vertical.behavior_analysis && coaching.next_call_focus && (
                   <div className="rounded-by-card bg-[#e9eef6] px-4 py-3">
                     <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#4774b5]">
                       Next call
@@ -207,7 +248,10 @@ export function CallDetail({
                 )}
 
                 {(playbook || adherence.length > 0) && (
-                  <section>
+                  <details>
+                    <summary className="cursor-pointer text-xs font-semibold">
+                      Playbook execution details
+                    </summary>
                     <SectionTitle icon={<BookOpen className="h-3.5 w-3.5 text-[#3275d8]" />}>
                       Playbook{playbook ? ` · ${playbook.name} v${playbook.version}` : ""}
                     </SectionTitle>
@@ -239,14 +283,26 @@ export function CallDetail({
                         ))}
                       </ul>
                     )}
-                  </section>
+                  </details>
                 )}
 
                 {((coaching.strengths?.length ?? 0) > 0 ||
                   (coaching.improvements?.length ?? 0) > 0) && (
                   <div className="grid gap-5 md:grid-cols-2">
-                    <CoachingList title="Keep doing" tone="good" items={coaching.strengths ?? []} />
-                    <CoachingList title="Work on" tone="fix" items={coaching.improvements ?? []} />
+                    {!vertical.behavior_analysis && (
+                      <CoachingList
+                        title="Keep doing"
+                        tone="good"
+                        items={coaching.strengths ?? []}
+                      />
+                    )}
+                    {!vertical.behavior_analysis && (
+                      <CoachingList
+                        title="Work on"
+                        tone="fix"
+                        items={coaching.improvements ?? []}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -288,7 +344,7 @@ export function CallDetail({
                   AI-generated from the transcript{coverage.used_tone ? " and audio tone" : ""}.
                   Quotes are verbatim.
                   {coverage.partial
-                    ? ` Partial: first ${Number(coverage.analyzed_characters ?? 0).toLocaleString()} of ${Number(coverage.total_characters ?? 0).toLocaleString()} characters.`
+                    ? ` Partial legacy extraction: ${Number(coverage.analyzed_characters ?? 0).toLocaleString()} of ${Number(coverage.total_characters ?? 0).toLocaleString()} characters.`
                     : ""}
                 </p>
               </>
@@ -305,9 +361,19 @@ export function CallDetail({
             {transcript.map((line) => (
               <div
                 key={line.key}
+                data-call-time={secondsFromCitation(line.time) ?? undefined}
                 className="grid grid-cols-[35px_minmax(0,1fr)] gap-3 px-5 py-5 text-[12px] leading-6 sm:grid-cols-[50px_140px_minmax(0,1fr)]"
               >
-                <span className="font-mono text-[9px] text-[#969ba2]">{line.time}</span>
+                <button
+                  type="button"
+                  className="font-mono text-[9px] text-blue-700"
+                  onClick={() => {
+                    const seconds = secondsFromCitation(line.time);
+                    if (seconds !== null) seek(seconds);
+                  }}
+                >
+                  {line.time}
+                </button>
                 <span className="font-semibold text-[#474d55]">
                   {line.speaker}
                   {line.tone && (

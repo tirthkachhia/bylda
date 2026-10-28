@@ -1,4 +1,9 @@
-import type { CrmSnapshot, CanonicalCompany, CanonicalContact, CanonicalDeal } from "./context-crm-ingest.ts";
+import type {
+  CrmSnapshot,
+  CanonicalCompany,
+  CanonicalContact,
+  CanonicalDeal,
+} from "./context-crm-ingest.ts";
 import { estimateTokens, splitContextText } from "./context-package.ts";
 import type { StoredOAuth } from "./integration-credentials.ts";
 
@@ -8,9 +13,7 @@ const MAX_PAGES = 5;
 type JsonRecord = Record<string, unknown>;
 
 function record(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 function text(value: unknown): string | null {
@@ -180,14 +183,15 @@ export function mapCloseLead(row: unknown): {
   const item = record(row);
   const id = text(item.id);
   const name = text(item.display_name) ?? text(item.name);
-  const company = id && name
-    ? {
-        externalId: id,
-        name,
-        website: text(item.url),
-        payload: item,
-      }
-    : null;
+  const company =
+    id && name
+      ? {
+          externalId: id,
+          name,
+          website: text(item.url),
+          payload: item,
+        }
+      : null;
   const contacts = (Array.isArray(item.contacts) ? item.contacts : [])
     .map((contactRow) => {
       const contact = record(contactRow);
@@ -208,7 +212,7 @@ export function mapCloseLead(row: unknown): {
         payload: contact,
       } satisfies CanonicalContact;
     })
-    .filter((contact): contact is CanonicalContact => Boolean(contact));
+    .filter((contact): contact is NonNullable<typeof contact> => contact !== null);
   return { company, contacts };
 }
 
@@ -220,11 +224,12 @@ export function mapCloseOpportunity(row: unknown): CanonicalDeal | null {
     externalId: id,
     name: text(item.lead_name) ?? text(item.note) ?? text(item.status_label) ?? "Close opportunity",
     value: numberValue(item.value) != null ? Number(item.value) / 100 : null,
-    stage: text(item.status_type) === "won"
-      ? "Won"
-      : text(item.status_type) === "lost"
-        ? "Lost"
-        : text(item.status_label),
+    stage:
+      text(item.status_type) === "won"
+        ? "Won"
+        : text(item.status_type) === "lost"
+          ? "Lost"
+          : text(item.status_label),
     source: "Close",
     externalContactId: text(item.contact_id),
     externalCompanyId: text(item.lead_id),
@@ -273,7 +278,12 @@ export function mapPipedriveDeal(row: unknown): CanonicalDeal | null {
     externalId: id,
     name: text(item.title) ?? "Pipedrive deal",
     value: numberValue(item.value),
-    stage: text(item.status) === "won" ? "Won" : text(item.status) === "lost" ? "Lost" : text(item.stage_id),
+    stage:
+      text(item.status) === "won"
+        ? "Won"
+        : text(item.status) === "lost"
+          ? "Lost"
+          : text(item.stage_id),
     source: "Pipedrive",
     companyName: text(item.org_name),
     externalContactId: text(item.person_id) ?? text(record(item.person_id).value),
@@ -319,9 +329,7 @@ export function mapGoHighLevelConversationContact(row: unknown): CanonicalContac
   };
 }
 
-export function mapGoHighLevelOpportunity(
-  row: unknown,
-): CanonicalDeal | null {
+export function mapGoHighLevelOpportunity(row: unknown): CanonicalDeal | null {
   const item = record(row);
   const id = text(item.id);
   if (!id) return null;
@@ -417,12 +425,7 @@ async function hubspotList(objectType: string, properties: string[], token: stri
   return results;
 }
 
-async function hubspotAssociations(
-  fromType: string,
-  toType: string,
-  ids: string[],
-  token: string,
-) {
+async function hubspotAssociations(fromType: string, toType: string, ids: string[], token: string) {
   const links = new Map<string, string>();
   if (!ids.length) return links;
   const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
@@ -460,17 +463,27 @@ export async function fetchHubSpotSnapshot(oauth: StoredOAuth): Promise<CrmSnaps
       ["firstname", "lastname", "email", "phone", "company", "associatedcompanyid"],
       oauth.accessToken,
     ),
-    hubspotList("deals", ["dealname", "amount", "dealstage", "pipeline", "closedate"], oauth.accessToken),
+    hubspotList(
+      "deals",
+      ["dealname", "amount", "dealstage", "pipeline", "closedate"],
+      oauth.accessToken,
+    ),
   ]);
-  const contactIds = contacts.map((row) => text(record(row).id)).filter((id): id is string => Boolean(id));
-  const dealIds = deals.map((row) => text(record(row).id)).filter((id): id is string => Boolean(id));
+  const contactIds = contacts
+    .map((row) => text(record(row).id))
+    .filter((id): id is string => Boolean(id));
+  const dealIds = deals
+    .map((row) => text(record(row).id))
+    .filter((id): id is string => Boolean(id));
   const [contactCompanies, dealContacts, dealCompanies] = await Promise.all([
     hubspotAssociations("contacts", "companies", contactIds, oauth.accessToken),
     hubspotAssociations("deals", "contacts", dealIds, oauth.accessToken),
     hubspotAssociations("deals", "companies", dealIds, oauth.accessToken),
   ]);
   return {
-    companies: companies.map(mapHubSpotCompany).filter((row): row is CanonicalCompany => Boolean(row)),
+    companies: companies
+      .map(mapHubSpotCompany)
+      .filter((row): row is CanonicalCompany => Boolean(row)),
     contacts: contacts
       .map((row) => mapHubSpotContact(row, contactCompanies))
       .filter((row): row is CanonicalContact => Boolean(row)),
@@ -478,8 +491,8 @@ export async function fetchHubSpotSnapshot(oauth: StoredOAuth): Promise<CrmSnaps
       .map((row) => {
         const id = text(record(row).id);
         return mapHubSpotDeal(row, {
-          contactId: id ? dealContacts.get(id) ?? null : null,
-          companyId: id ? dealCompanies.get(id) ?? null : null,
+          contactId: id ? (dealContacts.get(id) ?? null) : null,
+          companyId: id ? (dealCompanies.get(id) ?? null) : null,
         });
       })
       .filter((row): row is CanonicalDeal => Boolean(row)),
@@ -525,15 +538,25 @@ export async function fetchSalesforceSnapshot(oauth: StoredOAuth): Promise<CrmSn
     const item = record(role);
     const opportunityId = text(item.OpportunityId);
     const contactId = text(item.ContactId);
-    if (opportunityId && contactId && (item.IsPrimary === true || !contactByOpportunity.has(opportunityId))) {
+    if (
+      opportunityId &&
+      contactId &&
+      (item.IsPrimary === true || !contactByOpportunity.has(opportunityId))
+    ) {
       contactByOpportunity.set(opportunityId, contactId);
     }
   }
   return {
-    companies: accounts.map(mapSalesforceAccount).filter((row): row is CanonicalCompany => Boolean(row)),
-    contacts: contacts.map(mapSalesforceContact).filter((row): row is CanonicalContact => Boolean(row)),
+    companies: accounts
+      .map(mapSalesforceAccount)
+      .filter((row): row is CanonicalCompany => Boolean(row)),
+    contacts: contacts
+      .map(mapSalesforceContact)
+      .filter((row): row is CanonicalContact => Boolean(row)),
     deals: opportunities
-      .map((row) => mapSalesforceOpportunity(row, contactByOpportunity.get(String(record(row).Id)) ?? null))
+      .map((row) =>
+        mapSalesforceOpportunity(row, contactByOpportunity.get(String(record(row).Id)) ?? null),
+      )
       .filter((row): row is CanonicalDeal => Boolean(row)),
   };
 }
@@ -543,10 +566,10 @@ async function closeList(path: string, token: string) {
   let skip = 0;
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const payload = record(
-      await getJson(
-        `https://api.close.com/api/v1/${path}/?_limit=${PAGE_LIMIT}&_skip=${skip}`,
-        { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      ),
+      await getJson(`https://api.close.com/api/v1/${path}/?_limit=${PAGE_LIMIT}&_skip=${skip}`, {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      }),
     );
     const rows = Array.isArray(payload.data) ? payload.data : [];
     results.push(...rows);
@@ -571,7 +594,9 @@ export async function fetchCloseSnapshot(oauth: StoredOAuth): Promise<CrmSnapsho
   return {
     companies,
     contacts,
-    deals: opportunities.map(mapCloseOpportunity).filter((row): row is CanonicalDeal => Boolean(row)),
+    deals: opportunities
+      .map(mapCloseOpportunity)
+      .filter((row): row is CanonicalDeal => Boolean(row)),
   };
 }
 
@@ -581,10 +606,10 @@ async function pipedriveList(apiDomain: string, path: string, token: string) {
   let start = 0;
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const payload = record(
-      await getJson(
-        `${base}/api/v1/${path}?start=${start}&limit=${PAGE_LIMIT}`,
-        { Authorization: `Bearer ${token}`, Accept: "application/json" },
-      ),
+      await getJson(`${base}/api/v1/${path}?start=${start}&limit=${PAGE_LIMIT}`, {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      }),
     );
     const rows = Array.isArray(payload.data) ? payload.data : [];
     results.push(...rows);
@@ -603,8 +628,12 @@ export async function fetchPipedriveSnapshot(oauth: StoredOAuth): Promise<CrmSna
     pipedriveList(apiDomain, "deals", oauth.accessToken),
   ]);
   return {
-    companies: orgs.map(mapPipedriveOrganization).filter((row): row is CanonicalCompany => Boolean(row)),
-    contacts: persons.map(mapPipedrivePerson).filter((row): row is CanonicalContact => Boolean(row)),
+    companies: orgs
+      .map(mapPipedriveOrganization)
+      .filter((row): row is CanonicalCompany => Boolean(row)),
+    contacts: persons
+      .map(mapPipedrivePerson)
+      .filter((row): row is CanonicalContact => Boolean(row)),
     deals: deals.map(mapPipedriveDeal).filter((row): row is CanonicalDeal => Boolean(row)),
   };
 }

@@ -52,7 +52,7 @@ export function buildReportSystemPrompt(
     "Rules:",
     "- Be succinct. The whole note is read in under two minutes. Plain language, no filler, no praise sandwiches.",
     "- Every pattern must cite moments from the MOMENTS list by call_id and exchange_index. You may not invent moments, quotes, or numbers. Cite only what is listed.",
-    "- A pattern is something seen across calls or clearly costly. Prefer patterns tied to a playbook guideline. Say what the rep did, what it cost, and give one concrete line the rep could have said instead, in the rep's voice, ready to say on the next call.",
+    "- A pattern is something seen across calls or clearly costly. General sales behavior and successful adaptation matter independently of playbook execution. A guideline link is optional. Do not equate a deviation with a weakness or adherence with effectiveness. Say what the rep did, what it cost, and give one concrete line the rep could have said instead, in the rep's voice, ready to say on the next call.",
     "- The drill is one thing to practice this week, stated as the exact line to practice, and tied to one guideline code when a checklist is given. If SINCE LAST REPORT shows the last drill was not yet followed on most calls, keep it as the drill rather than moving on.",
     "- SINCE LAST REPORT facts are computed from the data; quote them as given and never recompute or round them.",
     "- If the material is thin, return fewer patterns rather than padding.",
@@ -64,7 +64,7 @@ export function buildReportSystemPrompt(
       `<sales_playbook name="${playbook.name.replace(/"/g, "'")}" version="${playbook.version}">`,
       playbook.content.trim(),
       "</sales_playbook>",
-      "The playbook is the standard the rep is coached against. Ground guidelines and say-instead lines in it where it applies.",
+      "Use this version only to judge applicable process objectives. General effectiveness is independent of execution. Do not invent product, coverage, eligibility or approval promises in coaching lines. Outcomes reported by the rep are not externally verified.",
     );
   }
   return parts.join("\n");
@@ -99,13 +99,13 @@ export function renderReportInput(
     "",
     "PERIOD STATS",
     `- Calls scored: ${c.total} (${c.high_value} worth reviewing)`,
-    `- Average execution score: ${fmt(c.avg_quality, "/100")}`,
+    "- Composite scores are not an effectiveness verdict; use source-linked behavior and buyer responses.",
     `- Average rep move (0 pushed past … 3 advanced and asked): ${fmt(c.avg_rep_move)}`,
-    `- Risky statements flagged: ${c.risk_flags}`,
-    `- Warm customers lost (temperature peaked warm+ then fell): ${c.lost_warm_customers}`,
+    `- Legacy exchange flags (may repeat one incident; not verified violations): ${c.risk_flags}`,
+    `- Legacy temperature declines (not verified lost sales): ${c.lost_warm_customers}`,
     "",
     input.themes.length
-      ? `MOMENTS (cite by call_id and exchange_index; zero-based, do not renumber)\n${input.themes.map(renderTheme).join("\n")}`
+      ? `MOMENTS (cite by call_id and exchange_index; use the exact keys, do not renumber; negative keys identify source-linked behavior moments)\n${input.themes.map(renderTheme).join("\n")}`
       : "MOMENTS: none explained yet.",
   ];
   if (input.adherence.length) {

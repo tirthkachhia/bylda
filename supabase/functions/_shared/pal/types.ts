@@ -26,6 +26,7 @@ export interface PALCallOptions {
   messages?: PALMessage[];
   tool?: ToolSchema;
   maxTokens?: number;
+  timeoutMs?: number;
   /** Override the auto-selected model. */
   model?: string;
 }
