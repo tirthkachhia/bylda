@@ -13,11 +13,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { blockIfGuest } from "@/lib/guest";
-import {
-  getCallIngestUrl,
-  saveIntegration,
-  startIntegrationOAuth,
-} from "@/lib/queries";
+import { getCallIngestUrl, saveIntegration, startIntegrationOAuth } from "@/lib/queries";
 
 const RM_STEPS = [
   "Enable Automation → Integration Features",
@@ -42,14 +38,11 @@ export function ConnectSources({
 
   const ingest = useQuery({
     queryKey: ["call-ingest-url"],
-    queryFn: getCallIngestUrl,
+    queryFn: () => getCallIngestUrl(),
     staleTime: 5 * 60_000,
   });
 
-  const rmProgress = useMemo(
-    () => RM_STEPS.filter((_, index) => rmDone[index]).length,
-    [rmDone],
-  );
+  const rmProgress = useMemo(() => RM_STEPS.filter((_, index) => rmDone[index]).length, [rmDone]);
 
   const copyUrl = async () => {
     const url = ingest.data?.url;
@@ -153,7 +146,10 @@ export function ConnectSources({
               Drop a webhook. Completed calls, recordings, and recaps land on the brief.
             </p>
             {open === "readymode" && (
-              <div className="relative z-10 mt-6 space-y-4" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="relative z-10 mt-6 space-y-4"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <div className="flex items-center gap-2 text-[12px] text-[#8bb5f5]">
                   <ShieldCheck className="h-4 w-4" /> Org-specific URL. Treat it like a password.
                 </div>
@@ -196,7 +192,9 @@ export function ConnectSources({
                       <button
                         key={step}
                         type="button"
-                        onClick={() => setRmDone((current) => ({ ...current, [index]: !current[index] }))}
+                        onClick={() =>
+                          setRmDone((current) => ({ ...current, [index]: !current[index] }))
+                        }
                         className="flex w-full items-start gap-2 rounded-xl px-2 py-1.5 text-left text-[12px] text-[#c5cedb] hover:bg-white/5"
                       >
                         <span
@@ -250,7 +248,10 @@ export function ConnectSources({
               Pull contacts and opportunities in. The brief reads the CRM, it doesn’t replace it.
             </p>
             {open === "gohighlevel" && (
-              <div className="relative z-10 mt-6 space-y-3" onClick={(event) => event.stopPropagation()}>
+              <div
+                className="relative z-10 mt-6 space-y-3"
+                onClick={(event) => event.stopPropagation()}
+              >
                 <button
                   type="button"
                   disabled={busy !== null}

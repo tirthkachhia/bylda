@@ -22,7 +22,8 @@ const DEMO_DEALS: OperatorDeal[] = [
     company: "Acme Corp",
     stage: "Proposal",
     value: 82000,
-    notes: "Sarah likes the product. Pricing is still the blocker. VP of Finance not on a call yet.",
+    notes:
+      "Sarah likes the product. Pricing is still the blocker. VP of Finance not on a call yet.",
     updatedAt: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
     live: false,
     externalSource: "gohighlevel",
@@ -189,12 +190,14 @@ export function useOperatorData(orgId: string | null, userId?: string | null) {
       if (!orgId) return DEMO_DEALS;
       const { data, error } = await supabase
         .from("leads")
-        .select("id,name,company,stage,value,notes,email,source,external_source,updated_at,created_at")
+        .select(
+          "id,name,company,stage,value,notes,email,source,external_source,updated_at,created_at",
+        )
         .eq("organization_id", orgId)
         .order("updated_at", { ascending: false })
         .limit(80);
       if (error) throw error;
-      return (data ?? []).map((row) => asDeal(row as Record<string, unknown>));
+      return (data ?? []).map((row) => asDeal(row as unknown as Record<string, unknown>));
     },
   });
 
@@ -225,7 +228,10 @@ export function useOperatorData(orgId: string | null, userId?: string | null) {
             .select("call_id,transcript_text")
             .in("call_id", callIds)
             .order("created_at", { ascending: false }),
-          db.from("contacts").select("id,first_name,last_name,company").eq("organization_id", orgId),
+          db
+            .from("contacts")
+            .select("id,first_name,last_name,company")
+            .eq("organization_id", orgId),
           supabase.from("leads").select("id,name,company").eq("organization_id", orgId),
         ]);
       const insightByCall = new Map(
@@ -262,9 +268,7 @@ export function useOperatorData(orgId: string | null, userId?: string | null) {
           duration: typeof call.duration === "number" ? call.duration : null,
           startedAt: typeof call.started_at === "string" ? call.started_at : null,
           summary: typeof insight?.summary === "string" ? insight.summary : null,
-          objections: Array.isArray(insight?.objections)
-            ? insight.objections.map(String)
-            : [],
+          objections: Array.isArray(insight?.objections) ? insight.objections.map(String) : [],
           nextSteps: Array.isArray(insight?.next_steps_extracted)
             ? insight.next_steps_extracted.map(String)
             : [],
@@ -348,9 +352,15 @@ export function useOperatorData(orgId: string | null, userId?: string | null) {
         .from("user_integrations_masked")
         .select("integration_key,is_connected,status")
         .eq("user_id", userId);
-      const rows = (data ?? []) as { integration_key: string; is_connected?: boolean; status?: string }[];
+      const rows = (data ?? []) as {
+        integration_key: string;
+        is_connected?: boolean;
+        status?: string;
+      }[];
       const connected = (key: string) =>
-        rows.some((row) => row.integration_key === key && (row.is_connected || row.status === "connected"));
+        rows.some(
+          (row) => row.integration_key === key && (row.is_connected || row.status === "connected"),
+        );
       return {
         readymode: connected("readymode"),
         gohighlevel: connected("gohighlevel"),
@@ -409,7 +419,8 @@ export function useOperatorData(orgId: string | null, userId?: string | null) {
           : "GoHighLevel is connected. Nothing new to import yet.",
       );
     } catch (error) {
-      if (!quiet) toast.error(error instanceof Error ? error.message : "Couldn’t sync GoHighLevel.");
+      if (!quiet)
+        toast.error(error instanceof Error ? error.message : "Couldn’t sync GoHighLevel.");
     }
   }
 
@@ -472,6 +483,7 @@ export function useOperatorData(orgId: string | null, userId?: string | null) {
     approveWriteback,
     syncGoHighLevelPipeline,
     refreshLive,
-    refreshProfile: () => queryClient.invalidateQueries({ queryKey: ["canvas-crm-profile", orgId] }),
+    refreshProfile: () =>
+      queryClient.invalidateQueries({ queryKey: ["canvas-crm-profile", orgId] }),
   };
 }

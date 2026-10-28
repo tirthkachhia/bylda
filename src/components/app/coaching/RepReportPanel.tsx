@@ -7,6 +7,8 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, FileText, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { secondsFromCitation } from "@/lib/coaching/behavior";
+import { BehaviorManagerBrief } from "./BehaviorManagerBrief";
 import { generateRepReport, markReportDelivered, repReportsQuery } from "@/lib/queries";
 import type {
   GuidelineTrend,
@@ -36,7 +38,7 @@ export function RepReportPanel({
 }: {
   repId: string;
   repName: string;
-  onOpenCall: (callId: string) => void;
+  onOpenCall: (callId: string, seconds?: number | null) => void;
 }) {
   const qc = useQueryClient();
   const reportsQ = useQuery(repReportsQuery(repId));
@@ -73,6 +75,9 @@ export function RepReportPanel({
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="lg:col-span-2">
+        <BehaviorManagerBrief repId={repId} onOpenCall={onOpenCall} />
+      </div>
       <section className="rounded-by-card border border-black/[0.09] bg-by-surface-raised p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -123,8 +128,8 @@ export function RepReportPanel({
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {selected.delivered_at
-                  ? `Delivered ${formatDate(selected.delivered_at)}`
-                  : "Mark as delivered"}
+                  ? `Conversation marked ${formatDate(selected.delivered_at)}`
+                  : "Mark conversation held"}
               </button>
             </div>
             <ReportPage report={selected.report} onOpenCall={onOpenCall} />
@@ -172,7 +177,7 @@ function ReportPage({
   onOpenCall,
 }: {
   report: RepReport;
-  onOpenCall: (callId: string) => void;
+  onOpenCall: (callId: string, seconds?: number | null) => void;
 }) {
   return (
     <div className="mt-5 space-y-6">
@@ -300,7 +305,7 @@ function CallStrip({
   onOpenCall,
 }: {
   strip: StripRow[];
-  onOpenCall: (callId: string) => void;
+  onOpenCall: (callId: string, seconds?: number | null) => void;
 }) {
   const hasDrill = strip.some((s) => s.drill_status);
   return (
@@ -313,8 +318,7 @@ function CallStrip({
           <thead className="text-left text-[10px] uppercase tracking-[0.08em] text-neutral-500">
             <tr>
               <th className="py-1 pr-3 font-semibold">Call</th>
-              <th className="py-1 pr-3 font-semibold">Execution</th>
-              <th className="py-1 pr-3 font-semibold">Risky</th>
+              <th className="py-1 pr-3 font-semibold">Flagged exchanges</th>
               <th className="py-1 pr-3 font-semibold">Review</th>
               {hasDrill && <th className="py-1 font-semibold">Drill</th>}
             </tr>
@@ -330,7 +334,6 @@ function CallStrip({
                     {s.started_at ? formatDate(s.started_at) : "Open"}
                   </button>
                 </td>
-                <td className="py-1.5 pr-3 tabular-nums">{s.quality_score}</td>
                 <td className="py-1.5 pr-3 tabular-nums">{s.risk_count}</td>
                 <td className="py-1.5 pr-3 capitalize">{s.coaching_value_label}</td>
                 {hasDrill && (
@@ -352,7 +355,7 @@ function Citations({
   onOpenCall,
 }: {
   cited: ReportCitation[];
-  onOpenCall: (callId: string) => void;
+  onOpenCall: (callId: string, seconds?: number | null) => void;
 }) {
   if (!cited.length) return null;
   return (
@@ -363,7 +366,7 @@ function Citations({
           className="rounded-by-card bg-black/[0.03] px-3 py-2 text-[12px] leading-5"
         >
           <button
-            onClick={() => onOpenCall(c.call_id)}
+            onClick={() => onOpenCall(c.call_id, secondsFromCitation(c.at))}
             className="font-mono text-[11px] font-semibold text-[#4774b5] hover:underline"
           >
             Open call at {c.at}

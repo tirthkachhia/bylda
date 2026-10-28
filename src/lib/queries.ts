@@ -1228,7 +1228,10 @@ export async function applyTemplate(orgId: string, templateSlug: string): Promis
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 export type ApprovalRequestType =
-  "content_publish" | "automation_change" | "budget_spend" | "client_communication";
+  | "content_publish"
+  | "automation_change"
+  | "budget_spend"
+  | "client_communication";
 
 export interface ApprovalRequest {
   id: string;
@@ -1973,9 +1976,13 @@ export async function deleteCall(
 export async function markReportDelivered(reportId: string, delivered: boolean) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
-  const { error } = await db
+  const { data, error } = await db
     .from("coaching_reports")
     .update({ delivered_at: delivered ? new Date().toISOString() : null })
-    .eq("id", reportId);
+    .eq("id", reportId)
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+  if (!data)
+    throw new Error("Only an authorized manager can mark this coaching conversation held.");
 }

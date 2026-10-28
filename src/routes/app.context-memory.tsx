@@ -283,11 +283,9 @@ function ContextMemoryBetaPage() {
           .eq("organization_id", currentOrgId),
         invokeFunction<{ configured: boolean; call_url?: string }>("get-inbound-url", {
           org_id: currentOrgId,
-        }).catch(
-          (): { configured: boolean; call_url?: string } => ({
-            configured: false,
-          }),
-        ),
+        }).catch((): { configured: boolean; call_url?: string } => ({
+          configured: false,
+        })),
       ]);
 
       const firstError = [
@@ -499,9 +497,16 @@ function ContextMemoryBetaPage() {
               { label: "People linked", value: stats.externalMappings, hint: "CRM identities" },
               { label: "Calls captured", value: stats.calls, hint: "From your dialer" },
               { label: "Notes remembered", value: stats.memoryChunks, hint: "Transcripts & docs" },
-              { label: "Briefings built", value: stats.packagesBuilt, hint: "Ready for the next call" },
+              {
+                label: "Briefings built",
+                value: stats.packagesBuilt,
+                hint: "Ready for the next call",
+              },
             ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-white/10 bg-background/40 p-4">
+              <div
+                key={item.label}
+                className="rounded-2xl border border-white/10 bg-background/40 p-4"
+              >
                 <div className="text-2xl font-semibold tracking-tight">{item.value}</div>
                 <div className="mt-1 text-sm font-medium">{item.label}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground">{item.hint}</div>
@@ -655,7 +660,11 @@ function ContextMemoryBetaPage() {
                       <code className="block max-h-20 overflow-auto rounded-xl bg-muted p-3 text-[11px] leading-relaxed">
                         {callWebhookUrl}
                       </code>
-                      <Button className="w-full" variant="outline" onClick={() => void copyWebhook()}>
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => void copyWebhook()}
+                      >
                         <Clipboard />
                         Copy webhook
                       </Button>
@@ -751,14 +760,21 @@ function ContextMemoryBetaPage() {
                     <div className="mt-3 space-y-3">
                       {contacts.length ? (
                         contacts.map((contact, index) => (
-                          <div key={textValue(contact.id) || index} className="flex items-center gap-3">
+                          <div
+                            key={textValue(contact.id) || index}
+                            className="flex items-center gap-3"
+                          >
                             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold">
                               {personName(contact).slice(0, 1)}
                             </span>
                             <div className="min-w-0">
-                              <div className="truncate text-sm font-medium">{personName(contact)}</div>
+                              <div className="truncate text-sm font-medium">
+                                {personName(contact)}
+                              </div>
                               <div className="truncate text-xs text-muted-foreground">
-                                {textValue(contact.email) || textValue(contact.phone) || "No contact details"}
+                                {textValue(contact.email) ||
+                                  textValue(contact.phone) ||
+                                  "No contact details"}
                               </div>
                             </div>
                           </div>
@@ -804,7 +820,9 @@ function ContextMemoryBetaPage() {
                         <p>{item.content}</p>
                         <footer className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">
                           {item.source_type.replaceAll("_", " ")}
-                          {"occurred_at" in item ? ` · ${readableDate(item.occurred_at)}` : ""}
+                          {"occurred_at" in item
+                            ? ` · ${readableDate(typeof item.occurred_at === "string" ? item.occurred_at : null)}`
+                            : ""}
                         </footer>
                       </blockquote>
                     ))}
@@ -843,7 +861,10 @@ function ContextMemoryBetaPage() {
 
               <TabsContent value="technical" className="mt-5 space-y-4">
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <BriefStat label="Context version" value={String(context.receipt.context_version)} />
+                  <BriefStat
+                    label="Context version"
+                    value={String(context.receipt.context_version)}
+                  />
                   <BriefStat
                     label="Sources used"
                     value={String(context.receipt.source_references.length)}

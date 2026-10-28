@@ -1,11 +1,13 @@
 import { formatDuration, formatWhen, initials, type CoachingCall } from "@/lib/coaching/calls";
 
 function stageLabel(call: CoachingCall) {
-  if (call.insight) return "Reviewed";
   if (call.coaching_stage === "queued" || call.coaching_stage === "transcribing")
     return "Transcribing…";
   if (call.coaching_stage === "scoring") return "Scoring…";
-  if (call.coaching_stage === "failed") return "Transcription failed";
+  if (call.coaching_stage === "analyzing") return "Analyzing…";
+  if (call.coaching_stage === "analysis_failed") return "Analysis needs retry";
+  if (call.coaching_stage === "failed") return "Processing failed";
+  if (call.insight) return "Analyzed";
   return call.transcript ? "Transcript ready" : "Awaiting transcript";
 }
 

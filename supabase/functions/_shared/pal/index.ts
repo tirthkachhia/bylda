@@ -136,6 +136,7 @@ async function callAnthropic(
       "content-type": "application/json",
     },
     body: JSON.stringify(body),
+    ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
   });
 
   if (!resp.ok) {
@@ -148,8 +149,11 @@ async function callAnthropic(
   const data = (await resp.json()) as {
     content: Array<{ type: string; text?: string; input?: Record<string, unknown> }>;
     usage: { input_tokens: number; output_tokens: number };
+    stop_reason?: string;
   };
 
+  if (data.stop_reason === "max_tokens")
+    throw new Error("Model output was truncated; no complete analysis was saved.");
   const latencyMs = Date.now() - t0;
   const tokensIn = data.usage.input_tokens;
   const tokensOut = data.usage.output_tokens;

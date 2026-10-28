@@ -579,7 +579,7 @@ export function hydrateSalesVerticalProfile(
             sensitivity,
           } satisfies VerticalFieldSpec;
         })
-        .filter((field): field is VerticalFieldSpec => field !== null)
+        .filter((field): field is NonNullable<typeof field> => field !== null)
     : [];
   if (fields.length < 3) return fallback;
 

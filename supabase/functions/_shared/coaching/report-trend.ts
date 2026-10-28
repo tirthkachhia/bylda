@@ -8,7 +8,13 @@
  */
 import type { ReportCall } from "./report-input.ts";
 
-export type AdherenceStatus = "followed" | "partial" | "missed" | "not_applicable";
+export type AdherenceStatus =
+  | "followed"
+  | "adapted"
+  | "partial"
+  | "missed"
+  | "not_applicable"
+  | "not_observable";
 
 export type AdherenceRow = {
   call_id: string;
@@ -56,9 +62,9 @@ const empty = (): Counts => ({ followed: 0, partial: 0, missed: 0, judged: 0 });
 export function tallyByGuideline(rows: AdherenceRow[]): Map<string, Counts> {
   const out = new Map<string, Counts>();
   for (const r of rows) {
-    if (r.status === "not_applicable") continue;
+    if (r.status === "not_applicable" || r.status === "not_observable") continue;
     const c = out.get(r.guideline_id) ?? empty();
-    c[r.status] += 1;
+    c[r.status === "adapted" ? "followed" : r.status] += 1;
     c.judged += 1;
     out.set(r.guideline_id, c);
   }

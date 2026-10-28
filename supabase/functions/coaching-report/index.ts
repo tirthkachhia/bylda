@@ -88,22 +88,43 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const previousWindow = previousReport
-    ? {
-        start: new Date(`${previousReport.period_start}T00:00:00Z`),
-        end: new Date(`${previousReport.period_end}T23:59:59Z`),
-      }
-    : { start: new Date(periodStart.getTime() - days * 86_400_000), end: periodStart };
+  const previousWindow = {
+    start: new Date(periodStart.getTime() - days * 86_400_000),
+    end: periodStart,
+  };
   const previousPeriod = { start: isoDate(previousWindow.start), end: isoDate(previousWindow.end) };
 
-  // Calls in the period that have been scored.
+  const callsInWindow = async (start: Date, end: Date) => {
+    const { data, error } = await admin
+      .from("calls")
+      .select("id")
+      .eq("organization_id", rep.organization_id)
+      .eq("rep_id", repId)
+      .or(
+        `and(started_at.gte.${start.toISOString()},started_at.lt.${end.toISOString()}),and(started_at.is.null,created_at.gte.${start.toISOString()},created_at.lt.${end.toISOString()})`,
+      )
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (error) throw error;
+    return (data ?? []).map((c) => c.id);
+  };
+  let periodCallIds: string[], previousPeriodCallIds: string[];
+  try {
+    [periodCallIds, previousPeriodCallIds] = await Promise.all([
+      callsInWindow(periodStart, periodEnd),
+      callsInWindow(previousWindow.start, previousWindow.end),
+    ]);
+  } catch {
+    return json({ error: "Could not load calls in the requested period" }, 500);
+  }
+  // Re-scoring an older call must not move it into a new period.
   const { data: summaries, error: summariesError } = await admin
     .from("call_score_summaries")
     .select(
       "call_id, duration_seconds, coaching_value_label, quality_score, risk_count, peak_temperature, final_temperature, rep_move_average, computed_at, playbook_id, playbook_version_id",
     )
     .eq("rep_id", repId)
-    .gte("computed_at", periodStart.toISOString())
+    .in("call_id", periodCallIds)
     .order("computed_at", { ascending: false })
     .limit(60);
   if (summariesError) return json({ error: summariesError.message }, 500);
@@ -203,6 +224,64 @@ Deno.serve(async (req) => {
       });
     }
   }
+  // New evidence records include positive/general behaviors without a guideline ID.
+  const { data: behaviorRuns, error: behaviorError } = await admin
+    .from("coaching_analysis_runs")
+    .select(
+      "id,call_id,started_at,analysis,playbook_version_id,prompt_version,taxonomy_version,models",
+    )
+    .in("call_id", callIds)
+    .order("started_at", { ascending: false });
+  if (behaviorError)
+    return json(
+      { error: "Behavioral history is unavailable; apply the behavioral-data migration" },
+      503,
+    );
+  const latestRuns = new Map<
+    string,
+    {
+      id: string;
+      analysis: import("../_shared/coaching/behavior-intelligence.ts").BehaviorAnalysis;
+      prompt_version: string;
+      taxonomy_version: string;
+      models: string[];
+    }
+  >();
+  for (const run of behaviorRuns ?? [])
+    if (!latestRuns.has(run.call_id)) latestRuns.set(run.call_id, run);
+  for (const [callId, run] of latestRuns)
+    for (const e of run.analysis?.events ?? []) {
+      const repEvidence = e.rep_evidence[0];
+      if (!repEvidence) continue;
+      moments.push({
+        call_id: callId,
+        exchange_index: -1 - repEvidence.turn_id,
+        type: "behavior_observation",
+        behavior_family: e.family,
+        valence: e.result,
+        score: e.result === "concern" ? 1 : 0.8,
+        low_confidence: false,
+        start_s: repEvidence.start_s,
+        rep_text: e.rep_evidence.map((t) => t.text).join(" "),
+        customer_text: e.buyer_evidence.map((t) => t.text).join(" ") || null,
+        headline: e.rep_behavior,
+        why_it_matters: e.interpretation,
+        what_to_say_instead: e.coaching_action,
+        playbook_guideline: null,
+        guideline_source: "general",
+      });
+    }
+  // Immutable run execution is authoritative; legacy adherence is only a projection.
+  for (let i = adherence.length - 1; i >= 0; i--)
+    if (latestRuns.has(adherence[i].call_id)) adherence.splice(i, 1);
+  for (const [callId, run] of latestRuns)
+    for (const item of run.analysis.execution?.items ?? [])
+      adherence.push({
+        call_id: callId,
+        guideline: item.guideline,
+        guideline_id: item.guideline_id ?? null,
+        status: item.status as ReportAdherence["status"],
+      });
   const input = buildReportInput({ calls, moments, adherence });
 
   // Canonical adherence rows for both windows, for the code-computed comparison.
@@ -212,18 +291,15 @@ Deno.serve(async (req) => {
       return { call_id: row.call_id, guideline_id: row.guideline_id, status: row.status };
     });
   const currentRows = toRows(
-    (canonicalRes.data ?? []).map((r) => ({
-      call_id: r.call_id,
-      guideline_id: r.guideline_id,
-      status: r.status,
-    })),
+    adherence
+      .filter((r) => r.guideline_id)
+      .map((r) => ({ call_id: r.call_id, guideline_id: r.guideline_id, status: r.status })),
   );
   const { data: previousSummaries } = await admin
     .from("call_score_summaries")
     .select("call_id")
     .eq("rep_id", repId)
-    .gte("computed_at", previousWindow.start.toISOString())
-    .lt("computed_at", previousWindow.end.toISOString())
+    .in("call_id", previousPeriodCallIds)
     .limit(60);
   const previousCallIds = (previousSummaries ?? []).map((s) => s.call_id as string);
   const { data: previousAdherence } = previousCallIds.length
@@ -232,7 +308,41 @@ Deno.serve(async (req) => {
         .select("call_id, guideline_id, status")
         .in("call_id", previousCallIds)
     : { data: [] as unknown[] };
-  const previousRows = toRows(previousAdherence);
+  let previousRows = toRows(previousAdherence);
+  const { data: priorRuns, error: priorRunError } = previousCallIds.length
+    ? await admin
+        .from("coaching_analysis_runs")
+        .select("id,call_id,analysis,prompt_version,taxonomy_version,models,started_at")
+        .in("call_id", previousCallIds)
+        .order("started_at", { ascending: false })
+    : { data: [], error: null };
+  if (priorRunError) return json({ error: "Could not validate prior analysis versions" }, 503);
+  const priorLatest = new Map<string, typeof latestRuns extends Map<string, infer R> ? R : never>();
+  for (const run of priorRuns ?? [])
+    if (!priorLatest.has(run.call_id)) priorLatest.set(run.call_id, run);
+  previousRows = [...priorLatest].flatMap(([callId, run]) =>
+    (run.analysis.execution?.items ?? []).flatMap((item) =>
+      item.guideline_id
+        ? [
+            {
+              call_id: callId,
+              guideline_id: item.guideline_id,
+              status: item.status as AdherenceRow["status"],
+            },
+          ]
+        : [],
+    ),
+  );
+  const configs = new Set(
+    [...latestRuns.values(), ...priorLatest.values()].map((run) =>
+      JSON.stringify([run.prompt_version, run.taxonomy_version, run.models]),
+    ),
+  );
+  const comparableAnalysis =
+    latestRuns.size === callIds.length &&
+    previousCallIds.length > 0 &&
+    priorLatest.size === previousCallIds.length &&
+    configs.size === 1;
 
   // Playbook: the rep's explicit one, else the org's only active one (same rule as analyze-call).
   let playbook: {
@@ -288,10 +398,16 @@ Deno.serve(async (req) => {
       guidelineRefs.push({ id: g.id, code: g.code, title: g.title });
   }
   const codes = guidelineRefs.map((g) => g.code);
+  // A new/current playbook must not rewrite historical interpretation.
+  const versions = new Set(summaries.map((s) => s.playbook_version_id).filter(Boolean));
+  const comparableVersion = playbook && versions.size === 1 && versions.has(playbook.versionId);
+  const comparableIds = new Set(
+    comparableVersion && comparableAnalysis ? guidelineRefs.map((g) => g.id) : [],
+  );
   const sinceLast = buildSinceLast({
     guidelines: guidelineRefs,
-    current: currentRows,
-    previous: previousRows,
+    current: currentRows.filter((r) => comparableIds.has(r.guideline_id)),
+    previous: previousRows.filter((r) => comparableIds.has(r.guideline_id)),
     currentCalls: callIds.length,
     previousCalls: previousCallIds.length,
     previousPeriod: previousCallIds.length ? previousPeriod : null,
@@ -333,11 +449,12 @@ Deno.serve(async (req) => {
   try {
     result = await callPAL(
       {
-        systemPrompt: buildReportSystemPrompt(playbook),
+        systemPrompt: buildReportSystemPrompt(comparableVersion ? playbook : null),
         userPrompt: [
           "Write the coaching note for this rep from the material below. Cite only listed moments.",
           renderReportInput(input, { name: rep.name }, period),
           renderSinceLast(sinceLast),
+          "Do not claim coaching caused improvement. Period comparisons are observational; call objectives, buyer constraints and analysis versions may differ. Ground a strength in source evidence when present.",
         ].join("\n\n"),
         tool: buildRepReportTool(codes),
         maxTokens: 2500,
