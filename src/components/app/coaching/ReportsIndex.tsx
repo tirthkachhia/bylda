@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { repsQuery } from "@/lib/queries";
 import type { RepReportRow } from "@/lib/coaching/types";
 import { Inactive } from "@/components/app/FigmaPrimitives";
+import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
 export function ReportsIndex() {
   const { currentOrgId } = useAuth();
   const reps = useQuery({ ...repsQuery(currentOrgId ?? "", true), enabled: !!currentOrgId });
@@ -47,12 +48,18 @@ export function ReportsIndex() {
         <button role="tab" aria-selected="true">
           All {q.data?.length ?? ""}
         </button>
-        {["Daily briefs", "Weekly manager", "Team", "Behavior", "Shared with me"].map((t) => (
-          <button role="tab" disabled key={t} title="Not available yet">
-            {t}
-          </button>
+        {[
+          ["daily-manager-brief", "Daily briefs"],
+          ["weekly-manager-report", "Weekly manager"],
+          ["team-report", "Team"],
+          ["behavior-report", "Behavior"],
+        ].map(([key, title]) => (
+          <FigmaViewLink key={key} screen={key} className="">
+            {title}
+          </FigmaViewLink>
         ))}
       </div>
+      <FigmaViewPicker group="reports" />
       {q.isPending ? (
         <p role="status">Loading reports…</p>
       ) : q.error ? (

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inactive } from "@/components/app/FigmaPrimitives";
+import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
 export const Route = createFileRoute("/app/insights")({ component: Insights });
 function Insights() {
   return (
@@ -9,6 +9,7 @@ function Insights() {
     >
       <section className="figma-panel min-h-[calc(100dvh-72px)]">
         <h1>Intelligence</h1>
+        <FigmaViewPicker group="insights" />
         <p className="mt-2 text-xs text-by-text-secondary">
           Behavior patterns across your sales conversations.
         </p>
@@ -17,15 +18,15 @@ function Insights() {
             Overview
           </button>
           {[
-            "Emerging patterns",
-            "Objections",
-            "Team behaviors",
-            "Methodology",
-            "Outcome patterns",
-          ].map((t) => (
-            <button role="tab" key={t} disabled title="Not available yet">
-              {t}
-            </button>
+            ["emerging-patterns", "Emerging patterns"],
+            ["objections", "Objections"],
+            ["team-behaviors", "Team behaviors"],
+            ["methodology-adherence", "Methodology"],
+            ["outcome-patterns", "Outcome patterns"],
+          ].map(([key, title]) => (
+            <FigmaViewLink key={key} screen={key} className="">
+              {title}
+            </FigmaViewLink>
           ))}
         </div>
         <h3>Important today</h3>
@@ -63,7 +64,7 @@ function Insights() {
           <Link className="figma-button" to="/app/crm/calls" search={{ view: "insights" }}>
             Review supported per-rep trends
           </Link>
-          <Inactive>Assign coaching</Inactive>
+          <FigmaViewLink screen="assign-coaching">Assign coaching</FigmaViewLink>
         </div>
       </section>
       <aside className="space-y-3 p-6">

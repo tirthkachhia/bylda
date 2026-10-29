@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { repsQuery } from "@/lib/queries";
 import { Inactive } from "@/components/app/FigmaPrimitives";
+import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
 import { repCallCountsQuery, initials } from "@/lib/coaching/calls";
 export const Route = createFileRoute("/app/people")({ component: People });
 function People() {
@@ -22,6 +23,7 @@ function People() {
           Manage users
         </Link>
       </div>
+      <FigmaViewPicker group="people" />
       <p className="mt-3 text-xs text-by-text-secondary">
         Sales reps in your workspace. Team baselines and coaching assignments are not available yet.
       </p>
@@ -29,11 +31,17 @@ function People() {
         <button role="tab" aria-selected="true">
           All reps {q.data?.length ?? ""}
         </button>
-        {["Needs coaching", "Improving", "Declining", "Compare reps"].map((t) => (
+        {["Needs coaching", "Improving", "Declining"].map((t) => (
           <button role="tab" key={t} disabled title="Not available yet">
             {t}
           </button>
         ))}
+        <FigmaViewLink screen="rep-comparison" className="">
+          Compare reps
+        </FigmaViewLink>
+        <FigmaViewLink screen="team-overview" className="">
+          Teams
+        </FigmaViewLink>
       </div>
       {q.isPending ? (
         <p role="status">Loading reps…</p>

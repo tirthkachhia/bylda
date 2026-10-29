@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inactive } from "@/components/app/FigmaPrimitives";
+import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
 export const Route = createFileRoute("/app/coaching")({ component: Coaching });
 function Coaching() {
   return (
@@ -12,19 +12,20 @@ function Coaching() {
           <h1>Coaching</h1>
           <p className="mt-2 text-xs text-by-text-secondary">Evidence, focus and follow-through.</p>
         </div>
-        <Inactive>Assign coaching</Inactive>
+        <FigmaViewLink screen="assign-coaching">Assign coaching</FigmaViewLink>
       </div>
       <div className="figma-tabs" role="tablist" aria-label="Coaching status">
         <button role="tab" aria-selected="true">
           Active
         </button>
-        <button role="tab" disabled>
+        <FigmaViewLink screen="coaching-follow-up" className="">
           Needs follow-up
-        </button>
-        <button role="tab" disabled>
+        </FigmaViewLink>
+        <FigmaViewLink screen="coaching-completed" className="">
           Completed
-        </button>
+        </FigmaViewLink>
       </div>
+      <FigmaViewPicker group="coaching" />
       <div className="overflow-x-auto">
         <table className="figma-table">
           <thead>

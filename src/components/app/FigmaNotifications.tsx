@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { formatWhen } from "@/lib/coaching/calls";
 import { Inactive } from "./FigmaPrimitives";
-export function FigmaNotifications() {
+export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "drawer" }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [unread, setUnread] = useState(false);
@@ -43,7 +43,7 @@ export function FigmaNotifications() {
   const rows = (q.data ?? []).filter((r) => !unread || !r.read);
   return (
     <section
-      className="figma-surface figma-panel min-h-[calc(100dvh-72px)]"
+      className={`figma-surface ${variant === "drawer" ? "figma-notification-drawer-content" : "figma-panel min-h-[calc(100dvh-72px)]"}`}
       data-design-screen="notifications"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">

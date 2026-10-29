@@ -65,6 +65,7 @@ import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth.verify-email'
 import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as FFormIdRouteImport } from './routes/f.$formId'
+import { Route as SetupStepRouteImport } from './routes/setup.$step'
 import { Route as AppAcademyModuleRouteImport } from './routes/app.academy.$module'
 import { Route as AppBillingReturnRouteImport } from './routes/app.billing.return'
 import { Route as AppByldaOsSlugRouteImport } from './routes/app.bylda-os.$slug'
@@ -100,6 +101,7 @@ import { Route as AppScaleCampaignsRouteImport } from './routes/app.scale.campai
 import { Route as AppScalePipelineRouteImport } from './routes/app.scale.pipeline'
 import { Route as AppScaleReportsRouteImport } from './routes/app.scale.reports'
 import { Route as AppScaleTeamRouteImport } from './routes/app.scale.team'
+import { Route as AppViewsScreenRouteImport } from './routes/app.views.$screen'
 import { Route as AppLaunchpadOutputsIdRouteImport } from './routes/app.launchpad.outputs.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -382,6 +384,11 @@ const FFormIdRoute = FFormIdRouteImport.update({
   path: '/f/$formId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetupStepRoute = SetupStepRouteImport.update({
+  id: '/setup/$step',
+  path: '/setup/$step',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppAcademyModuleRoute = AppAcademyModuleRouteImport.update({
   id: '/$module',
   path: '/$module',
@@ -558,6 +565,11 @@ const AppScaleTeamRoute = AppScaleTeamRouteImport.update({
   path: '/team',
   getParentRoute: () => AppScaleRoute,
 } as any)
+const AppViewsScreenRoute = AppViewsScreenRouteImport.update({
+  id: '/views/$screen',
+  path: '/views/$screen',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLaunchpadOutputsIdRoute = AppLaunchpadOutputsIdRouteImport.update({
   id: '/launchpad/outputs/$id',
   path: '/launchpad/outputs/$id',
@@ -620,6 +632,7 @@ export interface FileRoutesByFullPath {
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/book/$slug': typeof BookSlugRoute
   '/f/$formId': typeof FFormIdRoute
+  '/setup/$step': typeof SetupStepRoute
   '/app/': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -654,6 +667,7 @@ export interface FileRoutesByFullPath {
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
+  '/app/views/$screen': typeof AppViewsScreenRoute
   '/app/bylda/': typeof AppByldaIndexRoute
   '/app/launchpad/': typeof AppLaunchpadIndexRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
@@ -713,6 +727,7 @@ export interface FileRoutesByTo {
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/book/$slug': typeof BookSlugRoute
   '/f/$formId': typeof FFormIdRoute
+  '/setup/$step': typeof SetupStepRoute
   '/app': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -747,6 +762,7 @@ export interface FileRoutesByTo {
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
+  '/app/views/$screen': typeof AppViewsScreenRoute
   '/app/bylda': typeof AppByldaIndexRoute
   '/app/launchpad': typeof AppLaunchpadIndexRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
@@ -808,6 +824,7 @@ export interface FileRoutesById {
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/book/$slug': typeof BookSlugRoute
   '/f/$formId': typeof FFormIdRoute
+  '/setup/$step': typeof SetupStepRoute
   '/app/': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -842,6 +859,7 @@ export interface FileRoutesById {
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
+  '/app/views/$screen': typeof AppViewsScreenRoute
   '/app/bylda/': typeof AppByldaIndexRoute
   '/app/launchpad/': typeof AppLaunchpadIndexRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
@@ -904,6 +922,7 @@ export interface FileRouteTypes {
     | '/auth/verify-email'
     | '/book/$slug'
     | '/f/$formId'
+    | '/setup/$step'
     | '/app/'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -938,6 +957,7 @@ export interface FileRouteTypes {
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
+    | '/app/views/$screen'
     | '/app/bylda/'
     | '/app/launchpad/'
     | '/app/launchpad/outputs/$id'
@@ -997,6 +1017,7 @@ export interface FileRouteTypes {
     | '/auth/verify-email'
     | '/book/$slug'
     | '/f/$formId'
+    | '/setup/$step'
     | '/app'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -1031,6 +1052,7 @@ export interface FileRouteTypes {
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
+    | '/app/views/$screen'
     | '/app/bylda'
     | '/app/launchpad'
     | '/app/launchpad/outputs/$id'
@@ -1091,6 +1113,7 @@ export interface FileRouteTypes {
     | '/auth/verify-email'
     | '/book/$slug'
     | '/f/$formId'
+    | '/setup/$step'
     | '/app/'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -1125,6 +1148,7 @@ export interface FileRouteTypes {
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
+    | '/app/views/$screen'
     | '/app/bylda/'
     | '/app/launchpad/'
     | '/app/launchpad/outputs/$id'
@@ -1146,6 +1170,7 @@ export interface RootRouteChildren {
   AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
   BookSlugRoute: typeof BookSlugRoute
   FFormIdRoute: typeof FFormIdRoute
+  SetupStepRoute: typeof SetupStepRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1542,6 +1567,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FFormIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setup/$step': {
+      id: '/setup/$step'
+      path: '/setup/$step'
+      fullPath: '/setup/$step'
+      preLoaderRoute: typeof SetupStepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/academy/$module': {
       id: '/app/academy/$module'
       path: '/$module'
@@ -1787,6 +1819,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScaleTeamRouteImport
       parentRoute: typeof AppScaleRoute
     }
+    '/app/views/$screen': {
+      id: '/app/views/$screen'
+      path: '/views/$screen'
+      fullPath: '/app/views/$screen'
+      preLoaderRoute: typeof AppViewsScreenRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/launchpad/outputs/$id': {
       id: '/app/launchpad/outputs/$id'
       path: '/launchpad/outputs/$id'
@@ -1920,6 +1959,7 @@ interface AppRouteChildren {
   AppLaunchpadMentorsRoute: typeof AppLaunchpadMentorsRoute
   AppLaunchpadMissionsRoute: typeof AppLaunchpadMissionsRoute
   AppOutcomesCategoryRoute: typeof AppOutcomesCategoryRoute
+  AppViewsScreenRoute: typeof AppViewsScreenRoute
   AppByldaIndexRoute: typeof AppByldaIndexRoute
   AppLaunchpadIndexRoute: typeof AppLaunchpadIndexRoute
   AppLaunchpadOutputsIdRoute: typeof AppLaunchpadOutputsIdRoute
@@ -1992,6 +2032,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLaunchpadMentorsRoute: AppLaunchpadMentorsRoute,
   AppLaunchpadMissionsRoute: AppLaunchpadMissionsRoute,
   AppOutcomesCategoryRoute: AppOutcomesCategoryRoute,
+  AppViewsScreenRoute: AppViewsScreenRoute,
   AppByldaIndexRoute: AppByldaIndexRoute,
   AppLaunchpadIndexRoute: AppLaunchpadIndexRoute,
   AppLaunchpadOutputsIdRoute: AppLaunchpadOutputsIdRoute,
@@ -2015,6 +2056,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthVerifyEmailRoute: AuthVerifyEmailRoute,
   BookSlugRoute: BookSlugRoute,
   FFormIdRoute: FFormIdRoute,
+  SetupStepRoute: SetupStepRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

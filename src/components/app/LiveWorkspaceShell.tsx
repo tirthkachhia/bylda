@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LogOut, Menu, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { Inactive } from "@/components/app/FigmaPrimitives";
+import { FigmaPageBrowser, FigmaViewLink } from "@/components/app/FigmaPageViews";
+import { figmaPageByKey } from "@/lib/figma-page-catalog";
 import { guestStore } from "@/lib/guest";
 import { supabase } from "@/integrations/supabase/client";
 import { integrationsQuery } from "@/lib/queries";
@@ -19,6 +20,9 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
   const location = useRouterState({ select: (s) => s.location });
   const path = location.pathname,
     view = (location.search as Record<string, unknown>).view;
+  const viewPage = path.startsWith("/app/views/")
+    ? figmaPageByKey(path.split("/").at(-1) ?? "")
+    : undefined;
   const [open, setOpen] = useState(false),
     [leaving, setLeaving] = useState(false),
     [query, setQuery] = useState("");
@@ -39,8 +43,18 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
       return count ?? 0;
     },
   });
-  const active =
-    path.replace(/\/$/, "") === "/app"
+  const active = viewPage
+    ? ((
+        {
+          home: "home",
+          rep: "people",
+          people: "people",
+          calls: "calls",
+          insights: "insights",
+          coaching: "coaching",
+        } as Record<string, string>
+      )[viewPage.group] ?? null)
+    : path.replace(/\/$/, "") === "/app"
       ? "home"
       : path === "/app/crm/calls"
         ? typeof view === "string"
@@ -56,6 +70,16 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           workspaceNavigation.find((item) => item.to === path)?.label ??
           "Workspace");
   useEffect(() => setOpen(false), [path, view]);
+  useEffect(() => {
+    const command = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        void navigate({ to: "/app/views/$screen", params: { screen: "command-search" } });
+      }
+    };
+    window.addEventListener("keydown", command);
+    return () => window.removeEventListener("keydown", command);
+  }, [navigate]);
   useEffect(() => {
     if (!open) return;
     const close = (event: KeyboardEvent) => {
@@ -146,14 +170,14 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         >
           <img src="/figma/rail-home.svg" alt="" />
         </Link>
-        <button
-          type="button"
+        <FigmaViewLink
+          screen="command-search"
           aria-label="Search calls"
-          onClick={() => document.getElementById("workspace-search")?.focus()}
           className="flex size-[38px] items-center justify-center rounded-[10px]"
         >
           <img src="/figma/rail-search.svg" alt="" />
-        </button>
+          <span className="sr-only">Search calls</span>
+        </FigmaViewLink>
         <Link
           to="/app/notifications"
           aria-label="Open notifications"
@@ -161,15 +185,13 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         >
           <img src={unread.data ? "/figma/notifications.svg" : "/figma/bell.svg"} alt="" />
         </Link>
-        <button
-          type="button"
-          disabled
-          aria-label="Ask Bylda (not available yet)"
-          title="Not available yet"
-          className="flex size-[38px] items-center justify-center rounded-[10px] opacity-40"
+        <FigmaViewLink
+          screen="ask-bylda"
+          className="flex size-[38px] items-center justify-center rounded-[10px]"
         >
           <img src="/figma/rail-insights.svg" alt="" />
-        </button>
+          <span className="sr-only">Ask Bylda</span>
+        </FigmaViewLink>
         <Link
           to="/app/settings"
           aria-label="Settings"
@@ -201,7 +223,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         aria-label="Workspace navigation"
         role={open ? "dialog" : undefined}
         aria-modal={open ? true : undefined}
-        className={`${open ? "fixed inset-y-0 left-16 z-40 flex" : "hidden"} w-[248px] shrink-0 flex-col bg-by-surface-sidebar px-3 py-4 min-[1025px]:relative min-[1025px]:left-auto min-[1025px]:flex`}
+        className={`${open ? "fixed inset-y-0 left-16 z-40 flex" : "hidden"} min-h-0 overflow-y-auto w-[248px] shrink-0 flex-col bg-by-surface-sidebar px-3 py-4 min-[1025px]:relative min-[1025px]:left-auto min-[1025px]:flex`}
       >
         <div className="mb-3 flex items-center justify-between px-2">
           <Link to="/app" className="text-[15px] tracking-[-.15px]">
@@ -233,6 +255,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           </span>
           <img src="/figma/chevron.svg" alt="" />
         </button>
+        <FigmaPageBrowser />
         <nav aria-label="Workspace" className="space-y-1">
           {behavioralNavigation.map((item) => (
             <Link
@@ -251,20 +274,21 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         <section className="mt-6 space-y-1 text-xs" aria-label="Pinned views">
           <h2 className="px-3 py-2 text-[11px] uppercase text-by-text-secondary">Pinned views</h2>
           {["Needs review", "High coaching value", "Price objections"].map((label) => (
-            <Inactive
+            <FigmaViewLink
               key={label}
-              className="!w-full !justify-between !border-0 !bg-transparent !px-3"
+              screen="calls-saved-views"
+              className="flex w-full items-center justify-between rounded-md px-3 py-2 text-by-text-secondary"
             >
               {label}
               <span>—</span>
-            </Inactive>
+            </FigmaViewLink>
           ))}
         </section>
         <section className="mt-5 text-xs" aria-label="Conversations">
           <h2 className="px-3 py-2 text-[11px] uppercase text-by-text-secondary">Conversations</h2>
-          <Inactive className="!w-full !justify-start !border-0 !bg-transparent !px-3">
+          <FigmaViewLink screen="rooms" className="flex w-full px-3 py-2">
             Rooms and messages
-          </Inactive>
+          </FigmaViewLink>
         </section>
         <nav aria-label="Workspace configuration" className="mt-auto space-y-1 pt-8">
           <Link
@@ -303,7 +327,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center gap-3 px-4 text-xs sm:px-6">
           <span className="hidden truncate text-by-text-secondary sm:block">
-            {current}
+            {viewPage ? `${viewPage.title}` : current}
             {path === "/app/crm/calls" && (location.search as Record<string, unknown>).callId
               ? " / Call review"
               : ""}
@@ -333,9 +357,10 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           >
             + Upload
           </Link>
-          <Link to="/app/notifications" className="figma-button !p-2" aria-label="Notifications">
+          <FigmaViewLink screen="notification-drawer" className="figma-button !p-2">
             <img src="/figma/bell.svg" alt="" />
-          </Link>
+            <span className="sr-only">Notifications</span>
+          </FigmaViewLink>
         </header>
         <main id="workspace-content" className="min-h-0 flex-1 overflow-y-auto p-2 pt-0">
           {children}

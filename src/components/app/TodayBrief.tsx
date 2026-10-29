@@ -1,4 +1,4 @@
-import { Inactive } from "@/components/app/FigmaPrimitives";
+import { FigmaViewLink } from "@/components/app/FigmaPageViews";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
@@ -67,9 +67,15 @@ export function TodayBrief() {
             <img src="/figma/reports.svg" alt="" />
             Reports
           </Link>
-          <Inactive className="!border-0 !bg-transparent">Team updates</Inactive>
-          <Inactive className="!border-0 !bg-transparent">Coaching</Inactive>
-          <Inactive className="!border-0 !bg-transparent">Mentions</Inactive>
+          <FigmaViewLink screen="manager-team-updates" className="px-3 py-2">
+            Team updates
+          </FigmaViewLink>
+          <FigmaViewLink screen="manager-coaching" className="px-3 py-2">
+            Coaching
+          </FigmaViewLink>
+          <FigmaViewLink screen="manager-mentions" className="px-3 py-2">
+            Mentions
+          </FigmaViewLink>
         </nav>
         {isGuest || !currentOrgId ? (
           <EmptyHome

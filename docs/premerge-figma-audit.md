@@ -1,5 +1,11 @@
 # Pre-merge Figma and backend audit
 
+> Historical audit. The later page-presence pass supplies the missing views using
+> the Figma Day 0 designs. See [current coverage](./figma-page-coverage.md) for all
+> 101 destinations. The earlier Missing/Partial counts below describe the state
+> before that pass, not the current page inventory. Backend-only limitations still
+> apply; signup work is deferred to Tirth.
+
 Audited 2026-10-29 against the linked Figma file (`HWdVvVXWqJl4BFD9MZ5vgW`), Prototypes G v2 (`4121:2`) and its Day 0 counterparts (`4124:2`). Each populated top-level prototype is listed once below; Day 0 duplicates are not counted as additional product screens.
 
 **Merge gate: not satisfied.** CI deployment checks passing does not mean every Figma screen is implemented or live backend acceptance has passed. `Mapped` means a page exists and its supported actions target existing contracts; it is not a pixel-perfect or live-production certification. `Partial` includes adapted layouts and inactive placeholders. `Missing` means no full screen/modal/panel exists, even where navigation mentions it.

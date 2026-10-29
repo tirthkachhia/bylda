@@ -5,10 +5,12 @@ published as [PR #5](https://github.com/tirthkachhia/bylda/pull/5) and has a Ver
 preview. It has not been merged into `main`. Backend functions, migrations,
 workers, analysis rules and dependency versions are unchanged.
 
-**The full Figma is not implemented.** The pre-merge audit found 101 prototype
-screens: 8 mapped, 35 partial and 58 missing. Disabled navigation and generic
-placeholders do not count as completed screens. See
-[the complete screen inventory and merge blockers](./premerge-figma-audit.md).
+**Page presence is complete for the current scope.** All 96 non-auth prototype
+frames now have destinations; the five auth frames remain from earlier work and
+are deferred to Tirth. Unsupported capabilities use the actual Figma Day 0
+presentation and inactive forms, without fabricated data or backend behavior.
+This does not mean every populated state is backed by a working feature. See
+[the current frame inventory and boundaries](./figma-page-coverage.md).
 
 ## Presentation retired
 
@@ -93,7 +95,7 @@ MVP. Its isolated entry/data adapter and synthetic audio live outside this repo.
 The banner identifies sample data and no live writes. The real app does not import
 that adapter or bypass authentication.
 
-- All 434 tests across 57 files pass after pre-merge auth fixes. TypeScript and production client/server build pass.
+- All 436 tests across 58 files pass after the page-presence pass. TypeScript and production client/server build pass.
 - Changed-file ESLint reports zero errors; the pre-existing provider/hook Fast Refresh warning remains in the auth module.
 - Automated coverage includes the seven prior wiring gaps, exact provenance,
   unknown/zero times, TXT limits, pagination/scoping, inactive controls and real
