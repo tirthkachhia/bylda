@@ -1,20 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  useGuest,
-  guestStore,
-  isDemoEmail,
-  GUEST_USER,
-  GUEST_ORG_ID,
-  GUEST_ORG,
-} from "@/lib/guest";
-import { useImpersonation } from "@/lib/impersonation";
-
-function syncDemoMode(email: string | null | undefined) {
-  if (isDemoEmail(email)) guestStore.enable();
-  else guestStore.disable();
-}
+import { guestStore } from "@/lib/guest";
 
 type Profile = {
   id: string;
@@ -23,7 +10,7 @@ type Profile = {
   onboarding_complete: boolean;
 };
 
-type OrgSummary = { id: string; name: string };
+type OrgSummary = { id: string; name: string; owner_id: string };
 
 type AuthContextValue = {
   session: Session | null;
@@ -45,22 +32,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const [currentOrg, setCurrentOrg] = useState<OrgSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const identity = useRef<string | null>(null);
+  const profileRequest = useRef(0);
 
   const loadProfile = async (userId: string) => {
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, onboarding_complete")
-      .eq("id", userId)
-      .maybeSingle();
-    setProfile(prof ?? null);
+    const request = ++profileRequest.current;
+    const [profileResult, memberResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, full_name, onboarding_complete")
+        .eq("id", userId)
+        .maybeSingle(),
+      supabase
+        .from("organization_members")
+        .select("organization_id, organizations(id, name, owner_id)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
-    const { data: member } = await supabase
-      .from("organization_members")
-      .select("organization_id, organizations(id, name)")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    // A late response for the previous identity must not restore its workspace.
+    if (identity.current !== userId || profileRequest.current !== request) return;
+    const prof = profileResult.data;
+    const member = memberResult.data;
+    setProfile(prof ?? null);
 
     if (member) {
       setCurrentOrgId(member.organization_id);
@@ -71,36 +67,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentOrgId(null);
       setCurrentOrg(null);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    // Listener FIRST
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setSession(sess);
-      setUser(sess?.user ?? null);
-      syncDemoMode(sess?.user?.email);
-      if (sess?.user) {
-        // defer to avoid deadlock
-        setTimeout(() => {
-          void loadProfile(sess.user.id);
-        }, 0);
-      } else {
+    // Retired demo state must never replace an authenticated MVP identity.
+    guestStore.disable();
+    let active = true;
+    let authEvent = 0;
+    const invalidateProfileRequest = () => {
+      ++profileRequest.current;
+    };
+    const applySession = (sess: Session | null) => {
+      if (!active) return;
+      const nextId = sess?.user.id ?? null;
+      const changedIdentity = identity.current !== nextId;
+      if (changedIdentity) {
+        ++profileRequest.current;
         setProfile(null);
         setCurrentOrgId(null);
         setCurrentOrg(null);
       }
+      identity.current = nextId;
+      setSession(sess);
+      setUser(sess?.user ?? null);
+      if (!sess?.user) {
+        setLoading(false);
+        return;
+      }
+      if (changedIdentity) setLoading(true);
+      // Defer Supabase queries outside the auth callback to avoid its lock.
+      setTimeout(() => {
+        if (active && identity.current === nextId)
+          void loadProfile(sess.user.id).catch(() => {
+            if (active && identity.current === nextId) setLoading(false);
+          });
+      }, 0);
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      ++authEvent;
+      applySession(sess);
     });
 
     // Then existing session
-    supabase.auth.getSession().then(({ data: { session: sess } }) => {
-      setSession(sess);
-      setUser(sess?.user ?? null);
-      syncDemoMode(sess?.user?.email);
-      if (sess?.user) void loadProfile(sess.user.id).finally(() => setLoading(false));
-      else setLoading(false);
-    });
+    const beforeRead = authEvent;
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session: sess } }) => {
+        if (authEvent === beforeRead) applySession(sess);
+      })
+      .catch(() => {
+        if (active && authEvent === beforeRead) setLoading(false);
+      });
 
     return () => {
+      active = false;
+      identity.current = null;
+      invalidateProfileRequest();
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -126,35 +149,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  const { isGuest } = useGuest();
-  const imp = useImpersonation();
-  if (isGuest) {
-    return {
-      ...ctx,
-      session: null,
-      user: { id: GUEST_USER.id, email: GUEST_USER.email } as unknown as User,
-      profile: {
-        id: GUEST_USER.id,
-        email: GUEST_USER.email,
-        full_name: GUEST_USER.full_name,
-        onboarding_complete: true,
-      },
-      currentOrgId: GUEST_ORG_ID,
-      currentOrg: { id: GUEST_ORG_ID, name: GUEST_ORG.name },
-      loading: false,
-    };
-  }
-  // Admin impersonation: keep the real admin session/JWT (so is_admin() RLS still
-  // applies), but point the app's user/org context at the target account so every
-  // org-/user-scoped query and mutation targets that account.
-  if (imp.active && imp.userId) {
-    return {
-      ...ctx,
-      user: ctx.user ? ({ ...ctx.user, id: imp.userId } as User) : ctx.user,
-      profile: ctx.profile ? { ...ctx.profile, id: imp.userId } : ctx.profile,
-      currentOrgId: imp.orgId ?? ctx.currentOrgId,
-      currentOrg: imp.orgId ? { id: imp.orgId, name: imp.label ?? "Account" } : ctx.currentOrg,
-    };
-  }
   return ctx;
 }

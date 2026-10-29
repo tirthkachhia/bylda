@@ -1,3 +1,68 @@
+import type {
+  BehaviorAnalysis,
+  BehaviorEvent,
+  Evidence,
+} from "../../../supabase/functions/_shared/coaching/behavior-intelligence";
+import type { ParsedTurn } from "../../../supabase/functions/_shared/coaching/transcript-parse";
+
+export type { BehaviorAnalysis, BehaviorEvent, Evidence };
+
+/** The archive stores evidence separately from the event assessment. */
+export type StoredBehaviorAssessment = Omit<
+  BehaviorEvent,
+  "context_evidence" | "rep_evidence" | "buyer_evidence"
+>;
+
+export type BehaviorRow = {
+  id: string;
+  run_id: string;
+  call_id: string;
+  rep_id: string | null;
+  family: BehaviorEvent["family"];
+  opportunity: BehaviorEvent["opportunity"];
+  result: BehaviorEvent["result"];
+  start_s: number | null;
+  end_s: number | null;
+  assessment: StoredBehaviorAssessment;
+  evidence: { context: Evidence[]; rep: Evidence[]; buyer: Evidence[] };
+};
+
+/** Lightweight history projection; source snapshots are fetched only on demand. */
+export type BehaviorRun = {
+  id: string;
+  call_id: string;
+  rep_id: string | null;
+  call_occurred_at: string;
+  started_at: string;
+  prompt_version: string;
+  taxonomy_version: string;
+  models: string[];
+  analysis: BehaviorAnalysis;
+};
+
+export type BehaviorRunSource = BehaviorRun & {
+  organization_id: string;
+  transcript_hash: string;
+  playbook_version_id: string | null;
+  source_snapshot: {
+    structured_turns: ParsedTurn[] | null;
+    structured_meta: unknown;
+    transcript_text: string;
+  };
+};
+
+export type BehaviorFeedback = {
+  id: string;
+  event_id: string;
+  reviewed_by: string;
+  accuracy: "accurate" | "incorrect" | "uncertain";
+  usefulness: "useful" | "unhelpful" | "uncertain";
+  correction: string;
+  created_at: string;
+};
+
+export type RepBehaviorHistory = { runs: BehaviorRun[]; events: BehaviorRow[] };
+
 export type Rep = {
   id: string;
   organization_id: string;
@@ -106,7 +171,12 @@ export type Playbook = {
 };
 
 export type UploadStatus =
-  "queued" | "uploading" | "queued_transcription" | "analyzed" | "saved_no_transcript" | "failed";
+  | "queued"
+  | "uploading"
+  | "queued_transcription"
+  | "analyzed"
+  | "saved_no_transcript"
+  | "failed";
 
 /** Browser-local state for one file in a bulk upload. Not persisted. */
 export type UploadItem = {

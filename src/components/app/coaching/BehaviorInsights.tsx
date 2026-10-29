@@ -14,7 +14,6 @@ import {
   type Evidence,
 } from "@/lib/coaching/behavior";
 import { selectBehaviorMoments } from "../../../../supabase/functions/_shared/coaching/behavior-intelligence";
-
 const DIMENSION_LABELS = {
   playbook_execution: "Playbook execution",
   sales_effectiveness: "Sales effectiveness",
@@ -23,26 +22,46 @@ const DIMENSION_LABELS = {
   sales_progression: "Sales progression",
   risk_review: "Potential risk review",
 };
+const tone = (result: string) =>
+  ["positive", "strength", "followed", "adapted"].includes(result)
+    ? "bg-emerald-100 text-emerald-900"
+    : ["concern", "missed"].includes(result)
+      ? "bg-red-100 text-red-900"
+      : ["mixed", "partial"].includes(result)
+        ? "bg-amber-100 text-amber-900"
+        : "bg-neutral-100 text-neutral-600";
 export function EvidenceLinks({
   evidence,
   onSeek,
+  onSelect,
 }: {
   evidence: Evidence[];
   onSeek: (seconds: number) => void;
+  onSelect?: (evidence: Evidence) => void;
 }) {
   return (
-    <ul className="mt-2 space-y-2">
+    <ul className="mt-3 space-y-2">
       {evidence.map((e) => (
-        <li key={e.turn_id} className="rounded border border-black/10 p-2 text-xs">
-          <button
-            type="button"
-            disabled={e.start_s === null}
-            className="font-semibold text-blue-700 disabled:text-neutral-500"
-            onClick={() => e.start_s !== null && onSeek(e.start_s)}
-          >
-            {timeLabel(e.start_s)} · {e.speaker}
-          </button>
-          <p className="mt-1 whitespace-pre-wrap">{e.text}</p>
+        <li
+          key={e.turn_id}
+          className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-md border border-by-border-engraved bg-by-surface-hover px-3 py-3 text-xs"
+        >
+          <div>
+            <button
+              type="button"
+              disabled={!onSelect && e.start_s === null}
+              onClick={() => {
+                if (onSelect) onSelect(e);
+                else if (e.start_s !== null) onSeek(e.start_s);
+              }}
+              className="font-mono underline-offset-4 hover:underline disabled:text-by-text-tertiary"
+            >
+              {timeLabel(e.start_s)}
+            </button>
+            <p className="mt-1 text-[10px] uppercase text-by-text-secondary">{e.speaker}</p>
+            <span className="text-[9px] text-by-text-tertiary">Turn {e.turn_id}</span>
+          </div>
+          <blockquote className="whitespace-pre-wrap leading-5">“{e.text}”</blockquote>
         </li>
       ))}
     </ul>
@@ -52,11 +71,20 @@ export function BehaviorInsights({
   analysis,
   runId,
   onSeek,
+  onSelectEvidence,
+  mode = "overview",
+  focusedOccurrenceKey,
+  onChooseMoment,
 }: {
   analysis: BehaviorAnalysis;
   runId: string;
   onSeek: (seconds: number) => void;
+  onSelectEvidence?: (evidence: Evidence) => void;
+  mode?: "overview" | "analysis";
+  focusedOccurrenceKey?: string | null;
+  onChooseMoment?: (key: string, evidence?: Evidence) => void;
 }) {
+  const [localKey, setLocalKey] = useState<string | null>(null);
   const q = useQuery(behaviorEventsQuery(runId));
   const rows = q.data ?? [];
   const feedback = useQuery(behaviorFeedbackQuery(rows.map((e) => e.id)));
@@ -74,7 +102,7 @@ export function BehaviorInsights({
         .select("organization_id")
         .eq("id", runId)
         .single();
-      if (error) return false;
+      if (error || !run) return false;
       const { data: membership } = await db
         .from("organization_members")
         .select("role")
@@ -84,77 +112,194 @@ export function BehaviorInsights({
       return ["owner", "admin", "manager"].includes(membership?.role);
     },
   });
-  const ready = !q.isLoading && !feedback.isLoading && !q.error && !feedback.error;
-  const available = analysis.events.filter((event) => {
-    const row = rows.find((r) => r.assessment.occurrence_key === event.occurrence_key);
+  const ready =
+    !q.isPending && !q.error && (!rows.length || !feedback.isPending) && !feedback.error;
+  const rowFor = (key: string) => rows.find((r) => r.assessment.occurrence_key === key);
+  const canRecommend = (key: string) => {
+    const row = rowFor(key);
     return (
-      !row ||
+      ready &&
+      !!row &&
       feedbackAllowsRecommendation((feedback.data ?? []).filter((f) => f.event_id === row.id))
     );
-  });
-  const selected = ready ? selectBehaviorMoments(available) : [];
-  const priority = selected.find((e) => e.result === "concern" || e.result === "mixed");
-  const strength = selected.find((e) => e.result === "strength");
+  };
+  const preferred = ready
+    ? selectBehaviorMoments(analysis.events.filter((e) => canRecommend(e.occurrence_key)))
+    : [];
+  const chosenKey = focusedOccurrenceKey ?? localKey;
+  const event =
+    analysis.events.find((e) => e.occurrence_key === chosenKey) ??
+    preferred[0] ??
+    analysis.events[0];
+  const row = event ? rowFor(event.occurrence_key) : null;
+  const choose = (key: string) => {
+    setLocalKey(key);
+    const evidence = analysis.events.find((e) => e.occurrence_key === key)?.rep_evidence[0];
+    if (onChooseMoment) {
+      onChooseMoment(key, evidence);
+      return;
+    }
+    if (evidence) {
+      if (onSelectEvidence) onSelectEvidence(evidence);
+      else if (evidence.start_s !== null) onSeek(evidence.start_s);
+    }
+  };
   return (
-    <section className="space-y-4" aria-label="Evidence-backed coaching">
-      <p className="rounded border border-amber-200 bg-amber-50 p-3 text-xs">
-        Analyzed {analysis.coverage.analyzed_turns} of {analysis.coverage.total_turns} available
-        transcript turns.{" "}
-        {analysis.coverage.ending_analyzed ? "Transcript ending included." : "Ending not analyzed."}{" "}
-        Recording completeness, speaker identity and timestamp accuracy are not independently
-        verified.
-      </p>
-      <p className="text-sm">
-        <strong>Observed final state:</strong> {analysis.final_state.label}{" "}
-        <span className="text-neutral-500">
-          ({analysis.final_state.verification.replaceAll("_", " ")})
-        </span>
-      </p>
-      {strength && (
-        <div className="rounded bg-green-50 p-3 text-sm">
-          <strong>Keep doing:</strong> {strength.rep_behavior}
-          <p className="mt-1">{strength.interpretation}</p>
-          <p className="mt-1">Repeat: {strength.coaching_action}</p>
+    <section className="space-y-4" aria-label="Evidence-backed behavioral analysis">
+      <header>
+        <h2 className="text-sm font-medium uppercase tracking-wide">Moments on this call</h2>
+        <p className="mt-1 text-[11px] leading-5 text-by-text-secondary">
+          Source-backed observations, followed by interpretation. {analysis.events.length} retained
+          events.
+        </p>
+      </header>
+      {!!analysis.events.length && (
+        <div
+          className="flex max-h-44 flex-wrap gap-2 overflow-y-auto"
+          aria-label="Select behavioral moment"
+        >
+          {analysis.events.map((e, index) => (
+            <button
+              type="button"
+              key={e.occurrence_key}
+              aria-pressed={event?.occurrence_key === e.occurrence_key}
+              onClick={() => choose(e.occurrence_key)}
+              className={`max-w-full rounded-lg border px-3 py-2 text-left text-xs ${event?.occurrence_key === e.occurrence_key ? "border-by-text-primary bg-by-surface-sidebar" : "border-by-border-engraved"}`}
+            >
+              <span className="font-mono">{timeLabel(e.rep_evidence[0]?.start_s ?? null)}</span>
+              <span className="ml-2">
+                {index + 1} · {BEHAVIOR_LABELS[e.family]}
+              </span>
+              <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${tone(e.result)}`}>
+                {e.result}
+              </span>
+            </button>
+          ))}
         </div>
       )}
-      {priority && (
-        <div className="rounded bg-blue-50 p-3 text-sm">
-          <strong>Next-call action:</strong> {priority.coaching_action}
-          <p className="mt-1">Buyer response: {priority.buyer_reaction}</p>
-        </div>
-      )}
-      {ready && !selected.length && (
-        <p className="text-sm text-neutral-500">
-          Insufficient validated evidence for a behavioral coaching moment. Missing evidence is not
-          a failure by the rep.
+      {event ? (
+        <article className="rounded-xl border border-by-border-engraved bg-by-surface-hover p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium">{BEHAVIOR_LABELS[event.family]}</h3>
+            <span className={`rounded-full px-2 py-1 text-[11px] ${tone(event.result)}`}>
+              {event.result}
+            </span>
+          </div>
+          <dl className="mt-3 divide-y divide-by-border-engraved text-[13px]">
+            {[
+              ["Context", event.context],
+              ["Rep behavior", event.rep_behavior],
+              ["Buyer reaction", event.buyer_reaction],
+              ["Observed progression", event.observed_progression],
+              ["Sales interpretation", event.interpretation],
+            ].map(([label, value]) => (
+              <div key={label} className="grid gap-2 py-3 sm:grid-cols-[110px_minmax(0,1fr)]">
+                <dt className="text-[11px] font-medium uppercase leading-5 text-by-text-secondary">
+                  {label}
+                </dt>
+                <dd className="whitespace-pre-wrap leading-6">{value || "Unknown"}</dd>
+              </div>
+            ))}
+          </dl>
+          {canRecommend(event.occurrence_key) && ["high", "medium"].includes(event.confidence) ? (
+            <div className="mt-3 rounded-lg border border-by-border-engraved bg-white p-3">
+              <p className="text-[11px] font-medium uppercase">
+                {event.result === "strength" ? "Repeat this" : "Do next"}
+              </p>
+              <p className="mt-1 text-[13px] leading-6">{event.coaching_action}</p>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs leading-5 text-by-text-secondary">
+              Observe and review before acting. Confidence, saved evidence or reviewer feedback does
+              not support an action recommendation here.
+            </p>
+          )}
+          <EvidenceLinks
+            evidence={[
+              ...event.context_evidence,
+              ...event.rep_evidence,
+              ...event.buyer_evidence,
+            ].filter((e, i, a) => a.findIndex((x) => x.turn_id === e.turn_id) === i)}
+            onSeek={onSeek}
+            onSelect={onSelectEvidence}
+          />
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-by-text-secondary">
+            <span>Confidence {event.confidence} · 1 call</span>
+            <span>Resolution {event.resolution}</span>
+            <span>Opportunity {event.opportunity.replaceAll("_", " ")}</span>
+            <span>Stage {event.stage.replaceAll("_", " ")}</span>
+          </div>
+          <details className="mt-3 text-xs">
+            <summary className="cursor-pointer font-medium">Uncertainty and alternatives</summary>
+            <p className="mt-2 leading-6">
+              {event.alternative_explanation || "Alternative explanation unknown."}
+            </p>
+            <ul className="mt-2 list-inside list-disc leading-6">
+              {event.limitations.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </details>
+          {row && (feedback.data ?? []).some((f) => f.event_id === row.id) && (
+            <p className="mt-3 text-xs text-by-text-secondary">
+              Latest review: {(feedback.data ?? []).find((f) => f.event_id === row.id)?.accuracy} ·{" "}
+              {(feedback.data ?? []).find((f) => f.event_id === row.id)?.usefulness}
+            </p>
+          )}
+          {row && permission.data && <ReviewForm key={row.id} event={row} />}
+        </article>
+      ) : (
+        <p className="rounded-xl border border-by-border-engraved p-6 text-sm text-by-text-secondary">
+          No validated behavioral moments. Missing evidence does not establish success or failure.
         </p>
       )}
-      <details>
-        <summary className="cursor-pointer text-sm font-semibold">Six separate judgments</summary>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+      {(q.error || feedback.error) && (
+        <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs">
+          Saved evidence or reviewer feedback could not load. Action recommendations are withheld.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              void q.refetch();
+              void feedback.refetch();
+            }}
+          >
+            Retry
+          </button>
+        </p>
+      )}
+      <details
+        open={mode === "analysis"}
+        className="rounded-xl border border-by-border-engraved p-4"
+      >
+        <summary className="cursor-pointer text-sm font-medium">Six independent judgments</summary>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {Object.entries(analysis.dimensions).map(([key, f]) => (
-            <div key={key} className="rounded border p-3 text-xs">
-              <strong>
-                {DIMENSION_LABELS[key as keyof typeof DIMENSION_LABELS]} · {f.assessment}
-              </strong>
-              <p className="mt-1">{f.explanation}</p>
+            <article key={key} className="rounded-xl border border-by-border-engraved p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-medium">
+                  {DIMENSION_LABELS[key as keyof typeof DIMENSION_LABELS]}
+                </h3>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] ${tone(f.assessment)}`}>
+                  {f.assessment}
+                </span>
+              </div>
+              <p className="mt-3 text-xs leading-6">{f.explanation}</p>
               {key === "risk_review" && (
-                <p className="mt-1">
+                <p className="mt-2 text-[11px] leading-5 text-by-text-secondary">
                   {f.policy_reference
                     ? `Supplied source: ${f.policy_reference.title} v${f.policy_reference.version} — ${f.policy_reference.quote}`
-                    : "No verified policy reference attached. This is a review signal, not a compliance determination."}
+                    : "Potential review signal; no verified policy reference attached. This is not a compliance determination."}
                 </p>
               )}
-              <EvidenceLinks evidence={f.evidence} onSeek={onSeek} />
-            </div>
+              <EvidenceLinks evidence={f.evidence} onSeek={onSeek} onSelect={onSelectEvidence} />
+            </article>
           ))}
         </div>
       </details>
-      <details>
-        <summary className="cursor-pointer text-sm font-semibold">
-          Call context and limitations
-        </summary>
-        <p className="mt-2 text-xs">
+      <details className="text-xs">
+        <summary className="cursor-pointer font-medium">Call context and coverage</summary>
+        <p className="mt-3 leading-6">
           Objective: {analysis.context.objective}
           <br />
           Starting state: {analysis.context.starting_state}
@@ -163,97 +308,21 @@ export function BehaviorInsights({
           <br />
           Prior history: {analysis.context.prior_history}
         </p>
-        <EvidenceLinks evidence={analysis.context.evidence} onSeek={onSeek} />
-      </details>
-      {selected.map((event) => {
-        const row = rows.find((r) => r.assessment.occurrence_key === event.occurrence_key);
-        const review = row && feedback.data?.find((f) => f.event_id === row.id);
-        return (
-          <article key={event.occurrence_key} className="rounded border p-4 text-sm">
-            <h3 className="font-semibold">
-              {BEHAVIOR_LABELS[event.family]} · {event.result}
-            </h3>
-            <p className="mt-2">{event.rep_behavior}</p>
-            <p className="mt-1">
-              <strong>Buyer:</strong> {event.buyer_reaction}
-            </p>
-            <p className="mt-1">
-              <strong>Progression:</strong> {event.observed_progression}
-            </p>
-            <p className="mt-1">
-              <strong>Interpretation:</strong> {event.interpretation}
-            </p>
-            <p className="mt-1">
-              <strong>Action:</strong> {event.coaching_action}
-            </p>
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs font-semibold">
-                Source evidence and uncertainty
-              </summary>
-              <EvidenceLinks
-                evidence={[
-                  ...event.context_evidence,
-                  ...event.rep_evidence,
-                  ...event.buyer_evidence,
-                ].filter((e, i, a) => a.findIndex((x) => x.turn_id === e.turn_id) === i)}
-                onSeek={onSeek}
-              />
-              <p className="mt-2 text-xs">
-                Other explanation: {event.alternative_explanation || "Unknown"}. Limitations:{" "}
-                {event.limitations.join("; ") ||
-                  "Speaker attribution and interpretation require review."}
-              </p>
-            </details>
-            {review && (
-              <p className="mt-2 text-xs text-neutral-600">
-                Latest review: {review.accuracy} · {review.usefulness}
-                {review.correction && ` · ${review.correction}`}
-              </p>
-            )}
-            {row && permission.data && <ReviewForm event={row} />}
-          </article>
-        );
-      })}
-      {q.error && (
-        <p className="text-xs text-red-700">
-          Saved evidence could not be loaded. Try refreshing or contact your workspace
-          administrator.
+        <EvidenceLinks
+          evidence={analysis.context.evidence}
+          onSeek={onSeek}
+          onSelect={onSelectEvidence}
+        />
+        <p className="mt-3 leading-6 text-by-text-secondary">
+          Analyzed {analysis.coverage.analyzed_turns} of {analysis.coverage.total_turns} available
+          transcript turns.{" "}
+          {analysis.coverage.ending_analyzed
+            ? "Transcript ending included."
+            : "Ending not analyzed."}{" "}
+          Recording completeness, speaker identity and timestamp accuracy are not independently
+          verified.
         </p>
-      )}
-      {feedback.error && (
-        <p className="text-xs text-red-700">Reviewer feedback could not be loaded.</p>
-      )}
-      {analysis.events.length > selected.length && (
-        <details>
-          <summary className="cursor-pointer text-xs">
-            All {analysis.events.length} retained events
-          </summary>
-          {analysis.events
-            .filter((e) => !selected.some((s) => s.occurrence_key === e.occurrence_key))
-            .map((e) => {
-              const row = rows.find((r) => r.assessment.occurrence_key === e.occurrence_key);
-              const review = row && feedback.data?.find((f) => f.event_id === row.id);
-              return (
-                <article key={e.occurrence_key} className="mt-3 border-t pt-3 text-xs">
-                  <p>
-                    {e.result}: {e.rep_behavior} — {e.buyer_reaction}
-                  </p>
-                  <p className="mt-1">Original interpretation: {e.interpretation}</p>
-                  {review && (
-                    <p className="mt-1">
-                      Review: {review.accuracy} · {review.usefulness}. {review.correction}
-                    </p>
-                  )}
-                  <EvidenceLinks
-                    evidence={[...e.rep_evidence, ...e.buyer_evidence]}
-                    onSeek={onSeek}
-                  />
-                  {row && permission.data && <ReviewForm event={row} />}
-                </article>
-              );
-            })}
-        </details>
-      )}
+      </details>
     </section>
   );
 }

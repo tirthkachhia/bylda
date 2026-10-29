@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { type SearchSchemaInput, createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/app/PageHeader";
+import { Inactive, FigmaRow } from "@/components/app/FigmaPrimitives";
 import { StatusPill } from "@/components/app/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import {
   disconnectIntegration,
   getCallIngestUrl,
   integrationsQuery,
+  managerHomeQuery,
   readyModeStatusQuery,
   saveIntegration,
   startIntegrationOAuth,
@@ -51,60 +52,17 @@ import {
 import { buildReadyModeConnectionRequest, readyModeProgress } from "@/lib/readymode";
 
 export const Route = createFileRoute("/app/integrations")({
+  validateSearch: (
+    s: Record<string, unknown> & SearchSchemaInput,
+  ): { tab: "sources" | "delivery" } => ({ tab: s.tab === "delivery" ? "delivery" : "sources" }),
   component: IntegrationsPage,
 });
 
-const LETTER_COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#14b8a6",
-  "#f97316",
-  "#84cc16",
-];
-
-function IntegrationIcon({
-  slug,
-  name,
-  size = 28,
-}: {
-  slug?: string;
-  name: string;
-  size?: number;
-}) {
-  const [failed, setFailed] = useState(false);
-  const bg = LETTER_COLORS[name.charCodeAt(0) % LETTER_COLORS.length];
-
-  if (slug && !failed) {
-    return (
-      <div
-        className="flex shrink-0 items-center justify-center rounded-lg bg-white p-1"
-        style={{ width: size + 8, height: size + 8 }}
-      >
-        <img
-          src={`https://cdn.simpleicons.org/${slug}`}
-          alt={name}
-          width={size}
-          height={size}
-          loading="lazy"
-          className="object-contain"
-          onError={() => setFailed(true)}
-        />
-      </div>
-    );
-  }
-
+function IntegrationIcon({ name }: { slug?: string; name: string; size?: number }) {
   return (
-    <div
-      className="flex shrink-0 items-center justify-center rounded-lg font-bold text-white"
-      style={{ width: size + 8, height: size + 8, background: bg, fontSize: size * 0.45 }}
-    >
-      {name[0].toUpperCase()}
-    </div>
+    <span className="flex size-8 shrink-0 items-center justify-center rounded border border-by-border-engraved bg-by-surface-hover text-[11px]">
+      {name.slice(0, 2).toUpperCase()}
+    </span>
   );
 }
 
@@ -298,7 +256,7 @@ function ConnectModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="figma-connector-dialog max-w-md max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <div className="mb-1 flex items-center gap-3">
             <IntegrationIcon slug={item.iconSlug} name={item.name} size={24} />
@@ -570,7 +528,11 @@ function ConnectModal({
                 </Button>
               )}
             </div>
-            {syncReport && <p role="status" className="text-sm">{syncReport}</p>}
+            {syncReport && (
+              <p role="status" className="text-sm">
+                {syncReport}
+              </p>
+            )}
             {connection && ["salesforce", "gohighlevel", "close_io"].includes(item.key) && (
               <Button variant="outline" className="w-full" onClick={syncCrm} disabled={working}>
                 <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${working ? "animate-spin" : ""}`} />
@@ -749,326 +711,212 @@ function ConnectModal({
   );
 }
 
-function IntegrationCard({
-  item,
-  isConnected,
-  onClick,
-}: {
-  item: IntegrationDef;
-  isConnected: boolean;
-  onClick: () => void;
-}) {
-  const providerName = oauthProviderName(item.key);
-  const isReadyMode = item.key === "readymode";
-  const hasCredentialFallback =
-    !providerName && !isReadyMode && credentialFieldsForIntegration(item).length > 0;
-  return (
-    <div
-      className="grid items-center gap-4 rounded-by-card border border-border bg-surface p-5 sm:grid-cols-[160px_1fr_180px]"
-      style={{
-        border: isConnected
-          ? "1px solid color-mix(in oklab, var(--success) 30%, transparent)"
-          : undefined,
-      }}
-    >
-      <div className="flex items-center gap-3">
-        <IntegrationIcon slug={item.iconSlug} name={item.name} />
-        <StatusPill tone={isConnected ? "success" : "muted"}>
-          {isConnected
-            ? "Connected"
-            : isReadyMode
-              ? "Webhook setup"
-              : providerName
-                ? "Secure sign-in"
-                : hasCredentialFallback
-                  ? item.inputType === "url"
-                    ? "Encrypted URL"
-                    : "Encrypted key"
-                  : "OAuth required"}
-        </StatusPill>
-      </div>
-      <div className="flex-1">
-        <h3 className="mb-0.5 text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
-          {item.name}
-        </h3>
-        <p className="text-[11.5px] leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-          {item.description}
-        </p>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className="rounded-full px-2 py-0.5 text-[10.5px] font-medium"
-          style={{
-            background: "var(--surface-2)",
-            color: "var(--muted-foreground)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          {item.category}
-        </span>
-        <Button
-          size="sm"
-          variant={isConnected ? "outline" : "default"}
-          className="h-7 px-3 text-[11.5px]"
-          onClick={(event) => {
-            event.stopPropagation();
-            onClick();
-          }}
-        >
-          {isConnected ? (
-            <>
-              <Check className="mr-1 h-3 w-3" /> Manage
-            </>
-          ) : isReadyMode ? (
-            "Set up"
-          ) : providerName || hasCredentialFallback ? (
-            "Connect account"
-          ) : (
-            "Details"
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function IntegrationsPage() {
-  const { user } = useAuth();
+  const navigate = Route.useNavigate();
+  const { user, currentOrgId } = useAuth();
   const queryClient = useQueryClient();
-  const integrations = useQuery({ ...integrationsQuery(user?.id ?? ""), enabled: !!user });
-  const connected = integrations.data ?? [];
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<IntegrationCategory>("All");
+  const q = useQuery({ ...integrationsQuery(user?.id ?? ""), enabled: !!user });
+  const home = useQuery(managerHomeQuery(currentOrgId ?? ""));
+  const [tab, setTab] = useState<"sources" | "delivery">(Route.useSearch().tab);
   const [connecting, setConnecting] = useState<IntegrationDef | null>(null);
-
+  const connected = q.data ?? [];
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ["user_integrations", user?.id] });
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get("oauth");
-    const provider = params.get("provider");
     if (!status) return;
     if (status === "success") {
-      toast.success(`${provider ?? "Account"} connected securely`);
-      if (provider === "salesforce") {
-        void syncSalesforce()
-          .then((result) => {
-            toast.success(
-              `Salesforce synced: ${result.contacts_imported} contacts and ${result.opportunities_imported} opportunities`,
-            );
-          })
-          .catch((error) => {
-            toast.error(error instanceof Error ? error.message : "Salesforce sync failed");
-          });
-      } else if (provider === "gohighlevel") {
-        void syncGoHighLevel()
-          .then((result) => {
-            toast.success(
-              `GoHighLevel synced: ${result.contacts_imported} contacts, ${result.calls_imported} calls, and ${result.transcripts_imported} transcripts`,
-            );
-            if (result.conversation_warning) toast.warning(result.conversation_warning);
-          })
-          .catch((error) => {
-            toast.error(error instanceof Error ? error.message : "GoHighLevel sync failed");
-          });
-      }
-    } else if (status === "cancelled") toast.info("Account connection cancelled");
-    else toast.error("Account connection failed. Please try again.");
-    window.history.replaceState({}, "", window.location.pathname);
-    if (user) queryClient.invalidateQueries({ queryKey: ["user_integrations", user.id] });
-  }, [queryClient, user]);
-
-  const filtered = searchCatalog(search, category);
-  const popularItems = POPULAR_INTEGRATIONS.filter(() => !search && category === "All");
-  const isConnected = (item: IntegrationDef) => {
-    const providerName = oauthProviderName(item.key);
-    const primary = connected.find(
-      (entry) => entry.integration_key === item.key && entry.is_connected,
+      toast.success("Account connected");
+      void refresh();
+    } else
+      toast.error(
+        status === "cancelled" ? "Account connection cancelled" : "Account connection failed",
+      );
+    params.delete("oauth");
+    params.delete("provider");
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + (params.size ? "?" + params.toString() : ""),
     );
-    if (item.key === "readymode") return !!primary;
-    if (providerName && primary?.connection_type !== "legacy_credential") {
-      return !!primary;
-    }
-    const requiredFields = credentialFieldsForIntegration(item).filter((field) => !field.optional);
-    return (
-      requiredFields.length > 0 &&
-      requiredFields.every((field) =>
-        connected.some((entry) => entry.integration_key === field.key && entry.is_connected),
-      )
-    );
-  };
-  const refresh = () => {
-    if (user) queryClient.invalidateQueries({ queryKey: ["user_integrations", user.id] });
-  };
-  const openConnector = (item: IntegrationDef) => {
-    setConnecting(item);
-  };
-  const connectedCount = connected.filter((entry) => entry.is_connected).length;
-
+    // The callback is consumed once; source/provider reads continue through the query.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const groups =
+    tab === "sources"
+      ? ([
+          [
+            "Calls & meetings",
+            [
+              ["zoom", "Zoom", "Meeting recorder", false],
+              ["gong", "Gong", "Recorder + transcripts", false],
+              ["aircall", "Aircall", "Dialer", false],
+              ["googlemeet", "Google Meet", "Meeting recorder", false],
+              ["readymode", "ReadyMode", "Call ingestion", true],
+              ["close_io", "Close", "Calls and CRM", true],
+            ],
+          ],
+          [
+            "CRM · outcomes",
+            [
+              ["hubspot", "HubSpot", "CRM", true],
+              ["salesforce", "Salesforce", "CRM", true],
+              ["gohighlevel", "GoHighLevel", "Calls and CRM", true],
+            ],
+          ],
+          ["Calendar", [["google_calendar", "Google Calendar", "Account connection", true]]],
+        ] as const)
+      : ([
+          [
+            "Delivery channels",
+            [
+              ["slack", "Slack", "Account connection; report delivery unavailable", true],
+              ["teams", "Microsoft Teams", "Report delivery", false],
+              ["email", "Email", "Daily brief delivery", false],
+              ["webhook", "Webhook", "Report delivery", false],
+            ],
+          ],
+        ] as const);
   return (
-    <div className="mx-auto max-w-4xl space-y-7 py-8">
-      <PageHeader
-        eyebrow="Integrations"
-        title="Connected, quietly."
-        description="Use secure account sign-in where OAuth is configured, or add encrypted API credentials for the rest of your tools."
-      />
-
-      <div
-        className="rounded-by-card px-5 py-4"
-        style={{
-          background: "color-mix(in oklab, var(--primary) 6%, var(--surface))",
-          border: "1px solid color-mix(in oklab, var(--primary) 18%, var(--border))",
-        }}
-      >
-        <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: "var(--primary)" }} />
-          <div>
-            <div className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
-              Secure connections
-            </div>
-            <p
-              className="mt-0.5 text-[11.5px] leading-relaxed"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              OAuth connections use provider sign-in and minimum scopes. API keys, tokens, and
-              webhook URLs are encrypted on the server and are never displayed again.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {connectedCount > 0 && (
-        <div
-          className="flex items-center gap-3 rounded-by-card px-5 py-3"
-          style={{
-            background: "color-mix(in oklab, var(--success) 8%, var(--surface))",
-            border: "1px solid color-mix(in oklab, var(--success) 25%, transparent)",
-          }}
-        >
-          <Check className="h-4 w-4" style={{ color: "var(--success)" }} />
-          <span className="text-[13px] font-medium" style={{ color: "var(--foreground)" }}>
-            {connectedCount} integration{connectedCount === 1 ? "" : "s"} connected
-          </span>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
-            style={{ color: "var(--muted-foreground)" }}
-          />
-          <input
-            id="integrations-search"
-            name="integration-catalog-search"
-            type="search"
-            placeholder="Search integrations…"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            className="w-full rounded-by-card py-2.5 pl-10 pr-10 text-[13px] outline-none"
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              color: "var(--foreground)",
-            }}
-          />
-          {search && (
+    <div
+      className="figma-surface grid gap-2 xl:grid-cols-[minmax(0,1fr)_344px]"
+      data-design-screen="integrations"
+    >
+      <section className="figma-panel min-h-[calc(100dvh-72px)]">
+        <h1>Integrations</h1>
+        <p className="mt-2 text-xs text-by-text-secondary">
+          Data sources feed Bylda. Delivery channels carry Bylda’s intelligence out.
+        </p>
+        <div className="figma-tabs" role="tablist" aria-label="Integration category">
+          {(
+            [
+              ["sources", "Data sources"],
+              ["delivery", "Delivery channels"],
+            ] as const
+          ).map(([key, name]) => (
             <button
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-              onClick={() => setSearch("")}
+              role="tab"
+              type="button"
+              key={key}
+              aria-selected={tab === key}
+              onClick={() => {
+                setTab(key);
+                void navigate({ search: { tab: key } });
+              }}
             >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {CATEGORIES.map((item) => (
-            <button
-              key={item}
-              onClick={() => setCategory(item)}
-              className="shrink-0 rounded-full px-3 py-1 text-[12px] font-medium"
-              style={
-                category === item
-                  ? { background: "var(--primary)", color: "white" }
-                  : {
-                      background: "var(--surface)",
-                      border: "1px solid var(--border)",
-                      color: "var(--muted-foreground)",
-                    }
-              }
-            >
-              {item}
+              {name}
             </button>
           ))}
         </div>
-      </div>
-
-      {popularItems.length > 0 && (
-        <section>
-          <div
-            className="mb-3 text-[11px] font-semibold uppercase tracking-[0.1em]"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Popular
-          </div>
-          <div className="grid gap-3">
-            {popularItems.map((item) => (
-              <IntegrationCard
-                key={item.key}
-                item={item}
-                isConnected={isConnected(item)}
-                onClick={() => openConnector(item)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <div
-          className="mb-3 text-[11px] font-semibold uppercase tracking-[0.1em]"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          {search || category !== "All" ? `${filtered.length} results` : "All integrations"}
-        </div>
-        {filtered.length === 0 ? (
-          <div
-            className="rounded-by-card py-16 text-center"
-            style={{ background: "var(--surface)", border: "1px dashed var(--border)" }}
-          >
-            <Search className="mx-auto mb-3 h-8 w-8" style={{ color: "var(--muted-foreground)" }} />
-            <div className="text-[13px] font-medium">No integrations found</div>
-            <div className="mt-1 text-[12px]" style={{ color: "var(--muted-foreground)" }}>
-              Try a provider name, category, or connection type.
-            </div>
-          </div>
+        {q.isPending ? (
+          <p role="status">Loading connections…</p>
+        ) : q.error ? (
+          <p role="alert">
+            Connections could not load.{" "}
+            <button className="underline" onClick={() => void q.refetch()}>
+              Retry
+            </button>
+          </p>
         ) : (
-          <div className="grid gap-3">
-            {filtered
-              .filter((item) => !popularItems.some((popular) => popular.key === item.key))
-              .map((item) => (
-                <IntegrationCard
-                  key={item.key}
-                  item={item}
-                  isConnected={isConnected(item)}
-                  onClick={() => openConnector(item)}
-                />
-              ))}
-          </div>
+          groups.map(([heading, rows]) => (
+            <section key={heading}>
+              <h3>{heading}</h3>
+              <div className="rounded-xl border border-by-border-engraved">
+                {rows.map(([key, name, detail, supported]) => {
+                  const item = CATALOG.find((i) => i.key === key);
+                  const entry = connected.find((i) => i.integration_key === key && i.is_connected);
+                  const active = supported && !!item;
+                  return (
+                    <div
+                      key={key}
+                      className="flex flex-wrap items-center gap-3 border-b border-by-border-engraved p-3 last:border-0"
+                    >
+                      <IntegrationIcon name={name} />
+                      <div className="min-w-0 flex-1">
+                        <p>{name}</p>
+                        <p className="text-xs text-by-text-secondary">{detail}</p>
+                      </div>
+                      <span className="text-[11px] text-by-text-secondary">
+                        {active ? (entry ? "Connected" : "Not connected") : "Not available yet"}
+                      </span>
+                      {active ? (
+                        <button
+                          type="button"
+                          className="figma-button"
+                          onClick={() => setConnecting(item)}
+                        >
+                          {entry ? "Manage" : "Connect"}
+                        </button>
+                      ) : (
+                        <Inactive>Connect</Inactive>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))
+        )}
+        {tab === "sources" && (
+          <section>
+            <h3>Files</h3>
+            <div className="rounded-xl border border-by-border-engraved">
+              <FigmaRow
+                label="Manual upload"
+                detail="Media up to 100 MB or TXT transcripts up to 100,000 characters"
+              >
+                <Link
+                  className="figma-button"
+                  to="/app/crm/calls"
+                  search={{ view: "calls", upload: true }}
+                >
+                  Upload
+                </Link>
+              </FigmaRow>
+              <FigmaRow label="CSV import" detail="Deal outcomes for teams without CRM">
+                <Inactive>Import</Inactive>
+              </FigmaRow>
+            </div>
+          </section>
+        )}
+        {connecting && (
+          <ConnectModal
+            item={connecting}
+            connected={connected}
+            onClose={() => setConnecting(null)}
+            onSaved={() => void refresh()}
+          />
         )}
       </section>
-
-      {connecting && (
-        <ConnectModal
-          item={connecting}
-          connected={connected}
-          onClose={() => {
-            setConnecting(null);
-          }}
-          onSaved={refresh}
-        />
-      )}
+      <aside className="p-6">
+        <h2 className="text-xs uppercase">Health</h2>
+        <FigmaRow label="Imported calls">
+          <span>{home.data?.importedCalls ?? "—"}</span>
+        </FigmaRow>
+        <FigmaRow label="Analyzed">
+          <span>{home.data?.analyzedCalls ?? "—"}</span>
+        </FigmaRow>
+        <FigmaRow label="Failed">
+          <span>—</span>
+        </FigmaRow>
+        <FigmaRow label="Waiting">
+          <span>—</span>
+        </FigmaRow>
+        <FigmaRow label="CRM match">
+          <span>—</span>
+        </FigmaRow>
+        <p className="mt-3 text-[11px] text-by-text-secondary">
+          Call totals are all time for this workspace. Unavailable metrics remain blank.
+        </p>
+        <section className="mt-5 rounded-lg border border-by-border-engraved p-4">
+          <h3 className="text-[11px] uppercase">What Bylda reads</h3>
+          <p className="mt-2 text-xs">
+            Available audio, transcripts, participants and timestamps, plus connected CRM context.
+            Connector permissions govern access.
+          </p>
+        </section>
+      </aside>
     </div>
   );
 }

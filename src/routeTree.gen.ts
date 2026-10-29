@@ -28,11 +28,13 @@ import { Route as AppBuilderRouteImport } from './routes/app.builder'
 import { Route as AppByldaFullRouteImport } from './routes/app.bylda-full'
 import { Route as AppByldaHomeRouteImport } from './routes/app.bylda-home'
 import { Route as AppByldaOsRouteImport } from './routes/app.bylda-os'
+import { Route as AppCoachingRouteImport } from './routes/app.coaching'
 import { Route as AppCommandCenterRouteImport } from './routes/app.command-center'
 import { Route as AppContactsRouteImport } from './routes/app.contacts'
 import { Route as AppContextMemoryRouteImport } from './routes/app.context-memory'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppGalaxyRouteImport } from './routes/app.galaxy'
+import { Route as AppInsightsRouteImport } from './routes/app.insights'
 import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
 import { Route as AppLaunchControlRouteImport } from './routes/app.launch-control'
 import { Route as AppLaunchpadPathRouteImport } from './routes/app.launchpad-path'
@@ -42,7 +44,10 @@ import { Route as AppMentorRouteImport } from './routes/app.mentor'
 import { Route as AppMissionBriefingRouteImport } from './routes/app.mission-briefing'
 import { Route as AppMissionControlRouteImport } from './routes/app.mission-control'
 import { Route as AppMonitoringRouteImport } from './routes/app.monitoring'
+import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
+import { Route as AppPeopleRouteImport } from './routes/app.people'
 import { Route as AppPlaybookRouteImport } from './routes/app.playbook'
+import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppReputationRouteImport } from './routes/app.reputation'
 import { Route as AppResearchRouteImport } from './routes/app.research'
 import { Route as AppRoadmapRouteImport } from './routes/app.roadmap'
@@ -57,8 +62,10 @@ import { Route as AuthInviteRouteImport } from './routes/auth.invite'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
+import { Route as AuthVerifyEmailRouteImport } from './routes/auth.verify-email'
 import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as FFormIdRouteImport } from './routes/f.$formId'
+import { Route as SetupStepRouteImport } from './routes/setup.$step'
 import { Route as AppAcademyModuleRouteImport } from './routes/app.academy.$module'
 import { Route as AppBillingReturnRouteImport } from './routes/app.billing.return'
 import { Route as AppByldaOsSlugRouteImport } from './routes/app.bylda-os.$slug'
@@ -94,6 +101,7 @@ import { Route as AppScaleCampaignsRouteImport } from './routes/app.scale.campai
 import { Route as AppScalePipelineRouteImport } from './routes/app.scale.pipeline'
 import { Route as AppScaleReportsRouteImport } from './routes/app.scale.reports'
 import { Route as AppScaleTeamRouteImport } from './routes/app.scale.team'
+import { Route as AppViewsScreenRouteImport } from './routes/app.views.$screen'
 import { Route as AppLaunchpadOutputsIdRouteImport } from './routes/app.launchpad.outputs.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -191,6 +199,11 @@ const AppByldaOsRoute = AppByldaOsRouteImport.update({
   path: '/bylda-os',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCoachingRoute = AppCoachingRouteImport.update({
+  id: '/coaching',
+  path: '/coaching',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCommandCenterRoute = AppCommandCenterRouteImport.update({
   id: '/command-center',
   path: '/command-center',
@@ -214,6 +227,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
 const AppGalaxyRoute = AppGalaxyRouteImport.update({
   id: '/galaxy',
   path: '/galaxy',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInsightsRoute = AppInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
@@ -261,9 +279,24 @@ const AppMonitoringRoute = AppMonitoringRouteImport.update({
   path: '/monitoring',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeopleRoute = AppPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPlaybookRoute = AppPlaybookRouteImport.update({
   id: '/playbook',
   path: '/playbook',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReputationRoute = AppReputationRouteImport.update({
@@ -336,6 +369,11 @@ const AuthSignUpRoute = AuthSignUpRouteImport.update({
   path: '/auth/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
+  id: '/auth/verify-email',
+  path: '/auth/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookSlugRoute = BookSlugRouteImport.update({
   id: '/book/$slug',
   path: '/book/$slug',
@@ -344,6 +382,11 @@ const BookSlugRoute = BookSlugRouteImport.update({
 const FFormIdRoute = FFormIdRouteImport.update({
   id: '/f/$formId',
   path: '/f/$formId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupStepRoute = SetupStepRouteImport.update({
+  id: '/setup/$step',
+  path: '/setup/$step',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAcademyModuleRoute = AppAcademyModuleRouteImport.update({
@@ -522,6 +565,11 @@ const AppScaleTeamRoute = AppScaleTeamRouteImport.update({
   path: '/team',
   getParentRoute: () => AppScaleRoute,
 } as any)
+const AppViewsScreenRoute = AppViewsScreenRouteImport.update({
+  id: '/views/$screen',
+  path: '/views/$screen',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLaunchpadOutputsIdRoute = AppLaunchpadOutputsIdRouteImport.update({
   id: '/launchpad/outputs/$id',
   path: '/launchpad/outputs/$id',
@@ -547,11 +595,13 @@ export interface FileRoutesByFullPath {
   '/app/bylda-full': typeof AppByldaFullRoute
   '/app/bylda-home': typeof AppByldaHomeRoute
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
+  '/app/coaching': typeof AppCoachingRoute
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
+  '/app/insights': typeof AppInsightsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
@@ -561,7 +611,10 @@ export interface FileRoutesByFullPath {
   '/app/mission-briefing': typeof AppMissionBriefingRoute
   '/app/mission-control': typeof AppMissionControlRoute
   '/app/monitoring': typeof AppMonitoringRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/people': typeof AppPeopleRoute
   '/app/playbook': typeof AppPlaybookRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/reputation': typeof AppReputationRoute
   '/app/research': typeof AppResearchRoute
   '/app/roadmap': typeof AppRoadmapRoute
@@ -576,8 +629,10 @@ export interface FileRoutesByFullPath {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/book/$slug': typeof BookSlugRoute
   '/f/$formId': typeof FFormIdRoute
+  '/setup/$step': typeof SetupStepRoute
   '/app/': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -612,6 +667,7 @@ export interface FileRoutesByFullPath {
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
+  '/app/views/$screen': typeof AppViewsScreenRoute
   '/app/bylda/': typeof AppByldaIndexRoute
   '/app/launchpad/': typeof AppLaunchpadIndexRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
@@ -634,11 +690,13 @@ export interface FileRoutesByTo {
   '/app/bylda-full': typeof AppByldaFullRoute
   '/app/bylda-home': typeof AppByldaHomeRoute
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
+  '/app/coaching': typeof AppCoachingRoute
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
+  '/app/insights': typeof AppInsightsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
@@ -648,7 +706,10 @@ export interface FileRoutesByTo {
   '/app/mission-briefing': typeof AppMissionBriefingRoute
   '/app/mission-control': typeof AppMissionControlRoute
   '/app/monitoring': typeof AppMonitoringRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/people': typeof AppPeopleRoute
   '/app/playbook': typeof AppPlaybookRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/reputation': typeof AppReputationRoute
   '/app/research': typeof AppResearchRoute
   '/app/roadmap': typeof AppRoadmapRoute
@@ -663,8 +724,10 @@ export interface FileRoutesByTo {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/book/$slug': typeof BookSlugRoute
   '/f/$formId': typeof FFormIdRoute
+  '/setup/$step': typeof SetupStepRoute
   '/app': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -699,6 +762,7 @@ export interface FileRoutesByTo {
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
+  '/app/views/$screen': typeof AppViewsScreenRoute
   '/app/bylda': typeof AppByldaIndexRoute
   '/app/launchpad': typeof AppLaunchpadIndexRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
@@ -723,11 +787,13 @@ export interface FileRoutesById {
   '/app/bylda-full': typeof AppByldaFullRoute
   '/app/bylda-home': typeof AppByldaHomeRoute
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
+  '/app/coaching': typeof AppCoachingRoute
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
+  '/app/insights': typeof AppInsightsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
@@ -737,7 +803,10 @@ export interface FileRoutesById {
   '/app/mission-briefing': typeof AppMissionBriefingRoute
   '/app/mission-control': typeof AppMissionControlRoute
   '/app/monitoring': typeof AppMonitoringRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/people': typeof AppPeopleRoute
   '/app/playbook': typeof AppPlaybookRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/reputation': typeof AppReputationRoute
   '/app/research': typeof AppResearchRoute
   '/app/roadmap': typeof AppRoadmapRoute
@@ -752,8 +821,10 @@ export interface FileRoutesById {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/book/$slug': typeof BookSlugRoute
   '/f/$formId': typeof FFormIdRoute
+  '/setup/$step': typeof SetupStepRoute
   '/app/': typeof AppIndexRoute
   '/app/academy/$module': typeof AppAcademyModuleRoute
   '/app/billing/return': typeof AppBillingReturnRoute
@@ -788,6 +859,7 @@ export interface FileRoutesById {
   '/app/scale/pipeline': typeof AppScalePipelineRoute
   '/app/scale/reports': typeof AppScaleReportsRoute
   '/app/scale/team': typeof AppScaleTeamRoute
+  '/app/views/$screen': typeof AppViewsScreenRoute
   '/app/bylda/': typeof AppByldaIndexRoute
   '/app/launchpad/': typeof AppLaunchpadIndexRoute
   '/app/launchpad/outputs/$id': typeof AppLaunchpadOutputsIdRoute
@@ -813,11 +885,13 @@ export interface FileRouteTypes {
     | '/app/bylda-full'
     | '/app/bylda-home'
     | '/app/bylda-os'
+    | '/app/coaching'
     | '/app/command-center'
     | '/app/contacts'
     | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
+    | '/app/insights'
     | '/app/integrations'
     | '/app/launch-control'
     | '/app/launchpad-path'
@@ -827,7 +901,10 @@ export interface FileRouteTypes {
     | '/app/mission-briefing'
     | '/app/mission-control'
     | '/app/monitoring'
+    | '/app/notifications'
+    | '/app/people'
     | '/app/playbook'
+    | '/app/reports'
     | '/app/reputation'
     | '/app/research'
     | '/app/roadmap'
@@ -842,8 +919,10 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-in'
     | '/auth/sign-up'
+    | '/auth/verify-email'
     | '/book/$slug'
     | '/f/$formId'
+    | '/setup/$step'
     | '/app/'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -878,6 +957,7 @@ export interface FileRouteTypes {
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
+    | '/app/views/$screen'
     | '/app/bylda/'
     | '/app/launchpad/'
     | '/app/launchpad/outputs/$id'
@@ -900,11 +980,13 @@ export interface FileRouteTypes {
     | '/app/bylda-full'
     | '/app/bylda-home'
     | '/app/bylda-os'
+    | '/app/coaching'
     | '/app/command-center'
     | '/app/contacts'
     | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
+    | '/app/insights'
     | '/app/integrations'
     | '/app/launch-control'
     | '/app/launchpad-path'
@@ -914,7 +996,10 @@ export interface FileRouteTypes {
     | '/app/mission-briefing'
     | '/app/mission-control'
     | '/app/monitoring'
+    | '/app/notifications'
+    | '/app/people'
     | '/app/playbook'
+    | '/app/reports'
     | '/app/reputation'
     | '/app/research'
     | '/app/roadmap'
@@ -929,8 +1014,10 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-in'
     | '/auth/sign-up'
+    | '/auth/verify-email'
     | '/book/$slug'
     | '/f/$formId'
+    | '/setup/$step'
     | '/app'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -965,6 +1052,7 @@ export interface FileRouteTypes {
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
+    | '/app/views/$screen'
     | '/app/bylda'
     | '/app/launchpad'
     | '/app/launchpad/outputs/$id'
@@ -988,11 +1076,13 @@ export interface FileRouteTypes {
     | '/app/bylda-full'
     | '/app/bylda-home'
     | '/app/bylda-os'
+    | '/app/coaching'
     | '/app/command-center'
     | '/app/contacts'
     | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
+    | '/app/insights'
     | '/app/integrations'
     | '/app/launch-control'
     | '/app/launchpad-path'
@@ -1002,7 +1092,10 @@ export interface FileRouteTypes {
     | '/app/mission-briefing'
     | '/app/mission-control'
     | '/app/monitoring'
+    | '/app/notifications'
+    | '/app/people'
     | '/app/playbook'
+    | '/app/reports'
     | '/app/reputation'
     | '/app/research'
     | '/app/roadmap'
@@ -1017,8 +1110,10 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-in'
     | '/auth/sign-up'
+    | '/auth/verify-email'
     | '/book/$slug'
     | '/f/$formId'
+    | '/setup/$step'
     | '/app/'
     | '/app/academy/$module'
     | '/app/billing/return'
@@ -1053,6 +1148,7 @@ export interface FileRouteTypes {
     | '/app/scale/pipeline'
     | '/app/scale/reports'
     | '/app/scale/team'
+    | '/app/views/$screen'
     | '/app/bylda/'
     | '/app/launchpad/'
     | '/app/launchpad/outputs/$id'
@@ -1071,8 +1167,10 @@ export interface RootRouteChildren {
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
+  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
   BookSlugRoute: typeof BookSlugRoute
   FFormIdRoute: typeof FFormIdRoute
+  SetupStepRoute: typeof SetupStepRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1210,6 +1308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppByldaOsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/coaching': {
+      id: '/app/coaching'
+      path: '/coaching'
+      fullPath: '/app/coaching'
+      preLoaderRoute: typeof AppCoachingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/command-center': {
       id: '/app/command-center'
       path: '/command-center'
@@ -1243,6 +1348,13 @@ declare module '@tanstack/react-router' {
       path: '/galaxy'
       fullPath: '/app/galaxy'
       preLoaderRoute: typeof AppGalaxyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/insights': {
+      id: '/app/insights'
+      path: '/insights'
+      fullPath: '/app/insights'
+      preLoaderRoute: typeof AppInsightsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/integrations': {
@@ -1308,11 +1420,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMonitoringRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/notifications': {
+      id: '/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/people': {
+      id: '/app/people'
+      path: '/people'
+      fullPath: '/app/people'
+      preLoaderRoute: typeof AppPeopleRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/playbook': {
       id: '/app/playbook'
       path: '/playbook'
       fullPath: '/app/playbook'
       preLoaderRoute: typeof AppPlaybookRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/reports': {
+      id: '/app/reports'
+      path: '/reports'
+      fullPath: '/app/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/reputation': {
@@ -1413,6 +1546,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/verify-email': {
+      id: '/auth/verify-email'
+      path: '/auth/verify-email'
+      fullPath: '/auth/verify-email'
+      preLoaderRoute: typeof AuthVerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/book/$slug': {
       id: '/book/$slug'
       path: '/book/$slug'
@@ -1425,6 +1565,13 @@ declare module '@tanstack/react-router' {
       path: '/f/$formId'
       fullPath: '/f/$formId'
       preLoaderRoute: typeof FFormIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup/$step': {
+      id: '/setup/$step'
+      path: '/setup/$step'
+      fullPath: '/setup/$step'
+      preLoaderRoute: typeof SetupStepRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/academy/$module': {
@@ -1672,6 +1819,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScaleTeamRouteImport
       parentRoute: typeof AppScaleRoute
     }
+    '/app/views/$screen': {
+      id: '/app/views/$screen'
+      path: '/views/$screen'
+      fullPath: '/app/views/$screen'
+      preLoaderRoute: typeof AppViewsScreenRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/launchpad/outputs/$id': {
       id: '/app/launchpad/outputs/$id'
       path: '/launchpad/outputs/$id'
@@ -1750,11 +1904,13 @@ interface AppRouteChildren {
   AppByldaFullRoute: typeof AppByldaFullRoute
   AppByldaHomeRoute: typeof AppByldaHomeRoute
   AppByldaOsRoute: typeof AppByldaOsRouteWithChildren
+  AppCoachingRoute: typeof AppCoachingRoute
   AppCommandCenterRoute: typeof AppCommandCenterRoute
   AppContactsRoute: typeof AppContactsRoute
   AppContextMemoryRoute: typeof AppContextMemoryRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppGalaxyRoute: typeof AppGalaxyRoute
+  AppInsightsRoute: typeof AppInsightsRoute
   AppIntegrationsRoute: typeof AppIntegrationsRoute
   AppLaunchControlRoute: typeof AppLaunchControlRoute
   AppLaunchpadPathRoute: typeof AppLaunchpadPathRoute
@@ -1764,7 +1920,10 @@ interface AppRouteChildren {
   AppMissionBriefingRoute: typeof AppMissionBriefingRoute
   AppMissionControlRoute: typeof AppMissionControlRoute
   AppMonitoringRoute: typeof AppMonitoringRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
+  AppPeopleRoute: typeof AppPeopleRoute
   AppPlaybookRoute: typeof AppPlaybookRoute
+  AppReportsRoute: typeof AppReportsRoute
   AppReputationRoute: typeof AppReputationRoute
   AppResearchRoute: typeof AppResearchRoute
   AppRoadmapRoute: typeof AppRoadmapRoute
@@ -1800,6 +1959,7 @@ interface AppRouteChildren {
   AppLaunchpadMentorsRoute: typeof AppLaunchpadMentorsRoute
   AppLaunchpadMissionsRoute: typeof AppLaunchpadMissionsRoute
   AppOutcomesCategoryRoute: typeof AppOutcomesCategoryRoute
+  AppViewsScreenRoute: typeof AppViewsScreenRoute
   AppByldaIndexRoute: typeof AppByldaIndexRoute
   AppLaunchpadIndexRoute: typeof AppLaunchpadIndexRoute
   AppLaunchpadOutputsIdRoute: typeof AppLaunchpadOutputsIdRoute
@@ -1817,11 +1977,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppByldaFullRoute: AppByldaFullRoute,
   AppByldaHomeRoute: AppByldaHomeRoute,
   AppByldaOsRoute: AppByldaOsRouteWithChildren,
+  AppCoachingRoute: AppCoachingRoute,
   AppCommandCenterRoute: AppCommandCenterRoute,
   AppContactsRoute: AppContactsRoute,
   AppContextMemoryRoute: AppContextMemoryRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppGalaxyRoute: AppGalaxyRoute,
+  AppInsightsRoute: AppInsightsRoute,
   AppIntegrationsRoute: AppIntegrationsRoute,
   AppLaunchControlRoute: AppLaunchControlRoute,
   AppLaunchpadPathRoute: AppLaunchpadPathRoute,
@@ -1831,7 +1993,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppMissionBriefingRoute: AppMissionBriefingRoute,
   AppMissionControlRoute: AppMissionControlRoute,
   AppMonitoringRoute: AppMonitoringRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
+  AppPeopleRoute: AppPeopleRoute,
   AppPlaybookRoute: AppPlaybookRoute,
+  AppReportsRoute: AppReportsRoute,
   AppReputationRoute: AppReputationRoute,
   AppResearchRoute: AppResearchRoute,
   AppRoadmapRoute: AppRoadmapRoute,
@@ -1867,6 +2032,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLaunchpadMentorsRoute: AppLaunchpadMentorsRoute,
   AppLaunchpadMissionsRoute: AppLaunchpadMissionsRoute,
   AppOutcomesCategoryRoute: AppOutcomesCategoryRoute,
+  AppViewsScreenRoute: AppViewsScreenRoute,
   AppByldaIndexRoute: AppByldaIndexRoute,
   AppLaunchpadIndexRoute: AppLaunchpadIndexRoute,
   AppLaunchpadOutputsIdRoute: AppLaunchpadOutputsIdRoute,
@@ -1887,8 +2053,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
+  AuthVerifyEmailRoute: AuthVerifyEmailRoute,
   BookSlugRoute: BookSlugRoute,
   FFormIdRoute: FFormIdRoute,
+  SetupStepRoute: SetupStepRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

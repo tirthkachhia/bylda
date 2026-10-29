@@ -4,10 +4,28 @@ import { resolve } from "node:path";
 import { workspaceNavigation } from "../workspace-navigation";
 
 describe("live UI integration", () => {
-  it("retains the original live integration, setup, calls, and AI destinations", () => {
+  it("exposes only Figma MVP destinations and retires old presentation routes", () => {
     const links = workspaceNavigation.map((item) => item.to);
-    for (const path of ["/app/crm/calls", "/app/integrations", "/app/crm/setup", "/app/memory"])
+    for (const path of [
+      "/app/crm/calls",
+      "/app/integrations",
+      "/app/settings",
+      "/app/people",
+      "/app/reports",
+    ])
       expect(links).toContain(path);
+    expect(links).not.toContain("/app/memory");
+    expect(links).not.toContain("/app/bylda/reports");
+    for (const route of [
+      "app.memory.tsx",
+      "app.bylda.reports.tsx",
+      "app.contacts.tsx",
+      "app.crm.setup.tsx",
+    ]) {
+      const source = readFileSync(resolve("src/routes", route), "utf8");
+      expect(source).toContain("redirect(");
+      expect(source).not.toContain("component:");
+    }
     expect(new Set(links).size).toBe(links.length);
     for (const path of links) {
       const route = path === "/app" ? "app.index.tsx" : `${path.slice(1).replaceAll("/", ".")}.tsx`;

@@ -2,7 +2,7 @@ import type { UploadItem, UploadStatus } from "@/lib/coaching/types";
 
 const LABEL: Record<UploadStatus, string> = {
   queued: "Waiting",
-  uploading: "Uploading and analyzing…",
+  uploading: "Importing and analyzing…",
   queued_transcription: "Queued, transcribing in the background",
   analyzed: "Coaching ready",
   saved_no_transcript: "Saved, transcript unavailable",
@@ -17,17 +17,20 @@ function formatSize(bytes: number) {
 export function UploadRows({ items }: { items: UploadItem[] }) {
   if (!items.length) return null;
   return (
-    <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 text-sm">
+    <ul
+      aria-live="polite"
+      className="divide-y divide-by-border-engraved rounded-lg border border-by-border-engraved text-sm"
+    >
       {items.map((item, index) => (
         <li
           key={`${item.file.name}-${index}`}
-          className="flex items-center justify-between gap-3 px-3 py-2"
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-3"
         >
           <span className="truncate">{item.file.name}</span>
           <span className="shrink-0 text-xs text-neutral-500">{formatSize(item.file.size)}</span>
           <span
             role="status"
-            className={`shrink-0 text-xs ${item.status === "failed" ? "text-red-600" : "text-neutral-700"}`}
+            className={`col-span-2 break-words text-xs ${item.status === "failed" ? "text-red-600" : "text-neutral-700"}`}
           >
             {item.status === "failed" && item.message ? item.message : LABEL[item.status]}
           </span>

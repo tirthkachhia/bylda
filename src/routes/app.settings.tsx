@@ -1,1066 +1,835 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { type SearchSchemaInput, createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { StatusBadge, XpBar } from "@/components/app/MissionHeader";
-import { WorkspaceHeader } from "@/components/app/WorkspaceHeader";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   organizationQuery,
   organizationMembersQuery,
   subscriptionQuery,
   planEntitlementsQuery,
-  integrationsQuery,
-  usageQuery,
-  disconnectIntegration,
+  managerHomeQuery,
   type OrgMember,
   type OrgRole,
 } from "@/lib/queries";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import {
-  AlertTriangle,
-  Brain,
-  Check,
-  Lock,
-  Trash2,
-  ShieldCheck,
-  Settings as SettingsIcon,
-  User,
-  Building2,
-  CreditCard,
-  Plug,
-  Skull,
-  ExternalLink,
-  Unplug,
-  Users,
-  UserPlus,
-} from "lucide-react";
-import { BusinessContextTab } from "@/components/app/settings/BusinessContextTab";
-import { getCatalogByKey } from "@/lib/integrations-catalog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { blockIfGuest } from "@/lib/guest";
-import { SignupEmailPreference } from "@/components/app/SignupEmails";
+import { getStripeEnvironment } from "@/lib/stripe";
+import { FigmaField, FigmaRow, Inactive } from "@/components/app/FigmaPrimitives";
+import { initials } from "@/lib/coaching/calls";
 
 export const Route = createFileRoute("/app/settings")({
-  validateSearch: (s: Record<string, unknown>): { tab?: string } => ({
-    tab: typeof s.tab === "string" ? s.tab : undefined,
+  validateSearch: (s: Record<string, unknown> & SearchSchemaInput) => ({
+    tab: typeof s.tab === "string" ? s.tab : "general",
   }),
-  component: SettingsPage,
+  component: Settings,
 });
-
-const TABS = [
-  { key: "profile", label: "Profile", icon: User },
-  { key: "context", label: "Business Context", icon: Brain },
-  { key: "organization", label: "Organization", icon: Building2 },
-  { key: "team", label: "Team", icon: Users },
-  { key: "plan", label: "Plan", icon: CreditCard },
-  { key: "connectors", label: "Connectors", icon: Plug },
-  { key: "danger", label: "Danger zone", icon: Skull },
+const groups = [
+  [
+    "Workspace",
+    [
+      ["general", "General"],
+      ["users", "Users"],
+      ["teams", "Teams"],
+      ["roles", "Roles & permissions"],
+    ],
+  ],
+  [
+    "Intelligence",
+    [
+      ["analysis", "Analysis preferences"],
+      ["methodology", "Methodology"],
+      ["rules", "Behavior rules"],
+      ["objections", "Objection library"],
+      ["success", "Success criteria"],
+    ],
+  ],
+  [
+    "Delivery",
+    [
+      ["notifications", "Notifications"],
+      ["delivery", "Delivery channels"],
+    ],
+  ],
+  [
+    "Data",
+    [
+      ["integrations", "Integrations"],
+      ["privacy", "Retention & privacy"],
+    ],
+  ],
+  [
+    "Account",
+    [
+      ["profile", "Profile"],
+      ["plan", "Billing & plan"],
+      ["usage", "Usage"],
+    ],
+  ],
+  [
+    "Developer",
+    [
+      ["api", "API keys"],
+      ["audit", "Audit log"],
+    ],
+  ],
 ] as const;
-
-type TabKey = (typeof TABS)[number]["key"];
-
-function SettingsPage() {
-  const search = Route.useSearch();
-  const initialTab = TABS.some((t) => t.key === search.tab) ? (search.tab as TabKey) : "profile";
-  const [tab, setTab] = useState<TabKey>(initialTab);
-
-  return (
-    <div className="space-y-6">
-      <WorkspaceHeader
-        variant="settings"
-        icon={SettingsIcon}
-        eyebrow="Account"
-        title="Settings"
-        description="Manage your profile, organization, plan, and integrations."
-      />
-
-      {/* Tab bar */}
-      <div
-        className="flex gap-1 rounded-by-card p-1"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+function Settings() {
+  const { tab: raw } = Route.useSearch();
+  const tab =
+    (
+      { organization: "general", team: "users", connectors: "integrations" } as Record<
+        string,
+        string
       >
-        {TABS.map(({ key, label, icon: Icon }) => {
-          const active = tab === key;
-          const isDanger = key === "danger";
-          return (
-            <button
-              key={key}
-              aria-label={label}
-              aria-pressed={active}
-              onClick={() => setTab(key)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-by-card py-2 text-[12.5px] font-medium transition-all duration-150 sm:justify-start sm:px-3"
-              style={
-                active
-                  ? {
-                      background: isDanger
-                        ? "color-mix(in oklab, var(--destructive) 12%, var(--surface-2))"
-                        : "var(--surface-2)",
-                      color: isDanger ? "var(--destructive)" : "var(--foreground)",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-                    }
-                  : {
-                      color: isDanger
-                        ? "color-mix(in oklab, var(--destructive) 70%, var(--muted-foreground))"
-                        : "var(--muted-foreground)",
-                    }
-              }
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden sm:inline truncate">{label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div>
-        {tab === "profile" && <><ProfileTab /><SignupEmailPreference /></>}
-        {tab === "context" && <BusinessContextTab />}
-        {tab === "organization" && <OrgTab />}
-        {tab === "team" && <TeamTab />}
-        {tab === "plan" && <PlanTab />}
-        {tab === "connectors" && <ConnectorsTab />}
-        {tab === "danger" && <DangerTab />}
-      </div>
-    </div>
-  );
-}
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
+    )[raw] ?? raw;
+  const label =
+    groups.map((g) => g[1].find(([key]) => key === tab)?.[1]).find(Boolean) ?? "Settings";
   return (
-    <div
-      className="overflow-hidden rounded-by-card shadow-card"
-      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-    >
-      <div
-        className="px-6 py-4"
-        style={{
-          borderBottom: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
-          background: "color-mix(in oklab, var(--surface-2) 40%, transparent)",
-        }}
-      >
-        <div
-          className="font-display text-[15px] font-semibold tracking-tight"
-          style={{ color: "var(--foreground)" }}
-        >
-          {title}
-        </div>
-        {description && (
-          <div className="mt-0.5 text-[12.5px]" style={{ color: "var(--muted-foreground)" }}>
-            {description}
-          </div>
+    <div className="figma-surface figma-panel figma-settings" data-design-screen="settings">
+      <nav className="figma-settings-nav" aria-label="Settings sections">
+        {groups.map(([heading, items]) => (
+          <section key={heading}>
+            <h2>{heading}</h2>
+            {items.map(([key, name]) =>
+              key === "methodology" ? (
+                <Link key={key} to="/app/crm/calls" search={{ view: "playbooks" }}>
+                  {name}
+                </Link>
+              ) : key === "integrations" || key === "delivery" ? (
+                <Link
+                  key={key}
+                  to="/app/integrations"
+                  search={{ tab: key === "delivery" ? "delivery" : "sources" } as never}
+                >
+                  {name}
+                </Link>
+              ) : (
+                <Link
+                  key={key}
+                  to="/app/settings"
+                  search={{ tab: key }}
+                  aria-current={tab === key ? "page" : undefined}
+                >
+                  {name}
+                </Link>
+              ),
+            )}
+          </section>
+        ))}
+      </nav>
+      <div className="figma-settings-main">
+        {tab === "general" ? (
+          <General />
+        ) : tab === "profile" ? (
+          <Profile />
+        ) : tab === "users" ? (
+          <Users rolesOnly={false} />
+        ) : tab === "roles" ? (
+          <RolePermissions />
+        ) : tab === "plan" ? (
+          <Billing />
+        ) : tab === "usage" ? (
+          <Usage />
+        ) : (
+          <DeadSettings title={label} tab={tab} />
         )}
       </div>
-      <div className="px-6 py-5">{children}</div>
     </div>
   );
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function General() {
+  const { currentOrgId, refreshProfile, user } = useAuth();
+  const qc = useQueryClient();
+  const q = useQuery({ ...organizationQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
+  const canEdit = !!user && q.data?.owner_id === user.id;
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setName(q.data?.name ?? "");
+  }, [q.data?.name]);
+  async function save() {
+    if (!currentOrgId || !canEdit || !name.trim() || blockIfGuest()) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase
+        .from("organizations")
+        .update({ name: name.trim() })
+        .eq("id", currentOrgId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Workspace was not changed. Owner access is required.");
+      await qc.invalidateQueries({ queryKey: ["organization", currentOrgId] });
+      await refreshProfile();
+      toast.success("Workspace saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save workspace");
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <label className="block">
-      <div className="mb-1.5 text-[12.5px] font-medium" style={{ color: "var(--foreground)" }}>
-        {label}
+    <section>
+      <h1>Workspace</h1>
+      <p className="mt-2 text-xs text-by-text-secondary">Applies to everyone in this workspace.</p>
+      {q.error ? (
+        <p role="alert" className="mt-5">
+          Workspace could not load.{" "}
+          <button className="underline" onClick={() => void q.refetch()}>
+            Retry
+          </button>
+        </p>
+      ) : (
+        <>
+          <FigmaField label="Workspace name">
+            <input
+              value={name}
+              disabled={q.isPending || !canEdit}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </FigmaField>
+          <FigmaField label="Domain">
+            <input disabled placeholder="Not available yet" />
+            <small>People with this email domain can request to join.</small>
+          </FigmaField>
+          <FigmaRow label="Time zone" detail="Briefs and ‘yesterday’ use this.">
+            <Inactive>Time zone —</Inactive>
+          </FigmaRow>
+          <FigmaRow label="Week starts on" detail="Weekly report schedule">
+            <Inactive>—</Inactive>
+          </FigmaRow>
+          <FigmaRow
+            label="Default language for analysis"
+            detail="Transcription and behavior detection"
+          >
+            <Inactive>—</Inactive>
+          </FigmaRow>
+          <FigmaRow label="Allow join requests from domain">
+            <input type="checkbox" disabled aria-label="Allow join requests from domain" />
+          </FigmaRow>
+          <button
+            className="figma-button figma-button-primary mt-5"
+            disabled={busy || q.isPending || !canEdit || !name.trim()}
+            onClick={() => void save()}
+          >
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </>
+      )}
+      <div className="mt-5 rounded-lg bg-red-50 p-4">
+        <h3 className="!mt-0">Danger zone</h3>
+        <FigmaRow label="Delete workspace" detail="Not available yet">
+          <Inactive>Delete workspace</Inactive>
+        </FigmaRow>
       </div>
-      {children}
-    </label>
+    </section>
   );
 }
-
-function SaveButton({
-  onClick,
-  children = "Save changes",
-}: {
-  onClick: () => void;
-  children?: React.ReactNode;
-}) {
+function Profile() {
+  const { user, profile, refreshProfile } = useAuth();
+  const [name, setName] = useState(profile?.full_name ?? "");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setName(profile?.full_name ?? ""), [profile?.full_name]);
+  async function save() {
+    if (!user || blockIfGuest()) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: name.trim() })
+        .eq("id", user.id);
+      if (error) throw error;
+      await refreshProfile();
+      toast.success("Profile saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save profile");
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <button
-      onClick={onClick}
-      className="mt-5 inline-flex items-center gap-2 rounded-by-card px-4 py-2 text-[13px] font-semibold text-white transition-all duration-200"
-      style={{
-        background: "linear-gradient(135deg, var(--primary), var(--accent))",
-        boxShadow: "0 4px 16px color-mix(in oklab, var(--primary) 30%, transparent)",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-        (e.currentTarget as HTMLElement).style.boxShadow =
-          "0 6px 20px color-mix(in oklab, var(--primary) 40%, transparent)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.transform = "none";
-        (e.currentTarget as HTMLElement).style.boxShadow =
-          "0 4px 16px color-mix(in oklab, var(--primary) 30%, transparent)";
-      }}
-    >
-      <Check className="h-3.5 w-3.5" /> {children}
-    </button>
+    <section>
+      <h1>Profile</h1>
+      <div className="my-6 flex items-center gap-4">
+        <span className="flex size-14 items-center justify-center rounded-full bg-by-avatar-metal">
+          {initials(profile?.full_name ?? user?.email ?? "Me")}
+        </span>
+        <Inactive>Change photo</Inactive>
+      </div>
+      <FigmaField label="Name">
+        <input value={name} onChange={(e) => setName(e.target.value)} />
+      </FigmaField>
+      <FigmaField label="Email">
+        <input value={user?.email ?? ""} disabled />
+        <small>Used to identify your account.</small>
+      </FigmaField>
+      <button
+        className="figma-button figma-button-primary"
+        disabled={busy || !name.trim()}
+        onClick={() => void save()}
+      >
+        {busy ? "Saving…" : "Save profile"}
+      </button>
+      <FigmaRow label="My daily brief">
+        <Inactive>Schedule —</Inactive>
+      </FigmaRow>
+      <FigmaRow label="Password">
+        <Link className="figma-button" to="/auth/forgot-password">
+          Change
+        </Link>
+      </FigmaRow>
+      <FigmaRow label="Two-factor authentication">
+        <input type="checkbox" disabled aria-label="Two-factor authentication" />
+      </FigmaRow>
+      <FigmaRow label="Sessions">
+        <Inactive>Sign out others</Inactive>
+      </FigmaRow>
+    </section>
   );
 }
-
-const ROLE_LABEL: Record<OrgRole, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  member: "Member",
-};
-
-function TeamTab() {
+function Users({ rolesOnly }: { rolesOnly: boolean }) {
   const { currentOrgId, user } = useAuth();
   const qc = useQueryClient();
-  const membersQ = useQuery({
-    ...organizationMembersQuery(currentOrgId ?? ""),
-    enabled: !!currentOrgId,
-  });
-  const members: OrgMember[] = membersQ.data ?? [];
-  const myRole = members.find((m) => m.user_id === user?.id)?.role;
-  const canManage = myRole === "owner" || myRole === "admin";
-
+  const q = useQuery({ ...organizationMembersQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
+  const members = q.data ?? [];
+  const mine = members.find((m) => m.user_id === user?.id);
+  const manage = ["owner", "admin"].includes(mine?.role ?? "");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "member">("member");
-  const [inviting, setInviting] = useState(false);
-
+  const [role, setRole] = useState<"member" | "admin">("member");
+  const [busy, setBusy] = useState(false);
   const refresh = () => qc.invalidateQueries({ queryKey: ["org-members", currentOrgId] });
-
-  const invite = async () => {
-    if (blockIfGuest("Sign up to invite teammates.")) return;
-    if (!currentOrgId) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      toast.error("Enter a valid email address.");
-      return;
-    }
-    setInviting(true);
+  async function invite() {
+    if (!manage || !currentOrgId || blockIfGuest()) return;
+    setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("team-invite", {
         body: { organizationId: currentOrgId, email: email.trim(), role },
       });
       if (error) throw error;
-      toast.success(
-        (data as { status?: string })?.status === "added_existing"
-          ? "Teammate added."
-          : "Invite sent.",
-      );
+      if (data?.error) throw new Error(data.error);
       setEmail("");
-      refresh();
+      await refresh();
+      toast.success(data?.status === "added_existing" ? "Member added" : "Invite sent");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not invite teammate.");
+      toast.error(e instanceof Error ? e.message : "Invite failed");
     } finally {
-      setInviting(false);
+      setBusy(false);
     }
-  };
-
-  const changeRole = async (target: OrgMember, next: OrgRole) => {
-    if (blockIfGuest()) return;
-    if (!currentOrgId) return;
-    const { error } = await supabase
-      .from("organization_members")
-      .update({ role: next })
-      .eq("organization_id", currentOrgId)
-      .eq("user_id", target.user_id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`${target.email ?? "Member"} is now ${ROLE_LABEL[next]}.`);
-      refresh();
+  }
+  async function change(member: OrgMember, next: OrgRole | null) {
+    if (
+      !manage ||
+      !currentOrgId ||
+      blockIfGuest() ||
+      member.role === "owner" ||
+      member.user_id === user?.id
+    )
+      return;
+    if (!next && !window.confirm(`Remove ${member.email ?? "this member"} from this workspace?`))
+      return;
+    setBusy(true);
+    try {
+      const request = next
+        ? supabase.from("organization_members").update({ role: next })
+        : supabase.from("organization_members").delete();
+      const { error } = await request
+        .eq("organization_id", currentOrgId)
+        .eq("user_id", member.user_id);
+      if (error) throw error;
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update member");
+    } finally {
+      setBusy(false);
     }
-  };
-
-  const removeMember = async (target: OrgMember) => {
-    if (blockIfGuest()) return;
-    if (!currentOrgId) return;
-    const { error } = await supabase
-      .from("organization_members")
-      .delete()
-      .eq("organization_id", currentOrgId)
-      .eq("user_id", target.user_id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Member removed.");
-      refresh();
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {canManage && (
-        <Section title="Invite a teammate" description="They'll get access to this workspace.">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <Field label="Email address">
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="teammate@company.com"
-                  className="rounded-by-card"
-                  style={{ background: "var(--surface-2)" }}
-                />
-              </Field>
-            </div>
-            <Field label="Role">
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as "admin" | "member")}
-                className="h-10 rounded-by-card px-3 text-[13px]"
-                style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-              >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-              </select>
-            </Field>
-            <button
-              onClick={invite}
-              disabled={inviting}
-              className="inline-flex h-10 items-center gap-2 rounded-by-card px-4 text-[13px] font-semibold text-white disabled:opacity-60"
-              style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))" }}
-            >
-              <UserPlus className="h-4 w-4" />
-              {inviting ? "Inviting…" : "Invite"}
-            </button>
-          </div>
-        </Section>
-      )}
-
-      <Section
-        title="Members"
-        description={`${members.length} ${members.length === 1 ? "person" : "people"} in this workspace.`}
-      >
-        {membersQ.isLoading ? (
-          <div className="text-[13px]" style={{ color: "var(--muted-foreground)" }}>
-            Loading members…
-          </div>
-        ) : members.length === 0 ? (
-          <div className="text-[13px]" style={{ color: "var(--muted-foreground)" }}>
-            No members yet.
-          </div>
-        ) : (
-          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-            {members.map((m) => {
-              const isSelf = m.user_id === user?.id;
-              const editable = canManage && m.role !== "owner" && !isSelf;
-              return (
-                <div key={m.user_id} className="flex items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className="truncate text-[13.5px] font-medium"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {m.full_name || m.email || "Unknown"}
-                      {isSelf && (
-                        <span
-                          className="ml-1.5 text-[11px]"
-                          style={{ color: "var(--muted-foreground)" }}
-                        >
-                          (you)
-                        </span>
-                      )}
-                    </div>
-                    {m.email && (
-                      <div
-                        className="truncate text-[12px]"
-                        style={{ color: "var(--muted-foreground)" }}
-                      >
-                        {m.email}
-                      </div>
-                    )}
-                  </div>
-                  {editable ? (
-                    <select
-                      value={m.role}
-                      onChange={(e) => changeRole(m, e.target.value as OrgRole)}
-                      className="h-8 rounded-lg px-2 text-[12px]"
-                      style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-                    >
-                      <option value="member">Member</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  ) : (
-                    <span
-                      className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                      style={{ background: "var(--surface-2)", color: "var(--muted-foreground)" }}
-                    >
-                      {ROLE_LABEL[m.role]}
-                    </span>
-                  )}
-                  {editable && (
-                    <button
-                      onClick={() => removeMember(m)}
-                      title="Remove member"
-                      className="rounded-lg p-1.5 transition-colors hover:bg-surface-2"
-                      style={{ color: "var(--destructive)" }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Section>
-    </div>
-  );
-}
-
-function ProfileTab() {
-  const { user, profile, refreshProfile } = useAuth();
-  const [fullName, setFullName] = useState(profile?.full_name ?? "");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  useEffect(() => {
-    if (profile?.full_name) setFullName(profile.full_name);
-  }, [profile]);
-
-  const save = async () => {
-    if (blockIfGuest("Sign up to update your profile.")) return;
-    if (!user) return;
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: fullName,
-        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-      })
-      .eq("id", user.id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Profile saved");
-      refreshProfile();
-    }
-  };
-
-  const initials = (profile?.full_name || user?.email || "U")
-    .split(/[\s@]/)
-    .filter(Boolean)
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-  return (
-    <Section
-      title="Your profile"
-      description="How your name and avatar appear across the workspace."
-    >
-      {/* Avatar preview */}
-      <div className="mb-5 flex items-center gap-4">
-        <div
-          className="flex h-14 w-14 items-center justify-center rounded-by-card text-lg font-bold text-white shadow-card"
-          style={{ background: "linear-gradient(135deg, var(--primary), var(--accent))" }}
-        >
-          {initials}
-        </div>
-        <div>
-          <div
-            className="font-display text-[15px] font-semibold"
-            style={{ color: "var(--foreground)" }}
-          >
-            {profile?.full_name || "Your name"}
-          </div>
-          <div className="text-[12px]" style={{ color: "var(--muted-foreground)" }}>
-            {user?.email}
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name">
-          <Input
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="rounded-by-card"
-            style={{ background: "var(--surface-2)" }}
-          />
-        </Field>
-        <Field label="Email">
-          <Input
-            value={user?.email ?? ""}
-            disabled
-            className="rounded-by-card opacity-50"
-            style={{ background: "var(--surface-2)" }}
-          />
-        </Field>
-        <Field label="Avatar URL">
-          <Input
-            placeholder="https://..."
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            className="rounded-by-card"
-            style={{ background: "var(--surface-2)" }}
-          />
-        </Field>
-      </div>
-      <SaveButton onClick={save}>Save profile</SaveButton>
-    </Section>
-  );
-}
-
-function OrgTab() {
-  const { currentOrgId } = useAuth();
-  const qc = useQueryClient();
-  const orgQ = useQuery({ ...organizationQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
-  const [name, setName] = useState("");
-  const [niche, setNiche] = useState("");
-  const [businessType, setBusinessType] = useState("");
-  const [stage, setStage] = useState<string>("Idea");
-  const [target, setTarget] = useState("");
-
-  useEffect(() => {
-    if (orgQ.data) {
-      setName(orgQ.data.name ?? "");
-      setNiche(orgQ.data.niche ?? "");
-      setBusinessType(orgQ.data.business_type ?? "");
-      setStage(orgQ.data.stage ?? "Idea");
-      setTarget(orgQ.data.target_customer ?? "");
-    }
-  }, [orgQ.data]);
-
-  const save = async () => {
-    if (blockIfGuest("Sign up to manage your organization.")) return;
-    if (!currentOrgId) return;
-    const { error } = await supabase
-      .from("organizations")
-      .update({
-        name,
-        niche,
-        business_type: businessType,
-        target_customer: target,
-        stage: stage as "Idea" | "Validate" | "Launch" | "Operate" | "Scale",
-      })
-      .eq("id", currentOrgId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Organization saved");
-      qc.invalidateQueries({ queryKey: ["organization", currentOrgId] });
-    }
-  };
-
-  return (
-    <Section
-      title="Organization"
-      description="Help Bylda personalize tool outputs to your business."
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Business name">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-by-card"
-            style={{ background: "var(--surface-2)" }}
-          />
-        </Field>
-        <Field label="Business type">
-          <Input
-            value={businessType}
-            onChange={(e) => setBusinessType(e.target.value)}
-            className="rounded-by-card"
-            style={{ background: "var(--surface-2)" }}
-          />
-        </Field>
-        <Field label="Niche">
-          <Input
-            value={niche}
-            onChange={(e) => setNiche(e.target.value)}
-            className="rounded-by-card"
-            style={{ background: "var(--surface-2)" }}
-          />
-        </Field>
-        <Field label="Stage">
-          <select
-            className="flex h-9 w-full rounded-by-card px-3 text-sm outline-none transition"
-            style={{
-              background: "var(--surface-2)",
-              border: "1px solid var(--border)",
-              color: "var(--foreground)",
-            }}
-            value={stage}
-            onChange={(e) => setStage(e.target.value)}
-          >
-            {["Idea", "Validate", "Launch", "Operate", "Scale"].map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Target customer">
-          <Input
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            className="rounded-by-card"
-            style={{ background: "var(--surface-2)" }}
-          />
-        </Field>
-      </div>
-      <SaveButton onClick={save}>Save organization</SaveButton>
-    </Section>
-  );
-}
-
-function PlanTab() {
-  const { currentOrgId } = useAuth();
-  const subQ = useQuery({ ...subscriptionQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
-  const plansQ = useQuery(planEntitlementsQuery());
-  const usageQ = useQuery({ ...usageQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
-
-  const current = subQ.data?.plan ?? "starter";
-  const plans = plansQ.data ?? [];
-  const totalUsed = (usageQ.data ?? []).reduce((s, r) => s + (r.count as number), 0);
-  const currentPlan = plans.find((p) => p.plan === current);
-  const limit = currentPlan?.monthly_generation_limit ?? 0;
-  const pct = limit ? Math.min(100, (totalUsed / limit) * 100) : 0;
-
-  return (
-    <div className="space-y-4">
-      <Section
-        title="Current plan"
-        description="Track your usage and upgrade when you need more headroom."
-      >
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div
-              className="font-display text-[1.6rem] font-semibold capitalize tracking-tight leading-none"
-              style={{ color: "var(--foreground)" }}
-            >
-              {current}
-            </div>
-            <div className="mt-1.5 text-sm" style={{ color: "var(--muted-foreground)" }}>
-              ${currentPlan?.price_usd ?? 0}/mo
-            </div>
-          </div>
-          <div className="w-full md:w-1/2">
-            <div className="mb-2 flex items-center justify-between text-xs">
-              <span className="font-medium" style={{ color: "var(--muted-foreground)" }}>
-                Usage this month
-              </span>
-              <span className="font-mono" style={{ color: "var(--foreground)" }}>
-                {totalUsed} / {limit || "∞"}
-              </span>
-            </div>
-            <XpBar value={pct} />
-          </div>
-        </div>
-      </Section>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {plans.map((p) => {
-          const isCurrent = p.plan === current;
-          return (
-            <div
-              key={p.plan}
-              className="relative rounded-by-card p-4 transition-all duration-200"
-              style={{
-                background: isCurrent
-                  ? "color-mix(in oklab, var(--primary) 6%, var(--surface))"
-                  : "var(--surface)",
-                border: `1px solid ${isCurrent ? "color-mix(in oklab, var(--primary) 30%, transparent)" : "var(--border)"}`,
-                boxShadow: isCurrent
-                  ? "0 0 16px color-mix(in oklab, var(--primary) 10%, transparent)"
-                  : "var(--shadow-card)",
-              }}
-            >
-              {isCurrent && (
-                <div
-                  className="absolute top-0 left-0 right-0 h-[2px] rounded-t-2xl"
-                  style={{
-                    background:
-                      "linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent)",
-                  }}
-                />
-              )}
-              <div className="flex items-center justify-between">
-                <div
-                  className="font-display text-[14px] font-semibold capitalize tracking-tight"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  {p.plan}
-                </div>
-                {isCurrent && <StatusBadge variant="active" live label="Active" />}
-              </div>
-              <div
-                className="mt-2 font-display text-[1.5rem] font-semibold leading-none"
-                style={{ color: "var(--foreground)" }}
-              >
-                ${p.price_usd}
-                <span className="text-sm font-normal" style={{ color: "var(--muted-foreground)" }}>
-                  /mo
-                </span>
-              </div>
-              <ul
-                className="mt-3 space-y-1.5 text-[12px]"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                <li className="flex items-center gap-2">
-                  <Check className="h-3 w-3 shrink-0" style={{ color: "var(--success)" }} />
-                  {p.monthly_generation_limit ?? "Unlimited"} generations / mo
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-3 w-3 shrink-0" style={{ color: "var(--success)" }} />
-                  {p.allowed_tools.length} AI tools
-                </li>
-              </ul>
-              {!isCurrent && (
-                <button
-                  className="mt-4 w-full rounded-by-card py-1.5 text-[12px] font-semibold transition"
-                  style={{
-                    background: "color-mix(in oklab, var(--primary) 10%, transparent)",
-                    border: "1px solid color-mix(in oklab, var(--primary) 25%, transparent)",
-                    color: "var(--primary)",
-                  }}
-                >
-                  Upgrade
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Icon for connectors tab ───────────────────────────────────────────────────
-const LETTER_COLORS_SETTINGS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#14b8a6",
-  "#f97316",
-  "#84cc16",
-];
-
-function ConnectorIcon({ slug, name }: { slug?: string; name: string }) {
-  const [failed, setFailed] = useState(false);
-  const bg = LETTER_COLORS_SETTINGS[name.charCodeAt(0) % LETTER_COLORS_SETTINGS.length];
-  if (slug && !failed) {
-    return (
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white p-1">
-        <img
-          src={`https://cdn.simpleicons.org/${slug}`}
-          alt={name}
-          width={22}
-          height={22}
-          loading="lazy"
-          className="object-contain"
-          onError={() => setFailed(true)}
-        />
-      </div>
-    );
   }
   return (
-    <div
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white text-xs font-bold"
-      style={{ background: bg }}
-    >
-      {name[0].toUpperCase()}
-    </div>
-  );
-}
-
-function ConnectorsTab() {
-  const { user } = useAuth();
-  const qc = useQueryClient();
-  const intQ = useQuery({ ...integrationsQuery(user?.id ?? ""), enabled: !!user });
-  const integrations = intQ.data ?? [];
-  const connected = integrations.filter((i) => i.is_connected);
-  const connectedCount = connected.length;
-
-  const refresh = () => {
-    if (user) qc.invalidateQueries({ queryKey: ["user_integrations", user.id] });
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between rounded-by-card px-5 py-4"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-      >
-        <div>
-          <div
-            className="font-display text-[14px] font-semibold tracking-tight"
-            style={{ color: "var(--foreground)" }}
-          >
-            Connected integrations
-          </div>
-          <div className="mt-0.5 text-[12px]" style={{ color: "var(--muted-foreground)" }}>
-            Manage secure connected accounts. No teammate-facing API keys.
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div
-            className="flex items-center gap-1.5 rounded-by-card px-3 py-1.5 text-[11.5px] font-medium"
-            style={{
-              background:
-                connectedCount > 0
-                  ? "color-mix(in oklab, var(--success) 12%, transparent)"
-                  : "var(--surface-2)",
-              border: `1px solid ${connectedCount > 0 ? "color-mix(in oklab, var(--success) 30%, transparent)" : "var(--border)"}`,
-              color: connectedCount > 0 ? "var(--success)" : "var(--muted-foreground)",
-            }}
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            {connectedCount} connected
-          </div>
-        </div>
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1>{rolesOnly ? "Roles & permissions" : "Users"}</h1>
+        <Inactive>Export</Inactive>
       </div>
-
-      {/* Connected integrations list */}
-      {connectedCount === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center rounded-by-card py-14 text-center"
-          style={{
-            background: "var(--surface)",
-            border: "1px dashed var(--border)",
+      <p className="mt-2 text-xs text-by-text-secondary">
+        Workspace access uses the roles supported by your account.
+      </p>
+      {manage && !rolesOnly && (
+        <form
+          className="my-6 flex flex-wrap items-end gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void invite();
           }}
         >
-          <Plug className="h-8 w-8 mb-3" style={{ color: "var(--muted-foreground)" }} />
-          <div className="text-[13px] font-medium mb-1" style={{ color: "var(--foreground)" }}>
-            No integrations connected yet
-          </div>
-          <div className="text-[12px] mb-4" style={{ color: "var(--muted-foreground)" }}>
-            Head to the Integrations page to connect your tools.
-          </div>
-          <Link to="/app/integrations">
-            <Button size="sm" variant="default">
-              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Browse integrations
-            </Button>
-          </Link>
-        </div>
+          <FigmaField label="Invite by email">
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FigmaField>
+          <FigmaField label="Role">
+            <select value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+          </FigmaField>
+          <button className="figma-button figma-button-primary mb-[18px]" disabled={busy}>
+            Invite user
+          </button>
+        </form>
+      )}
+      {q.isPending ? (
+        <p role="status" className="mt-5">
+          Loading users…
+        </p>
+      ) : q.error ? (
+        <p role="alert" className="mt-5">
+          Users could not load.{" "}
+          <button className="underline" onClick={() => void q.refetch()}>
+            Retry
+          </button>
+        </p>
       ) : (
-        <div className="space-y-2">
-          {connected.map((conn) => {
-            const def = getCatalogByKey(conn.integration_key);
-            const displayName = def?.name ?? conn.integration_key;
-            const iconSlug = def?.iconSlug;
-            return (
-              <ConnectorRow
-                key={conn.integration_key}
-                integrationKey={conn.integration_key}
-                name={displayName}
-                iconSlug={iconSlug}
-                accountLabel={conn.account_label}
-                connectionType={conn.connection_type}
-                onSaved={refresh}
-              />
-            );
-          })}
+        <div className="overflow-x-auto mt-5">
+          <table className="figma-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Team</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.user_id}>
+                  <td>{m.full_name ?? "—"}</td>
+                  <td>{m.email ?? "—"}</td>
+                  <td>
+                    {manage && m.role !== "owner" && m.user_id !== user?.id ? (
+                      <select
+                        aria-label={`Role for ${m.email ?? m.user_id}`}
+                        value={m.role}
+                        disabled={busy}
+                        onChange={(e) => void change(m, e.target.value as OrgRole)}
+                      >
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      m.role
+                    )}
+                  </td>
+                  <td>—</td>
+                  <td>
+                    {manage && m.role !== "owner" && m.user_id !== user?.id && (
+                      <button
+                        className="figma-button"
+                        disabled={busy}
+                        onClick={() => void change(m, null)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!members.length && <p className="my-6 text-by-text-secondary">No users returned.</p>}
         </div>
       )}
-
-      {/* Browse more link */}
-      <div
-        className="flex items-center justify-between rounded-by-card px-5 py-3"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-      >
-        <div className="text-[12.5px]" style={{ color: "var(--muted-foreground)" }}>
-          Looking to add more? Browse the full integration catalog.
-        </div>
-        <Link to="/app/integrations">
-          <Button size="sm" variant="outline" className="gap-1.5 text-[12px]">
-            <ExternalLink className="h-3.5 w-3.5" /> Browse catalog
-          </Button>
-        </Link>
-      </div>
-    </div>
+    </section>
   );
 }
-
-function ConnectorRow({
-  integrationKey,
-  name,
-  iconSlug,
-  accountLabel,
-  connectionType,
-  onSaved,
-}: {
-  integrationKey: string;
-  name: string;
-  iconSlug?: string;
-  accountLabel?: string | null;
-  connectionType?: "oauth" | "legacy_credential";
-  onSaved: () => void;
-}) {
+function Billing() {
+  const { currentOrgId } = useAuth();
+  const sub = useQuery({ ...subscriptionQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
+  const plans = useQuery(planEntitlementsQuery());
+  const invoices = useQuery({
+    queryKey: ["invoices", currentOrgId],
+    enabled: !!currentOrgId && !!sub.data?.stripe_customer_id,
+    queryFn: async (): Promise<
+      Array<{
+        id: string;
+        number: string | null;
+        status: string | null;
+        invoice_pdf: string | null;
+        created: number;
+      }>
+    > => {
+      const { data, error } = await supabase.functions.invoke("list-invoices", {
+        body: { organizationId: currentOrgId, environment: getStripeEnvironment() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data?.invoices ?? [];
+    },
+  });
+  const members = useQuery({
+    ...organizationMembersQuery(currentOrgId ?? ""),
+    enabled: !!currentOrgId,
+  });
   const { user } = useAuth();
-  const [saving, setSaving] = useState(false);
-
-  const disconnect = async () => {
-    if (blockIfGuest("Sign up to manage integrations.")) return;
-    if (!user) return;
-    setSaving(true);
+  const canManage = ["owner", "admin"].includes(
+    members.data?.find((m) => m.user_id === user?.id)?.role ?? "",
+  );
+  const [busy, setBusy] = useState(false);
+  const plan = plans.data?.find((p) => p.plan === sub.data?.plan);
+  async function portal() {
+    if (!currentOrgId || !canManage || blockIfGuest()) return;
+    setBusy(true);
     try {
-      await disconnectIntegration(user.id, integrationKey);
-      toast.success(`${name} disconnected`);
-      onSaved();
+      const { data, error } = await supabase.functions.invoke("manage-subscription", {
+        body: {
+          action: "billing_portal",
+          organizationId: currentOrgId,
+          environment: getStripeEnvironment(),
+          returnUrl: window.location.href,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.url) throw new Error("Billing portal unavailable");
+      window.location.assign(data.url);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to disconnect");
+      toast.error(e instanceof Error ? e.message : "Billing portal unavailable");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
-  };
-
+  }
   return (
-    <div
-      className="overflow-hidden rounded-by-card transition-all duration-200"
-      style={{
-        background: "var(--surface)",
-        border: "1px solid color-mix(in oklab, var(--success) 25%, transparent)",
-        boxShadow: "0 0 10px color-mix(in oklab, var(--success) 6%, transparent)",
-      }}
-    >
-      <div
-        className="h-[2px]"
-        style={{ background: "linear-gradient(90deg, transparent, var(--success), transparent)" }}
-      />
-      <div className="px-4 py-3 flex items-center gap-3">
-        <ConnectorIcon slug={iconSlug} name={name} />
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
-            {name}
-          </div>
-          <div className="text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
-            {connectionType === "oauth"
-              ? (accountLabel ?? "OAuth account connected")
-              : "Legacy connection — reconnect securely"}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Link to="/app/integrations">
-            <button
-              className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition"
-              style={{
-                background: "color-mix(in oklab, var(--primary) 10%, transparent)",
-                border: "1px solid color-mix(in oklab, var(--primary) 20%, transparent)",
-                color: "var(--primary)",
-              }}
-            >
-              Manage account
-            </button>
-          </Link>
+    <section>
+      <h1>Billing & plan</h1>
+      {sub.error || plans.error ? (
+        <p role="alert" className="mt-5">
+          Billing data could not load.{" "}
           <button
-            onClick={disconnect}
-            disabled={saving}
-            className="rounded-lg p-1.5 transition"
-            style={{
-              background: "color-mix(in oklab, var(--destructive) 8%, var(--surface-2))",
-              border: "1px solid color-mix(in oklab, var(--destructive) 20%, transparent)",
-              color: "var(--destructive)",
+            className="underline"
+            onClick={() => {
+              void sub.refetch();
+              void plans.refetch();
             }}
           >
-            <Unplug className="h-3.5 w-3.5" />
+            Retry
           </button>
-        </div>
-      </div>
-    </div>
+        </p>
+      ) : (
+        <>
+          <FigmaRow label="Current plan">
+            <span className="capitalize">
+              {sub.isPending ? "Loading…" : (sub.data?.plan ?? "—")}
+            </span>
+          </FigmaRow>
+          <FigmaRow label="Price">
+            <span>{plan ? `$${plan.price_usd} / month` : "—"}</span>
+          </FigmaRow>
+          <div className="my-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {["Free", "Team", "Growth", "Scale"].map((name) => (
+              <article
+                key={name}
+                className="rounded-xl border border-by-border-engraved p-4 opacity-50"
+                data-unavailable="true"
+              >
+                <h2 className="!text-xs uppercase">{name}</h2>
+                <p className="my-3 text-2xl">—</p>
+                <p className="mb-4 text-[11px] text-by-text-secondary">
+                  Plan mapping not available yet
+                </p>
+                <Inactive>{name === "Scale" ? "Upgrade" : "Switch"}</Inactive>
+              </article>
+            ))}
+          </div>
+          <FigmaRow label="Analyzed seats">
+            <span>—</span>
+          </FigmaRow>
+          <FigmaRow label="Payment method">
+            <button
+              className="figma-button"
+              disabled={busy || !canManage || !sub.data?.stripe_customer_id}
+              onClick={() => void portal()}
+            >
+              Manage payment method
+            </button>
+          </FigmaRow>
+          <button
+            className="figma-button figma-button-primary mt-5"
+            disabled={busy || !canManage || !sub.data?.stripe_customer_id}
+            onClick={() => void portal()}
+          >
+            Manage billing
+          </button>
+          <h3>Invoices</h3>
+          {invoices.error ? (
+            <p role="alert" className="text-xs">
+              Invoices could not load.{" "}
+              <button className="underline" onClick={() => void invoices.refetch()}>
+                Retry
+              </button>
+            </p>
+          ) : sub.data?.stripe_customer_id && invoices.isPending ? (
+            <p role="status" className="text-xs">
+              Loading invoices…
+            </p>
+          ) : invoices.data?.length ? (
+            <ul>
+              {invoices.data.map((invoice) => {
+                let pdf: string | null = null;
+                try {
+                  if (invoice.invoice_pdf && new URL(invoice.invoice_pdf).protocol === "https:")
+                    pdf = invoice.invoice_pdf;
+                } catch {
+                  /* Invalid provider URL stays inactive. */
+                }
+                return (
+                  <li key={invoice.id} className="figma-row">
+                    <div>
+                      <p>{invoice.number ?? "Invoice"}</p>
+                      <small>
+                        {new Date(invoice.created * 1000).toLocaleDateString()} ·{" "}
+                        {invoice.status ?? "Status unknown"}
+                      </small>
+                    </div>
+                    {pdf ? (
+                      <a className="figma-button" href={pdf} target="_blank" rel="noreferrer">
+                        Download PDF
+                      </a>
+                    ) : (
+                      <Inactive>Download PDF</Inactive>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-3 text-xs text-by-text-secondary">No invoices available.</p>
+          )}
+          <p className="mt-5 rounded-lg bg-amber-50 p-4 text-xs">
+            Figma’s seat-based tiers are inactive until they map to backend billing products. Your
+            existing account plan and billing portal remain available.
+          </p>
+        </>
+      )}
+    </section>
   );
 }
-
-function DangerTab() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [confirm, setConfirm] = useState("");
-
-  const remove = async () => {
-    if (blockIfGuest("This is a demo — no account to delete.")) return;
-    if (!user) return;
-    if (confirm !== "DELETE") {
-      toast.error('Type "DELETE" to confirm');
-      return;
-    }
-    await supabase.from("profiles").update({ full_name: "(deleted)" }).eq("id", user.id);
-    await signOut();
-    toast.success("Account deleted");
-    navigate({ to: "/auth/sign-in" });
-  };
-
+function Usage() {
+  const { currentOrgId } = useAuth();
+  const q = useQuery(managerHomeQuery(currentOrgId ?? ""));
   return (
-    <div
-      className="overflow-hidden rounded-by-card"
-      style={{
-        background: "color-mix(in oklab, var(--destructive) 4%, var(--surface))",
-        border: "1px solid color-mix(in oklab, var(--destructive) 25%, transparent)",
-      }}
-    >
-      <div
-        className="px-6 py-4"
-        style={{
-          borderBottom: "1px solid color-mix(in oklab, var(--destructive) 15%, transparent)",
-          background: "color-mix(in oklab, var(--destructive) 6%, transparent)",
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" style={{ color: "var(--destructive)" }} />
-          <div
-            className="text-[12px] font-semibold uppercase tracking-[0.1em]"
-            style={{ color: "var(--destructive)" }}
-          >
-            Danger zone
-          </div>
-        </div>
-      </div>
-      <div className="px-6 py-5">
-        <h3
-          className="font-display text-[16px] font-semibold"
-          style={{ color: "var(--foreground)" }}
-        >
-          Delete account
-        </h3>
-        <p
-          className="mt-1.5 max-w-lg text-[13px] leading-relaxed"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          This permanently signs you out and clears your profile. Your data on the server may be
-          retained per policy.
+    <section>
+      <h1>Usage</h1>
+      <p className="mt-2 text-xs text-by-text-secondary">All time · current workspace</p>
+      <FigmaRow label="Imported calls">
+        <span>{q.data?.importedCalls ?? "—"}</span>
+      </FigmaRow>
+      <FigmaRow label="Analyzed calls">
+        <span>{q.data?.analyzedCalls ?? "—"}</span>
+      </FigmaRow>
+      <FigmaRow label="Analyzed seats">
+        <span>—</span>
+      </FigmaRow>
+      <FigmaRow label="Recording storage">
+        <span>—</span>
+      </FigmaRow>
+      {q.error && (
+        <p role="alert" className="mt-4 text-xs">
+          Usage could not load.{" "}
+          <button className="underline" onClick={() => void q.refetch()}>
+            Retry
+          </button>
         </p>
-        <Button
-          variant="destructive"
-          onClick={() => setOpen(true)}
-          className="mt-5 gap-2 rounded-by-card"
-        >
-          <Trash2 className="h-4 w-4" /> Delete account
-        </Button>
+      )}
+    </section>
+  );
+}
+function RolePermissions() {
+  const capabilities = [
+    "Workspace, billing, integrations",
+    "Methodology & behavior rules",
+    "Users & teams",
+    "See team intelligence & patterns",
+    "See calls & call review",
+    "Hear call audio",
+    "See other reps’ behavior profiles",
+    "Assign coaching",
+    "Receive coaching / daily rep brief",
+    "Rep comparison & team overview",
+    "Share call clips with reps",
+  ];
+  return (
+    <section>
+      <h1>Roles & permissions</h1>
+      <p className="my-3 text-xs text-by-text-secondary">
+        The Figma capability matrix and rep-privacy controls are not available yet. Existing account
+        roles are managed under Users.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="figma-table">
+          <thead>
+            <tr>
+              <th>Capability</th>
+              {["Owner", "Manager", "Rep", "Viewer", "Coach"].map((t) => (
+                <th key={t}>{t}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {capabilities.map((label) => (
+              <tr key={label}>
+                <td>{label}</td>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <td key={i} data-unavailable="true">
+                    —
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Confirm deletion</DialogTitle>
-            <DialogDescription>
-              Type <span className="font-mono font-bold">DELETE</span> to confirm. This action
-              cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="DELETE"
-            className="rounded-by-card"
+      <h3>Rep privacy</h3>
+      {[
+        "Reps can see their own calls",
+        "Reps can see teammates’ calls",
+        "Show reps team averages",
+        "Leaderboards",
+      ].map((label) => (
+        <FigmaRow key={label} label={label}>
+          <Inactive>Unavailable</Inactive>
+        </FigmaRow>
+      ))}
+      <Link className="figma-button mt-5" to="/app/settings" search={{ tab: "users" }}>
+        Manage existing user roles
+      </Link>
+    </section>
+  );
+}
+function DeadSettings({ title, tab }: { title: string; tab: string }) {
+  if (tab === "teams")
+    return (
+      <section>
+        <div className="flex items-center justify-between gap-4">
+          <h1>Teams</h1>
+          <Inactive>New team</Inactive>
+        </div>
+        <p className="my-3 text-xs text-by-text-secondary">
+          Team-level methodology and routing are not available yet.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="figma-table">
+            <thead>
+              <tr>
+                {["Team", "Manager", "Reps", "Methodology", "Brief time"].map((t) => (
+                  <th key={t}>{t}</th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+        </div>
+        <div className="figma-empty mt-4">Team management is not available yet.</div>
+      </section>
+    );
+  if (tab === "notifications")
+    return (
+      <section>
+        <h1>Notifications</h1>
+        <p className="my-3 text-xs text-by-text-secondary">
+          Notification preferences and delivery routing are not available yet. This matrix does not
+          show saved settings.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="figma-table">
+            <thead>
+              <tr>
+                <th>Notify me about</th>
+                {["In-app", "Email", "Slack", "Push"].map((t) => (
+                  <th key={t}>{t}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                "Daily brief",
+                "Behavior regression on my team",
+                "Important call",
+                "Coaching acknowledged / completed",
+                "Emerging pattern",
+                "Integration problem",
+                "Report ready",
+              ].map((label) => (
+                <tr key={label}>
+                  <td>{label}</td>
+                  {["In-app", "Email", "Slack", "Push"].map((channel) => (
+                    <td key={channel}>
+                      <input
+                        type="checkbox"
+                        disabled
+                        aria-label={`${label}: ${channel} unavailable`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <FigmaRow label="Quiet hours" detail="Nothing but the brief outside these hours.">
+          <Inactive>—</Inactive>
+        </FigmaRow>
+        <FigmaRow label="Batch low-priority items into the brief">
+          <input
+            type="checkbox"
+            disabled
+            aria-label="Batch low-priority notifications unavailable"
           />
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={remove}>
-              Confirm delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </FigmaRow>
+      </section>
+    );
+  const labels: Record<string, string[]> = {
+    analysis: [
+      "Minimum calls before judging a rep",
+      "Minimum confidence for coaching suggestions",
+      "Baseline window",
+      "Exclude calls shorter than",
+      "Internal calls",
+      "Outcome associations",
+      "Language for relationships",
+      "Save",
+      "Reset to defaults",
+    ],
+    privacy: [
+      "Keep call audio for",
+      "Keep transcripts for",
+      "Keep behavioral events & insights for",
+      "Redact PII in transcripts",
+      "Recording consent notice",
+      "Use data to train shared models",
+      "Export all data",
+      "Delete a person’s data",
+      "DPA & subprocessors",
+    ],
+    rules: ["New behavior rule"],
+    objections: ["New objection"],
+    success: ["Define success criteria"],
+    api: ["Create API key"],
+    audit: ["Export audit log"],
+  };
+  return (
+    <section>
+      <h1>{title}</h1>
+      <p className="mt-2 text-xs text-by-text-secondary">Not available yet.</p>
+      {(labels[tab] ?? ["Save changes"]).map((label) => (
+        <FigmaRow key={label} label={label}>
+          <Inactive>
+            {label.startsWith("Save") ||
+            label.startsWith("Create") ||
+            label.startsWith("New") ||
+            label.startsWith("Export") ||
+            label.startsWith("Reset")
+              ? label
+              : "—"}
+          </Inactive>
+        </FigmaRow>
+      ))}
+    </section>
   );
 }

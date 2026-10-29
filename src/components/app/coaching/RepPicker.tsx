@@ -56,7 +56,16 @@ export function RepPicker({
 
   return (
     <div className="grid gap-2">
+      {repsQ.error && (
+        <p role="alert" className="text-xs text-red-700">
+          Reps could not load.{" "}
+          <button type="button" onClick={() => void repsQ.refetch()} className="underline">
+            Retry
+          </button>
+        </p>
+      )}
       <Select
+        disabled={repsQ.isPending || !!repsQ.error}
         value={creating ? NEW_REP : (value ?? "")}
         onValueChange={(next) => {
           if (next === NEW_REP) {
@@ -69,7 +78,7 @@ export function RepPicker({
         }}
       >
         <SelectTrigger aria-label="Rep" className={control}>
-          <SelectValue placeholder="Choose a rep" />
+          <SelectValue placeholder={repsQ.isPending ? "Loading reps…" : "Choose a rep"} />
         </SelectTrigger>
         <SelectContent className="rounded-by-menu border-by-border-engraved bg-by-surface-raised text-by-text-primary shadow-by-float">
           {(repsQ.data ?? []).map((rep) => (

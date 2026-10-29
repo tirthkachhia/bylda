@@ -1,17 +1,13 @@
 import { formatDuration, formatWhen, initials, type CoachingCall } from "@/lib/coaching/calls";
-
-function stageLabel(call: CoachingCall) {
+function callStageLabel(call: CoachingCall) {
   if (call.coaching_stage === "queued" || call.coaching_stage === "transcribing")
     return "Transcribing…";
   if (call.coaching_stage === "scoring") return "Scoring…";
   if (call.coaching_stage === "analyzing") return "Analyzing…";
   if (call.coaching_stage === "analysis_failed") return "Analysis needs retry";
   if (call.coaching_stage === "failed") return "Processing failed";
-  if (call.insight) return "Analyzed";
-  return call.transcript ? "Transcript ready" : "Awaiting transcript";
+  return call.insight ? "Analyzed" : call.transcript ? "Transcript ready" : "Awaiting transcript";
 }
-
-/** Searchable list of one rep's calls. Selection is owned by the parent. */
 export function CallList({
   calls,
   selectedId,
@@ -26,55 +22,90 @@ export function CallList({
   onSearch: (value: string) => void;
 }) {
   return (
-    <aside className="overflow-hidden rounded-[20px] border border-black/[0.09] bg-by-surface-raised xl:sticky xl:top-0 xl:max-h-[calc(100vh-145px)]">
-      <div className="flex items-center justify-between border-b border-black/[0.08] px-4 py-4">
-        <span className="text-[12px] font-bold">Calls</span>
-        <span className="rounded-full bg-[#e7e8e4] px-2 py-1 text-[9px] font-semibold text-[#777d85]">
-          {calls.length} loaded
-        </span>
+    <section
+      className="overflow-hidden rounded-xl border border-by-border-engraved bg-white"
+      aria-label="Calls list"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-by-border-engraved p-3">
+        <p className="text-xs text-by-text-secondary">{calls.length} matching loaded calls</p>
+        <label className="flex items-center gap-2 rounded-md border border-by-border-control px-3 py-2">
+          <img src="/figma/search.svg" alt="" />
+          <input
+            aria-label="Search loaded calls"
+            placeholder="Search calls, accounts…"
+            value={search}
+            onChange={(event) => onSearch(event.target.value)}
+            className="w-48 bg-transparent text-xs outline-none"
+          />
+        </label>
       </div>
-      <div className="border-b border-black/5 p-3">
-        <input
-          aria-label="Search calls"
-          value={search}
-          onChange={(event) => onSearch(event.target.value)}
-          placeholder="Search contacts or companies…"
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-400"
-        />
-      </div>
-      <div className="max-h-[calc(100vh-205px)] overflow-y-auto p-2">
-        {calls.length === 0 && (
-          <p className="p-5 text-sm text-slate-500">
-            No calls match your search.{" "}
-            <button className="mt-2 block font-semibold text-blue-700" onClick={() => onSearch("")}>
-              Clear search
-            </button>
-          </p>
-        )}
-        {calls.map((call) => (
-          <button
-            key={call.id}
-            onClick={() => onSelect(call.id)}
-            aria-pressed={call.id === selectedId}
-            className={`mb-1 flex w-full items-center gap-3 rounded-by-card p-3 text-left ${call.id === selectedId ? "bg-[#e5ebf5]" : "hover:bg-black/[0.03]"}`}
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dbe7f8] text-[10px] font-bold text-[#346dbf]">
-              {initials(call.contactName)}
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-[11px] font-bold">{call.contactName}</span>
-              <span className="block truncate text-[9px] text-by-text-secondary">
-                {call.company} · {formatWhen(call.started_at ?? call.created_at)}
-              </span>
-              <span
-                className={`mt-0.5 block text-[9px] ${call.coaching_stage === "failed" ? "text-red-600" : "text-[#3275d8]"}`}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-left text-[13px]">
+          <thead className="bg-by-surface-sidebar text-[11px] uppercase tracking-wide">
+            <tr>
+              <th className="px-4 py-3">Call</th>
+              <th className="px-4 py-3">Rep</th>
+              <th className="px-4 py-3">Why it matters</th>
+              <th className="px-4 py-3">CRM stage</th>
+              <th className="px-4 py-3">Length</th>
+            </tr>
+          </thead>
+          <tbody>
+            {calls.map((call) => (
+              <tr
+                key={call.id}
+                className={`border-t border-by-border-engraved ${selectedId === call.id ? "bg-by-surface-sidebar" : "hover:bg-by-surface-hover"}`}
               >
-                {formatDuration(call.duration)} · {stageLabel(call)}
-              </span>
-            </span>
-          </button>
-        ))}
+                <td className="max-w-64 px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(call.id)}
+                    className="text-left font-medium underline-offset-4 hover:underline"
+                  >
+                    {call.contactName}
+                  </button>
+                  <p className="mt-1 text-[11px] text-by-text-tertiary">
+                    {formatWhen(call.started_at ?? call.created_at)}
+                  </p>
+                  <p
+                    className={`mt-1 text-[11px] ${call.coaching_stage?.includes("failed") ? "text-red-700" : "text-by-text-secondary"}`}
+                  >
+                    {callStageLabel(call)}
+                  </p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-by-avatar-metal text-[9px]">
+                      {initials(call.repName ?? "?")}
+                    </span>
+                    {call.repName ?? "Unassigned"}
+                  </span>
+                </td>
+                <td className="max-w-sm px-4 py-3 text-xs leading-5">
+                  {call.insight?.summary ||
+                    (call.transcript ? "Analysis pending" : "Transcript unavailable")}
+                </td>
+                <td className="px-4 py-3">
+                  <span className="rounded-full border border-by-border-engraved px-2 py-1 text-[11px]">
+                    {call.dealStage ?? "Unknown"}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
+                  {formatDuration(call.duration)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </aside>
+      {!calls.length && (
+        <p className="p-8 text-sm text-by-text-secondary">
+          No loaded calls match these filters.{" "}
+          <button type="button" onClick={() => onSearch("")} className="underline">
+            Clear search
+          </button>
+        </p>
+      )}
+    </section>
   );
 }

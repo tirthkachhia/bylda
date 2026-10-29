@@ -1,9 +1,8 @@
-// Legacy route — consolidated in the 7-destination IA redesign.
-// Kept as a redirect so existing links, bookmarks, and AI tool chips keep working.
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// Legacy presentation removed from the Figma MVP; retained URLs resolve safely.
 export const Route = createFileRoute("/app/bylda/workflows")({
   beforeLoad: () => {
-    throw redirect({ to: "/app/automations", replace: true });
+    throw redirect({ to: "/app", replace: true });
   },
 });

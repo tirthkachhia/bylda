@@ -1,11 +1,19 @@
-import type { IconName } from "@/components/bylda/kit/Icon";
-// V1 presentation, original live destinations. Unsupported mock screens are not exposed.
-export const workspaceNavigation: { key: string; label: string; to: string; icon: IconName }[] = [
-  { key: "home", label: "Home", to: "/app", icon: "home" },
-  { key: "calls", label: "Calls & coaching", to: "/app/crm/calls", icon: "calls" },
-  { key: "memory", label: "Deal intelligence", to: "/app/memory", icon: "intelligence" },
-  { key: "contacts", label: "Accounts", to: "/app/contacts", icon: "team" },
-  { key: "reports", label: "Reports", to: "/app/bylda/reports", icon: "reports" },
-  { key: "integrations", label: "Integrations", to: "/app/integrations", icon: "plug" },
-  { key: "setup", label: "CRM intelligence", to: "/app/crm/setup", icon: "pattern" },
-];
+/** Only Figma MVP destinations. Legacy routes redirect and do not render old UI. */
+export const workspaceNavigation = [
+  { key: "home", label: "Home", to: "/app" },
+  { key: "calls", label: "Calls", to: "/app/crm/calls" },
+  { key: "people", label: "People", to: "/app/people" },
+  { key: "insights", label: "Insights", to: "/app/insights" },
+  { key: "coaching", label: "Coaching", to: "/app/coaching" },
+  { key: "reports", label: "Reports", to: "/app/reports" },
+  { key: "integrations", label: "Integrations", to: "/app/integrations" },
+  { key: "settings", label: "Settings", to: "/app/settings" },
+  { key: "notifications", label: "Notifications", to: "/app/notifications" },
+] as const;
+export const behavioralNavigation = [
+  { key: "home", label: "Home", to: "/app", asset: "nav-home" },
+  { key: "calls", label: "Calls", to: "/app/crm/calls", asset: "nav-calls", view: "calls" },
+  { key: "people", label: "People", to: "/app/people", asset: "nav-people" },
+  { key: "insights", label: "Insights", to: "/app/insights", asset: "nav-insights" },
+  { key: "coaching", label: "Coaching", to: "/app/coaching", asset: "nav-coaching" },
+] as const;

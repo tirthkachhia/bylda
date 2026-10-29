@@ -1,68 +1,19 @@
-import { useMemo, useState, useEffect, type ReactNode } from "react";
-import { BookOpen, Clock3, FileText, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { Inactive } from "@/components/app/FigmaPrimitives";
+import { FigmaCallTimeline } from "./FigmaCallTimeline";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { conductMetrics } from "../../../../supabase/functions/_shared/observable-conduct";
+import { formatDuration, formatWhen, segmentLines, type CoachingCall } from "@/lib/coaching/calls";
 import {
-  formatDuration,
-  formatWhen,
-  initials,
-  segmentLines,
-  type CoachingCall,
-} from "@/lib/coaching/calls";
-import { CallScores } from "./CallScores";
-import { BehaviorInsights } from "./BehaviorInsights";
+  secondsFromCitation,
+  timeLabel,
+  type BehaviorAnalysis,
+  type Evidence,
+} from "@/lib/coaching/behavior";
+import { BehaviorInsights, EvidenceLinks } from "./BehaviorInsights";
 import { CallRecording } from "./CallRecording";
-import { secondsFromCitation, type BehaviorAnalysis } from "@/lib/coaching/behavior";
-
-export type DetailTab = "summary" | "scores" | "transcript";
-
-const TONE_CLASS: Record<string, string> = {
-  warm: "bg-[#dff1e7] text-[#28764d]",
-  enthusiastic: "bg-[#dff1e7] text-[#28764d]",
-  curious: "bg-[#dff1e7] text-[#28764d]",
-  hesitant: "bg-[#fdf1d6] text-[#8a5b00]",
-  skeptical: "bg-[#fdf1d6] text-[#8a5b00]",
-  confused: "bg-[#fdf1d6] text-[#8a5b00]",
-  frustrated: "bg-[#fde2e2] text-[#9b1c1c]",
-  dismissive: "bg-[#fde2e2] text-[#9b1c1c]",
-  rushed: "bg-[#fde2e2] text-[#9b1c1c]",
-  neutral: "bg-[#ececea] text-[#5f656d]",
-};
-
-type ConductObservation = {
-  metric: keyof typeof conductMetrics;
-  observation: string;
-  evidence_quote: string;
-};
-
-type AdherenceItem = {
-  code?: string | null;
-  guideline: string;
-  status: "followed" | "adapted" | "partial" | "missed" | "not_applicable" | "not_observable";
-  evidence_quote: string;
-  note: string;
-};
-
-type CoachingPoint = { point: string; evidence_quote: string; playbook_guideline?: string };
-
-const ADHERENCE_CLASS: Record<AdherenceItem["status"], string> = {
-  followed: "bg-[#dff1e7] text-[#28764d]",
-  adapted: "bg-[#dff1e7] text-[#28764d]",
-  not_observable: "bg-[#ececea] text-[#5f656d]",
-  partial: "bg-[#fdf1d6] text-[#8a5b00]",
-  missed: "bg-[#fde2e2] text-[#9b1c1c]",
-  not_applicable: "bg-[#ececea] text-[#5f656d]",
-};
-const ADHERENCE_LABEL: Record<AdherenceItem["status"], string> = {
-  followed: "Followed",
-  adapted: "Adapted",
-  not_observable: "Unknown",
-  partial: "Partial",
-  missed: "Missed",
-  not_applicable: "N/A",
-};
-
-/** Header card plus Summary / Transcript tabs for one call. */
+import { CallScores } from "./CallScores";
+export type DetailTab = "summary" | "transcript" | "analysis" | "methodology" | "scores";
 export function CallDetail({
   call,
   tab,
@@ -70,431 +21,481 @@ export function CallDetail({
   onReanalyze,
   onDelete,
   seekSeconds = null,
+  seekRequest = 0,
+  sourceTurns = null,
+  sourceAnalysis = null,
+  sourceRunId = null,
+  sourceState = "legacy",
+  highlightedTurnId = null,
+  focusedOccurrenceKey = null,
 }: {
   call: CoachingCall;
   tab: DetailTab;
-  seekSeconds?: number | null;
   onTab: (tab: DetailTab) => void;
-  onReanalyze?: (callId: string) => Promise<void>;
-  onDelete?: (callId: string) => Promise<void>;
+  onReanalyze?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  seekSeconds?: number | null;
+  seekRequest?: number;
+  sourceTurns?: Evidence[] | null;
+  sourceAnalysis?: BehaviorAnalysis | null;
+  sourceRunId?: string | null;
+  sourceState?: "loading" | "unavailable" | "ready" | "legacy";
+  highlightedTurnId?: number | null;
+  focusedOccurrenceKey?: string | null;
 }) {
-  const [localSeek, setLocalSeek] = useState<number | null>(seekSeconds);
+  const root = useRef<HTMLDivElement>(null);
+  const [localSeek, setLocalSeek] = useState(seekSeconds),
+    [request, setRequest] = useState(seekRequest),
+    [highlight, setHighlight] = useState<number | null>(highlightedTurnId),
+    [moment, setMoment] = useState<string | null>(focusedOccurrenceKey),
+    [transcriptSearch, setTranscriptSearch] = useState(""),
+    [busy, setBusy] = useState(false),
+    [deleting, setDeleting] = useState(false);
   useEffect(() => {
+    setTranscriptSearch("");
     setLocalSeek(seekSeconds);
-  }, [seekSeconds, call.id]);
+    setRequest(seekRequest);
+    setHighlight(highlightedTurnId);
+    setMoment(focusedOccurrenceKey);
+  }, [seekSeconds, seekRequest, highlightedTurnId, focusedOccurrenceKey, sourceRunId]);
+  const processing = ["queued", "transcribing", "scoring", "analyzing"].includes(
+    call.coaching_stage ?? "",
+  );
+  const analysis = sourceAnalysis;
+  const vertical = call.insight?.vertical_insights ?? {};
+  const legacyLines = useMemo(() => segmentLines(call), [call]);
+  const lines = sourceTurns
+    ? sourceTurns.map((e) => ({
+        key: `${sourceRunId}:${e.turn_id}`,
+        turnId: e.turn_id,
+        time: timeLabel(e.start_s),
+        seconds: e.start_s,
+        speaker: e.speaker,
+        text: e.text,
+      }))
+    : sourceState === "legacy"
+      ? legacyLines.map((line) => ({
+          ...line,
+          turnId: null,
+          seconds: secondsFromCitation(line.time),
+        }))
+      : [];
+  const visible = lines.filter((line) =>
+    `${line.speaker} ${line.text}`.toLowerCase().includes(transcriptSearch.toLowerCase()),
+  );
+  useEffect(() => {
+    if (tab !== "summary" && tab !== "transcript") return;
+    const id = requestAnimationFrame(() => {
+      const scope = root.current;
+      if (!scope) return;
+      const exact =
+        highlight !== null
+          ? scope.querySelector<HTMLElement>(`[data-source-turn="${highlight}"]`)
+          : null;
+      const timed =
+        localSeek === null
+          ? null
+          : [...scope.querySelectorAll<HTMLElement>("[data-call-time]")]
+              .filter((e) => Number(e.dataset.callTime) <= localSeek)
+              .at(-1);
+      (exact ?? timed)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [tab, highlight, localSeek, request, sourceRunId]);
   const seek = (seconds: number) => {
     setLocalSeek(seconds);
-    onTab("transcript");
+    setRequest((v) => v + 1);
   };
-  useEffect(() => {
-    if (tab !== "transcript" || localSeek === null) return;
-    const timer = requestAnimationFrame(() => {
-      const elements = [...document.querySelectorAll<HTMLElement>("[data-call-time]")];
-      const closest =
-        elements.filter((e) => Number(e.dataset.callTime) <= localSeek).at(-1) ?? elements[0];
-      closest?.scrollIntoView({ block: "center", behavior: "smooth" });
-    });
-    return () => cancelAnimationFrame(timer);
-  }, [tab, localSeek, call.id]);
-  const [deleting, setDeleting] = useState(false);
+  const selectEvidence = (e: Evidence, destination?: DetailTab) => {
+    setHighlight(e.turn_id);
+    setTranscriptSearch("");
+    setLocalSeek(e.start_s);
+    setRequest((v) => v + 1);
+    if (destination && destination !== tab) onTab(destination);
+    else if (!destination && tab !== "summary") onTab("transcript");
+  };
+  async function reanalyze() {
+    if (!onReanalyze || busy) return;
+    setBusy(true);
+    try {
+      await onReanalyze(call.id);
+      toast.success("Call queued for re-analysis");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Re-analysis failed");
+    } finally {
+      setBusy(false);
+    }
+  }
   async function remove() {
-    if (!onDelete || deleting) return;
     if (
-      !window.confirm(
-        "Delete this call? The recording, transcript, scores, and coaching notes for it are removed permanently.",
-      )
+      !onDelete ||
+      deleting ||
+      !window.confirm("Delete this call, recording and retained analysis history?")
     )
       return;
     setDeleting(true);
     try {
       await onDelete(call.id);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete the call");
+      toast.error(error instanceof Error ? error.message : "Delete failed");
     } finally {
       setDeleting(false);
     }
   }
-  const transcript = useMemo(() => segmentLines(call), [call]);
-  const hasTone = transcript.some((line) => line.tone);
-  const vertical = call.insight?.vertical_insights ?? {};
-  const dealInsights = vertical.deal_insights ?? {};
-  const observations: ConductObservation[] = vertical.observable_conduct?.observations ?? [];
-  const coverage = vertical.analysis_coverage ?? {};
-  const playbook: { name: string; version: number } | null = vertical.playbook ?? null;
-  const adherence: AdherenceItem[] = vertical.playbook_adherence ?? [];
-  const coaching: {
-    strengths?: CoachingPoint[];
-    improvements?: CoachingPoint[];
-    next_call_focus?: string;
-  } = vertical.coaching ?? {};
-  const [reanalyzing, setReanalyzing] = useState(false);
-
-  async function reanalyze() {
-    if (!onReanalyze || reanalyzing) return;
-    setReanalyzing(true);
-    try {
-      await onReanalyze(call.id);
-      toast.success("Call re-analyzed");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Re-analysis failed");
-    } finally {
-      setReanalyzing(false);
-    }
-  }
-
-  return (
-    <main className="min-w-0 space-y-4">
-      {call.coaching_stage === "analysis_failed" && (
-        <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
-          The latest analysis did not complete. Previous results are preserved; use Re-analyze to
-          retry.
+  const transcript = (
+    <section
+      className="min-w-0 overflow-hidden rounded-xl border border-by-border-engraved"
+      aria-label="Call transcript"
+    >
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-by-border-engraved px-4 py-3">
+        <h2 className="text-xs font-medium uppercase">Transcript</h2>
+        <input
+          aria-label="Search transcript"
+          placeholder="Search transcript…"
+          value={transcriptSearch}
+          onChange={(event) => setTranscriptSearch(event.target.value)}
+          className="max-w-full rounded-md border border-by-border-control px-2 py-1.5 text-xs"
+        />
+      </header>
+      {sourceState === "ready" && (
+        <p className="border-b border-by-border-engraved px-4 py-2 text-[10px] text-by-text-tertiary">
+          Retained analysis snapshot · speaker and timing estimates
         </p>
       )}
-      <section className="overflow-hidden rounded-by-card border border-black/[0.09] bg-by-surface-raised">
-        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div className="flex items-center gap-4">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#dbe7f8] text-[12px] font-bold text-[#346dbf]">
-              {initials(call.contactName)}
-            </span>
+      <div className="max-h-[760px] overflow-y-auto">
+        {visible.map((line) => (
+          <div
+            key={line.key}
+            data-source-turn={line.turnId ?? undefined}
+            data-call-time={line.seconds ?? undefined}
+            className={`grid grid-cols-[75px_minmax(0,1fr)] gap-3 border-b border-by-border-engraved p-4 text-[13px] ${highlight !== null && highlight === line.turnId ? "bg-amber-100" : "bg-white"}`}
+          >
             <div>
-              <h2 className="text-[20px] font-bold tracking-[-0.03em]">{call.contactName}</h2>
-              <div className="mt-1 text-[11px] text-[#777d86]">
-                {call.dealName ?? call.company} · {call.direction} ·{" "}
-                {formatWhen(call.started_at ?? call.created_at)}
-              </div>
+              <button
+                type="button"
+                disabled={line.seconds === null && line.turnId === null}
+                onClick={() => {
+                  if (line.seconds !== null) seek(line.seconds);
+                  setHighlight(line.turnId);
+                }}
+                className="font-mono text-[11px] underline-offset-4 hover:underline disabled:text-by-text-tertiary"
+              >
+                {line.time}
+              </button>
+              <p className="mt-1 break-words text-[10px] font-medium uppercase text-by-text-secondary">
+                {line.speaker}
+              </p>
             </div>
+            <p className="whitespace-pre-wrap break-words leading-6">{line.text}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-[10px] text-[#737982]">
-            <span className="flex items-center gap-1.5">
-              <Clock3 className="h-3.5 w-3.5" />
-              {formatDuration(call.duration)}
-            </span>
-            <span className="rounded-full bg-[#dff1e7] px-2 py-1 font-bold uppercase text-[#28764d]">
-              {call.status}
-            </span>
+        ))}
+        {!visible.length && (
+          <p className="p-6 text-sm leading-6 text-by-text-secondary">
+            {sourceState === "loading"
+              ? "Loading the retained transcript…"
+              : sourceState === "unavailable"
+                ? "The cited source snapshot is unavailable. Another transcript has not been substituted."
+                : transcriptSearch
+                  ? "No transcript lines match your search."
+                  : "No transcript available yet."}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+  const execution = analysis?.execution;
+  const legacyItems = Array.isArray(vertical.playbook_adherence) ? vertical.playbook_adherence : [];
+  const items = execution?.items ?? legacyItems;
+  return (
+    <div
+      ref={root}
+      className="space-y-4 rounded-xl border border-by-border-engraved bg-white p-4 shadow-sm sm:p-6"
+      data-design-screen="call-review"
+    >
+      <header>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="break-words text-xl">{call.dealName ?? call.contactName}</h1>
+            <p className="mt-2 text-xs leading-6 text-by-text-secondary">
+              {call.repName ?? "Unassigned rep"} · {formatWhen(call.started_at ?? call.created_at)}{" "}
+              · {formatDuration(call.duration)} · {call.direction}
+            </p>
+            <p className="text-xs leading-6 text-by-text-secondary">
+              {call.company}
+              {call.dealStage ? ` · CRM stage: ${call.dealStage}` : ""}
+              {typeof call.dealValue === "number"
+                ? ` · CRM value: ${call.dealValue.toLocaleString()}`
+                : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Inactive>Share</Inactive>
+            <Inactive>Add note</Inactive>
+            <Inactive>Assign coaching</Inactive>
             {onReanalyze && call.transcript && (
               <button
                 type="button"
+                disabled={busy || processing}
                 onClick={() => void reanalyze()}
-                disabled={reanalyzing}
-                className="flex h-8 items-center gap-1.5 rounded-full border border-black/[0.1] bg-by-surface-raised px-3 text-[10px] font-semibold text-by-text-primary disabled:opacity-50"
-                title="Run the analysis again, for example after assigning a playbook"
+                className="flex items-center gap-2 rounded-md border border-by-border-control px-3 py-2 text-xs disabled:opacity-40"
               >
-                <RefreshCw className={`h-3 w-3 ${reanalyzing ? "animate-spin" : ""}`} />
-                {reanalyzing ? "Re-analyzing…" : "Re-analyze"}
+                <RefreshCw size={13} className={busy ? "animate-spin" : ""} />
+                Re-analyze
               </button>
             )}
             {onDelete && (
               <button
                 type="button"
-                onClick={() => void remove()}
                 disabled={deleting}
-                className="flex h-8 items-center gap-1.5 rounded-full border border-red-200 bg-by-surface-raised px-3 text-[10px] font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                title="Delete this call and its recording"
+                aria-label="Delete call"
+                onClick={() => void remove()}
+                className="rounded-md border border-by-border-control p-2 text-red-700 disabled:opacity-40"
               >
-                <Trash2 className="h-3 w-3" />
-                {deleting ? "Deleting…" : "Delete"}
+                <Trash2 size={14} />
               </button>
             )}
           </div>
         </div>
-      </section>
-      <CallRecording key={call.id} path={call.audio_path} seekSeconds={localSeek} />
-      <section className="overflow-hidden rounded-by-card border border-black/[0.09] bg-by-surface-raised">
-        <div className="flex items-center justify-between border-b border-black/[0.08] px-5">
-          <div className="flex h-[58px] items-end gap-6">
-            {(["summary", "scores", "transcript"] as const).map((item) => (
-              <button
-                key={item}
-                onClick={() => onTab(item)}
-                className={`h-full border-b-2 text-[11px] font-semibold capitalize ${tab === item ? "border-[#3275d8] text-[#1e5faf]" : "border-transparent text-[#7d838c]"}`}
-              >
-                {item}
-              </button>
-            ))}
+      </header>
+      {processing && (
+        <p
+          role="status"
+          className="rounded-lg border border-by-border-engraved bg-white p-3 text-xs"
+        >
+          Call analysis is being prepared.
+          {analysis
+            ? " Retained evidence stays visible until the new result is ready."
+            : " Evidence will appear when processing completes."}
+        </p>
+      )}
+      {call.coaching_stage?.includes("failed") && (
+        <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs">
+          {call.coaching_error ||
+            "Latest processing did not complete. Previous retained results are preserved; re-analyze to retry."}
+        </p>
+      )}
+      {analysis && (
+        <section className="grid gap-4 rounded-xl border border-by-border-engraved bg-by-surface-hover p-4 md:grid-cols-[minmax(0,1fr)_230px]">
+          <div>
+            <h2 className="text-[11px] font-medium uppercase">Bylda summary</h2>
+            <p className="mt-2 text-[13px] leading-6">{analysis.final_state.label}</p>
+            <p className="mt-1 text-[11px] text-by-text-secondary">
+              {analysis.final_state.verification.replaceAll("_", " ")}
+            </p>
           </div>
-          <Sparkles className="h-4 w-4 text-[#3275d8]" />
-        </div>
-        {tab === "scores" ? (
-          <CallScores callId={call.id} />
-        ) : tab === "summary" ? (
-          <div className="space-y-5 p-5 sm:p-6">
-            {!call.insight ? (
-              <p className="text-sm text-neutral-500">
-                {call.transcript ? "Analysis pending." : "No transcript yet."}
+          <dl className="space-y-2 text-xs">
+            <div className="flex justify-between gap-3">
+              <dt>Call objective</dt>
+              <dd>{analysis.context.objective}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Transcript coverage</dt>
+              <dd>
+                {analysis.coverage.analyzed_turns}/{analysis.coverage.total_turns} turns
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Playbook version</dt>
+              <dd>{execution?.playbook ? `v${execution.playbook.version}` : "None recorded"}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
+      {sourceState === "unavailable" && (
+        <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs">
+          The requested analysis source is unavailable. The current call’s transcript has not
+          replaced it.
+        </p>
+      )}
+      <nav
+        aria-label="Call review sections"
+        className="flex gap-5 overflow-x-auto border-b border-by-border-engraved"
+      >
+        {(
+          [
+            ["summary", "Overview"],
+            ["transcript", "Transcript"],
+            ["analysis", "Analysis"],
+            ["methodology", "Methodology"],
+            ["scores", "Learning moments"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            type="button"
+            key={key}
+            aria-pressed={tab === key}
+            onClick={() => onTab(key)}
+            className={`shrink-0 border-b-2 px-1 py-3 text-[13px] ${tab === key ? "border-by-text-primary font-medium" : "border-transparent text-by-text-secondary"}`}
+          >
+            {label}
+          </button>
+        ))}
+        <button
+          type="button"
+          disabled
+          title="Not available yet"
+          className="shrink-0 px-1 py-3 text-[13px] text-by-text-tertiary"
+        >
+          Notes
+        </button>
+      </nav>
+      <CallRecording
+        key={call.id}
+        path={call.audio_path}
+        recordingUrl={call.recording_url}
+        seekSeconds={localSeek}
+        seekRequest={request}
+      />
+      <FigmaCallTimeline
+        analysis={analysis ?? null}
+        duration={call.duration}
+        onSelect={(e, key) => {
+          setMoment(key);
+          selectEvidence(e, "summary");
+        }}
+      />
+      {tab === "scores" ? (
+        <>
+          <p className="text-xs leading-5 text-by-text-secondary">
+            Exchange-scoring moments are observations for review, not verified outcomes or
+            compliance decisions.
+          </p>
+          <CallScores
+            callId={call.id}
+            onSeek={(seconds) => {
+              setHighlight(null);
+              setTranscriptSearch("");
+              seek(seconds);
+              onTab("transcript");
+            }}
+          />
+        </>
+      ) : tab === "methodology" ? (
+        <section>
+          <h2 className="text-base">
+            {execution?.playbook
+              ? `${execution.playbook.name} · v${execution.playbook.version}`
+              : vertical.playbook
+                ? `${vertical.playbook.name} · v${vertical.playbook.version}`
+                : "No playbook recorded"}
+          </h2>
+          <p className="mt-2 text-xs leading-6 text-by-text-secondary">
+            Execution against the analysis-time version. Adaptation can fulfill an objective;
+            unknown evidence is not a missed step.
+          </p>
+          <ul className="mt-4 divide-y divide-by-border-engraved">
+            {items.map((item, index) => (
+              <li key={item.guideline_id ?? item.code ?? index} className="py-4 text-[13px]">
+                <div className="flex flex-wrap items-start gap-3">
+                  <span className="font-mono text-xs text-by-text-tertiary">{item.code}</span>
+                  <strong className="flex-1 font-medium">{item.guideline}</strong>
+                  <span
+                    className={`rounded-full px-2 py-1 text-[11px] ${["followed", "adapted"].includes(item.status) ? "bg-emerald-100 text-emerald-900" : ["partial", "missed"].includes(item.status) ? "bg-amber-100 text-amber-900" : "bg-neutral-100 text-neutral-600"}`}
+                  >
+                    {item.status === "not_observable"
+                      ? "Unknown"
+                      : (item.status?.replaceAll("_", " ") ?? "Unknown")}
+                  </span>
+                </div>
+                {item.note && (
+                  <p className="mt-2 text-xs leading-6 text-by-text-secondary">{item.note}</p>
+                )}
+                {item.source_evidence?.length ? (
+                  <EvidenceLinks
+                    evidence={item.source_evidence}
+                    onSeek={seek}
+                    onSelect={selectEvidence}
+                  />
+                ) : item.evidence_quote ? (
+                  <blockquote className="mt-3 rounded-md bg-by-surface-hover p-3 text-xs leading-6">
+                    “{item.evidence_quote}”
+                  </blockquote>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {!items.length && (
+            <p className="py-8 text-sm text-by-text-secondary">
+              No guideline judgments are available for this call.
+            </p>
+          )}
+        </section>
+      ) : tab === "transcript" ? (
+        transcript
+      ) : (
+        <div className={`grid gap-4 ${tab === "summary" ? "xl:grid-cols-2" : ""}`}>
+          {tab === "summary" && transcript}
+          <section className="min-w-0 rounded-xl border border-by-border-engraved p-4">
+            {analysis && sourceRunId ? (
+              <BehaviorInsights
+                key={sourceRunId}
+                analysis={analysis}
+                runId={sourceRunId}
+                onSeek={seek}
+                onSelectEvidence={selectEvidence}
+                mode={tab === "analysis" ? "analysis" : "overview"}
+                focusedOccurrenceKey={moment}
+                onChooseMoment={(key, e) => {
+                  setMoment(key);
+                  if (e) selectEvidence(e, tab === "analysis" ? "analysis" : "summary");
+                }}
+              />
+            ) : sourceState === "loading" ? (
+              <p role="status" className="text-sm text-by-text-secondary">
+                Loading retained analysis…
+              </p>
+            ) : sourceState === "unavailable" ? (
+              <p className="text-sm text-by-text-secondary">
+                The retained analysis could not be opened. Return to Calls or retry the source link.
               </p>
             ) : (
-              <>
-                {vertical.behavior_analysis && (
-                  <BehaviorInsights
-                    analysis={vertical.behavior_analysis as BehaviorAnalysis}
-                    runId={vertical.behavior_analysis.run_id}
-                    onSeek={seek}
-                  />
-                )}
-                {!vertical.behavior_analysis && call.insight.summary && (
-                  <p className="text-[14px] leading-7 text-[#333943]">{call.insight.summary}</p>
-                )}
-
-                {!vertical.behavior_analysis && coaching.next_call_focus && (
-                  <div className="rounded-by-card bg-[#e9eef6] px-4 py-3">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#4774b5]">
-                      Next call
-                    </span>
-                    <p className="mt-1 text-sm font-medium text-[#333943]">
-                      {coaching.next_call_focus}
-                    </p>
-                  </div>
-                )}
-
-                {(playbook || adherence.length > 0) && (
-                  <details>
-                    <summary className="cursor-pointer text-xs font-semibold">
-                      Playbook execution details
-                    </summary>
-                    <SectionTitle icon={<BookOpen className="h-3.5 w-3.5 text-[#3275d8]" />}>
-                      Playbook{playbook ? ` · ${playbook.name} v${playbook.version}` : ""}
-                    </SectionTitle>
-                    {adherence.length === 0 ? (
-                      <p className="mt-2 text-xs text-neutral-500">Nothing judged on this call.</p>
-                    ) : (
-                      <ul className="mt-2 divide-y divide-black/5">
-                        {adherence.map((item, index) => (
-                          <li key={index} className="flex items-start gap-3 py-2">
-                            <span
-                              className={`mt-0.5 w-16 shrink-0 rounded-by-pill px-2 py-0.5 text-center text-[9px] font-semibold uppercase ${ADHERENCE_CLASS[item.status]}`}
-                            >
-                              {ADHERENCE_LABEL[item.status]}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm">
-                                {item.code && (
-                                  <span className="mr-1.5 font-mono text-[10px] font-semibold text-neutral-400">
-                                    {item.code}
-                                  </span>
-                                )}
-                                {item.guideline}
-                              </p>
-                              {(item.note || item.evidence_quote) && (
-                                <Why note={item.note} quote={item.evidence_quote} />
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </details>
-                )}
-
-                {((coaching.strengths?.length ?? 0) > 0 ||
-                  (coaching.improvements?.length ?? 0) > 0) && (
-                  <div className="grid gap-5 md:grid-cols-2">
-                    {!vertical.behavior_analysis && (
-                      <CoachingList
-                        title="Keep doing"
-                        tone="good"
-                        items={coaching.strengths ?? []}
-                      />
-                    )}
-                    {!vertical.behavior_analysis && (
-                      <CoachingList
-                        title="Work on"
-                        tone="fix"
-                        items={coaching.improvements ?? []}
-                      />
-                    )}
-                  </div>
-                )}
-
-                {observations.length > 0 && (
-                  <details className="group">
-                    <summary className="cursor-pointer list-none text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500 hover:text-neutral-800">
-                      Observable conduct · {observations.length}
-                      <span className="ml-1 font-normal normal-case tracking-normal group-open:hidden">
-                        show
-                      </span>
-                    </summary>
-                    <ul className="mt-2 divide-y divide-black/5">
-                      {observations.map((observation, index) => (
-                        <li key={index} className="py-2">
-                          <p className="text-sm">
-                            <span className="font-semibold">
-                              {conductMetrics[observation.metric] ?? "Observation"}:
-                            </span>{" "}
-                            {observation.observation}
-                          </p>
-                          <Why quote={observation.evidence_quote} />
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-
-                {(dealInsights.primary_risk ||
-                  dealInsights.primary_driver ||
-                  dealInsights.qualification_reason) && (
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Insight title="Driver" body={dealInsights.primary_driver} />
-                    <Insight title="Risk" body={dealInsights.primary_risk} />
-                    <Insight title="Why it advances" body={dealInsights.qualification_reason} />
-                  </div>
-                )}
-
-                <p className="text-[10px] text-neutral-400">
-                  AI-generated from the transcript{coverage.used_tone ? " and audio tone" : ""}.
-                  Quotes are verbatim.
-                  {coverage.partial
-                    ? ` Partial legacy extraction: ${Number(coverage.analyzed_characters ?? 0).toLocaleString()} of ${Number(coverage.total_characters ?? 0).toLocaleString()} characters.`
-                    : ""}
-                </p>
-              </>
+              <LegacySummary call={call} />
             )}
-          </div>
-        ) : transcript.length ? (
-          <div className="divide-y divide-black/[0.07]">
-            {hasTone && (
-              <p className="px-5 py-3 text-[11px] text-neutral-500">
-                Speaker labels and tone are AI estimates from the audio. They are probabilistic and
-                for coaching only.
-              </p>
-            )}
-            {transcript.map((line) => (
-              <div
-                key={line.key}
-                data-call-time={secondsFromCitation(line.time) ?? undefined}
-                className="grid grid-cols-[35px_minmax(0,1fr)] gap-3 px-5 py-5 text-[12px] leading-6 sm:grid-cols-[50px_140px_minmax(0,1fr)]"
-              >
-                <button
-                  type="button"
-                  className="font-mono text-[9px] text-blue-700"
-                  onClick={() => {
-                    const seconds = secondsFromCitation(line.time);
-                    if (seconds !== null) seek(seconds);
-                  }}
-                >
-                  {line.time}
-                </button>
-                <span className="font-semibold text-[#474d55]">
-                  {line.speaker}
-                  {line.tone && (
-                    <span
-                      title={line.tone.note || undefined}
-                      className={`ml-2 inline-block rounded-by-pill px-2 py-0.5 text-[9px] font-semibold ${TONE_CLASS[line.tone.label] ?? TONE_CLASS.neutral}`}
-                    >
-                      {line.tone.label}
-                    </span>
-                  )}
-                  {line.overlap && (
-                    <span className="ml-2 text-[9px] font-normal text-neutral-400">
-                      overlapping
-                    </span>
-                  )}
-                </span>
-                <p className="col-span-2 whitespace-pre-wrap break-words text-[#626871] sm:col-span-1">
-                  {line.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyPanel
-            icon={<FileText className="h-5 w-5" />}
-            text="This recording does not have a transcript yet."
-          />
-        )}
-      </section>
-    </main>
-  );
-}
-
-function CoachingList({
-  title,
-  tone,
-  items,
-}: {
-  title: string;
-  tone: "good" | "fix";
-  items: CoachingPoint[];
-}) {
-  if (items.length === 0) return null;
-  return (
-    <section>
-      <SectionTitle className={tone === "good" ? "text-[#28764d]" : "text-[#8a5b00]"}>
-        {title}
-      </SectionTitle>
-      <ul className="mt-2 space-y-2">
-        {items.map((item, index) => (
-          <li key={index}>
-            <p className="text-sm">
-              {item.point}
-              {item.playbook_guideline && (
-                <span className="ml-1.5 text-[11px] text-[#4774b5]">
-                  · {item.playbook_guideline}
-                </span>
-              )}
-            </p>
-            <Why quote={item.evidence_quote} />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function SectionTitle({
-  children,
-  icon,
-  className = "text-neutral-500",
-}: {
-  children: ReactNode;
-  icon?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <h3
-      className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] ${className}`}
-    >
-      {icon}
-      {children}
-    </h3>
-  );
-}
-
-/** Collapsed evidence: the note and verbatim quote behind one small toggle. */
-function Why({ note, quote }: { note?: string; quote?: string }) {
-  if (!note && !quote) return null;
-  return (
-    <details className="mt-0.5">
-      <summary className="cursor-pointer list-none text-[11px] text-neutral-400 hover:text-neutral-700">
-        why
-      </summary>
-      {note && <p className="mt-1 text-xs text-neutral-600">{note}</p>}
-      {quote && (
-        <blockquote className="mt-1 border-l-2 border-neutral-200 pl-3 text-xs text-neutral-500">
-          “{quote}”
-        </blockquote>
+          </section>
+        </div>
       )}
-    </details>
+      <p className="text-[10px] leading-5 text-by-text-tertiary">
+        AI analysis of available transcript evidence. Recording completeness, speaker attribution
+        and timing are not independently verified.
+        {vertical.analysis_coverage?.partial
+          ? ` Legacy extraction is partial: ${vertical.analysis_coverage.analyzed_characters} of ${vertical.analysis_coverage.total_characters} characters.`
+          : ""}
+      </p>
+    </div>
   );
 }
-
-function Insight({ title, body }: { title: string; body?: string }) {
-  if (!body) return null;
+function LegacySummary({ call }: { call: CoachingCall }) {
+  const vertical = call.insight?.vertical_insights ?? {};
   return (
-    <article className="rounded-by-card border border-black/[0.08] bg-white p-3">
-      <h3 className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500">
-        {title}
-      </h3>
-      <p className="mt-1 text-[12px] leading-5 text-[#333943]">{body}</p>
-    </article>
-  );
-}
-
-function EmptyPanel({ icon, text }: { icon: ReactNode; text: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-14 text-center text-[#858a92]">
-      {icon}
-      <p className="mt-3 max-w-sm text-[11px] leading-5">{text}</p>
+    <div className="space-y-4">
+      <h2 className="text-base">Call summary</h2>
+      <p className="text-[13px] leading-6 text-by-text-secondary">
+        {call.insight?.summary ??
+          (call.transcript ? "Analysis pending." : "Waiting for a transcript.")}
+      </p>
+      {vertical.coaching?.next_call_focus && (
+        <p className="rounded-lg border border-by-border-engraved p-3 text-sm">
+          Next call: {vertical.coaching.next_call_focus}
+        </p>
+      )}
+      {[...(vertical.coaching?.strengths ?? []), ...(vertical.coaching?.improvements ?? [])].map(
+        (point: { point: string; evidence_quote?: string }, i: number) => (
+          <article
+            key={i}
+            className="rounded-lg border border-by-border-engraved p-3 text-xs leading-6"
+          >
+            <p>{point.point}</p>
+            {point.evidence_quote && (
+              <blockquote className="mt-2 text-by-text-secondary">
+                “{point.evidence_quote}”
+              </blockquote>
+            )}
+          </article>
+        ),
+      )}
+      <p className="text-xs text-by-text-tertiary">
+        This is a legacy analysis. Re-analyze to create source-linked behavioral history.
+      </p>
     </div>
   );
 }

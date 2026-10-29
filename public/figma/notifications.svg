@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Rail / Notifications">
+<g id="Icon/bell">
+<path id="Vector" d="M14.5 22V18.25C14.5 17.0565 14.9741 15.9119 15.818 15.068C16.6619 14.2241 17.8065 13.75 19 13.75C20.1935 13.75 21.3381 14.2241 22.182 15.068C23.0259 15.9119 23.5 17.0565 23.5 18.25V22L25 23.5H13L14.5 22Z" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#6E6C68"/>
+<path id="Vector_2" d="M17.5 25.75H20.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#6E6C68"/>
+</g>
+<circle id="Ellipse" cx="27.5" cy="11.5" r="3.5" fill="#D3362E"/>
+</g>
+</svg>
