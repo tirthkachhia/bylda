@@ -1,12 +1,9 @@
 import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { validateCallFile } from "@/lib/call-upload";
-import { importRecording, type ImportDeps } from "@/lib/coaching/import-one";
+import { importRecording, validateImportFile, type ImportDeps } from "@/lib/coaching/import-one";
 import type { UploadItem } from "@/lib/coaching/types";
 import { UploadRows } from "./UploadRows";
-
-const field = "w-full rounded-lg border border-neutral-200 bg-white p-3 text-sm text-neutral-900";
 
 const deps: ImportDeps = {
   upload: (path, file, contentType) =>
@@ -36,14 +33,15 @@ export function BulkCallUpload({
   const [items, setItems] = useState<UploadItem[]>([]);
   const [consent, setConsent] = useState(false);
   const [running, setRunning] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   const updateItem = (index: number, patch: Partial<UploadItem>) =>
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
 
-  function choose(files: FileList | null) {
+  function choose(files: FileList | File[] | null) {
     const next = Array.from(files ?? []).map<UploadItem>((file) => {
       try {
-        validateCallFile(file);
+        validateImportFile(file);
         return { file, status: "queued" };
       } catch (error) {
         return {
@@ -58,7 +56,7 @@ export function BulkCallUpload({
   }
 
   async function start() {
-    if (running) return;
+    if (running || !consent) return;
     setRunning(true);
     for (let i = 0; i < items.length; i++) {
       if (items[i].status !== "queued") continue;
@@ -95,15 +93,34 @@ export function BulkCallUpload({
           transcribed and reviewed in turn; keep this tab open until all rows finish.
         </p>
       </div>
-      <label className="mt-4 block text-sm">
-        Recordings
+      <label
+        className={`mt-5 flex min-h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6 text-center text-[13px] ${dragActive ? "border-by-text-primary bg-by-surface-sidebar" : "border-by-border-control bg-by-surface-hover"}`}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!running) setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragActive(false);
+          if (!running) choose(event.dataTransfer.files);
+        }}
+      >
+        <Upload size={24} className="text-by-text-secondary" />
+        <span className="font-medium">
+          Drop recordings or TXT transcripts here, or choose files
+        </span>
+        <span className="text-xs text-by-text-tertiary">
+          MP3, MP4, M4A, WAV, WebM, OGG or FLAC · up to 100 MB · TXT up to 100,000 characters
+        </span>
         <input
           ref={fileInput}
-          className={`${field} mt-2`}
+          className="max-w-full text-xs"
+          aria-label="Choose call recordings"
           type="file"
           multiple
           disabled={running}
-          accept=".mp3,.mp4,.m4a,.wav,.webm,.ogg,.flac"
+          accept=".mp3,.mp4,.m4a,.wav,.webm,.ogg,.flac,.txt"
           onChange={(event) => choose(event.target.files)}
         />
       </label>

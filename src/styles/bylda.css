@@ -18,12 +18,9 @@
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
-@import "@fontsource/newsreader/400-italic.css";
-@import "@fontsource/newsreader/500.css";
 @import "@fontsource/geist-mono/300.css";
 @import "@fontsource/geist-mono/400.css";
 @import "@fontsource/geist-mono/500.css";
-@import "@fontsource/cinzel/400.css";
 
 /* ── Layer 1 — primitives (Figma `primitive/*`) ──────────────────────────── */
 :root {
@@ -318,4 +315,34 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Prototypes G v2 workspace surfaces. Public/legacy surfaces keep their tokens. */
+.v1-workspace {
+  --by-pearl-0: #f4f0eb;
+  --by-pearl-50: #f6f3f8;
+  --by-pearl-100: #f1f0f9;
+  --by-graphite-800: #1c1a33;
+  --by-graphite-900: #f6f3f8;
+  --radius-xl: 12px;
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --by-workspace-rail: #ecebf3;
+  --by-workspace-active: #dfdbee;
+  --by-workspace-hover: rgb(28 26 51 / 0.05);
+  --by-workspace-ink: #14122a;
+  --by-workspace-action: #1c1a33;
+  --by-workspace-shadow: 0 8px 24px rgb(20 18 42 / 0.06), 0 1px 2px rgb(20 18 42 / 0.06);
+  --by-workspace-glow:
+    radial-gradient(ellipse at 10% 12%, rgb(217 208 232 / 0.4), transparent 55%),
+    radial-gradient(ellipse at 95% 95%, rgb(200 212 230 / 0.4), transparent 55%),
+    radial-gradient(ellipse at 30% 80%, rgb(243 221 216 / 0.3), transparent 55%);
+}
+@theme inline {
+  --color-by-surface-rail: var(--by-workspace-rail, var(--by-ink));
+  --color-by-surface-control-dark: var(--by-workspace-action, var(--by-ink));
+  --color-by-surface-sidebar-active: var(--by-workspace-active, var(--by-white-a10));
+  --color-by-surface-sidebar-hover: var(--by-workspace-hover, var(--by-white-a05));
+  --shadow-by-card: var(--by-workspace-shadow, var(--by-shadow-float));
 }

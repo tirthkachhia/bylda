@@ -1,20 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  useGuest,
-  guestStore,
-  isDemoEmail,
-  GUEST_USER,
-  GUEST_ORG_ID,
-  GUEST_ORG,
-} from "@/lib/guest";
-import { useImpersonation } from "@/lib/impersonation";
-
-function syncDemoMode(email: string | null | undefined) {
-  if (isDemoEmail(email)) guestStore.enable();
-  else guestStore.disable();
-}
+import { guestStore } from "@/lib/guest";
 
 type Profile = {
   id: string;
@@ -74,11 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Retired demo state must never replace an authenticated MVP identity.
+    guestStore.disable();
     // Listener FIRST
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
       setUser(sess?.user ?? null);
-      syncDemoMode(sess?.user?.email);
+
       if (sess?.user) {
         // defer to avoid deadlock
         setTimeout(() => {
@@ -95,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: sess } }) => {
       setSession(sess);
       setUser(sess?.user ?? null);
-      syncDemoMode(sess?.user?.email);
+
       if (sess?.user) void loadProfile(sess.user.id).finally(() => setLoading(false));
       else setLoading(false);
     });
@@ -126,35 +115,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  const { isGuest } = useGuest();
-  const imp = useImpersonation();
-  if (isGuest) {
-    return {
-      ...ctx,
-      session: null,
-      user: { id: GUEST_USER.id, email: GUEST_USER.email } as unknown as User,
-      profile: {
-        id: GUEST_USER.id,
-        email: GUEST_USER.email,
-        full_name: GUEST_USER.full_name,
-        onboarding_complete: true,
-      },
-      currentOrgId: GUEST_ORG_ID,
-      currentOrg: { id: GUEST_ORG_ID, name: GUEST_ORG.name },
-      loading: false,
-    };
-  }
-  // Admin impersonation: keep the real admin session/JWT (so is_admin() RLS still
-  // applies), but point the app's user/org context at the target account so every
-  // org-/user-scoped query and mutation targets that account.
-  if (imp.active && imp.userId) {
-    return {
-      ...ctx,
-      user: ctx.user ? ({ ...ctx.user, id: imp.userId } as User) : ctx.user,
-      profile: ctx.profile ? { ...ctx.profile, id: imp.userId } : ctx.profile,
-      currentOrgId: imp.orgId ?? ctx.currentOrgId,
-      currentOrg: imp.orgId ? { id: imp.orgId, name: imp.label ?? "Account" } : ctx.currentOrg,
-    };
-  }
   return ctx;
 }

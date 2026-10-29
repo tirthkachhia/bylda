@@ -28,11 +28,13 @@ import { Route as AppBuilderRouteImport } from './routes/app.builder'
 import { Route as AppByldaFullRouteImport } from './routes/app.bylda-full'
 import { Route as AppByldaHomeRouteImport } from './routes/app.bylda-home'
 import { Route as AppByldaOsRouteImport } from './routes/app.bylda-os'
+import { Route as AppCoachingRouteImport } from './routes/app.coaching'
 import { Route as AppCommandCenterRouteImport } from './routes/app.command-center'
 import { Route as AppContactsRouteImport } from './routes/app.contacts'
 import { Route as AppContextMemoryRouteImport } from './routes/app.context-memory'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppGalaxyRouteImport } from './routes/app.galaxy'
+import { Route as AppInsightsRouteImport } from './routes/app.insights'
 import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
 import { Route as AppLaunchControlRouteImport } from './routes/app.launch-control'
 import { Route as AppLaunchpadPathRouteImport } from './routes/app.launchpad-path'
@@ -42,7 +44,10 @@ import { Route as AppMentorRouteImport } from './routes/app.mentor'
 import { Route as AppMissionBriefingRouteImport } from './routes/app.mission-briefing'
 import { Route as AppMissionControlRouteImport } from './routes/app.mission-control'
 import { Route as AppMonitoringRouteImport } from './routes/app.monitoring'
+import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
+import { Route as AppPeopleRouteImport } from './routes/app.people'
 import { Route as AppPlaybookRouteImport } from './routes/app.playbook'
+import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppReputationRouteImport } from './routes/app.reputation'
 import { Route as AppResearchRouteImport } from './routes/app.research'
 import { Route as AppRoadmapRouteImport } from './routes/app.roadmap'
@@ -191,6 +196,11 @@ const AppByldaOsRoute = AppByldaOsRouteImport.update({
   path: '/bylda-os',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCoachingRoute = AppCoachingRouteImport.update({
+  id: '/coaching',
+  path: '/coaching',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCommandCenterRoute = AppCommandCenterRouteImport.update({
   id: '/command-center',
   path: '/command-center',
@@ -214,6 +224,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
 const AppGalaxyRoute = AppGalaxyRouteImport.update({
   id: '/galaxy',
   path: '/galaxy',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInsightsRoute = AppInsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
@@ -261,9 +276,24 @@ const AppMonitoringRoute = AppMonitoringRouteImport.update({
   path: '/monitoring',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeopleRoute = AppPeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPlaybookRoute = AppPlaybookRouteImport.update({
   id: '/playbook',
   path: '/playbook',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReputationRoute = AppReputationRouteImport.update({
@@ -547,11 +577,13 @@ export interface FileRoutesByFullPath {
   '/app/bylda-full': typeof AppByldaFullRoute
   '/app/bylda-home': typeof AppByldaHomeRoute
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
+  '/app/coaching': typeof AppCoachingRoute
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
+  '/app/insights': typeof AppInsightsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
@@ -561,7 +593,10 @@ export interface FileRoutesByFullPath {
   '/app/mission-briefing': typeof AppMissionBriefingRoute
   '/app/mission-control': typeof AppMissionControlRoute
   '/app/monitoring': typeof AppMonitoringRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/people': typeof AppPeopleRoute
   '/app/playbook': typeof AppPlaybookRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/reputation': typeof AppReputationRoute
   '/app/research': typeof AppResearchRoute
   '/app/roadmap': typeof AppRoadmapRoute
@@ -634,11 +669,13 @@ export interface FileRoutesByTo {
   '/app/bylda-full': typeof AppByldaFullRoute
   '/app/bylda-home': typeof AppByldaHomeRoute
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
+  '/app/coaching': typeof AppCoachingRoute
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
+  '/app/insights': typeof AppInsightsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
@@ -648,7 +685,10 @@ export interface FileRoutesByTo {
   '/app/mission-briefing': typeof AppMissionBriefingRoute
   '/app/mission-control': typeof AppMissionControlRoute
   '/app/monitoring': typeof AppMonitoringRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/people': typeof AppPeopleRoute
   '/app/playbook': typeof AppPlaybookRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/reputation': typeof AppReputationRoute
   '/app/research': typeof AppResearchRoute
   '/app/roadmap': typeof AppRoadmapRoute
@@ -723,11 +763,13 @@ export interface FileRoutesById {
   '/app/bylda-full': typeof AppByldaFullRoute
   '/app/bylda-home': typeof AppByldaHomeRoute
   '/app/bylda-os': typeof AppByldaOsRouteWithChildren
+  '/app/coaching': typeof AppCoachingRoute
   '/app/command-center': typeof AppCommandCenterRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/context-memory': typeof AppContextMemoryRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/galaxy': typeof AppGalaxyRoute
+  '/app/insights': typeof AppInsightsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
@@ -737,7 +779,10 @@ export interface FileRoutesById {
   '/app/mission-briefing': typeof AppMissionBriefingRoute
   '/app/mission-control': typeof AppMissionControlRoute
   '/app/monitoring': typeof AppMonitoringRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/people': typeof AppPeopleRoute
   '/app/playbook': typeof AppPlaybookRoute
+  '/app/reports': typeof AppReportsRoute
   '/app/reputation': typeof AppReputationRoute
   '/app/research': typeof AppResearchRoute
   '/app/roadmap': typeof AppRoadmapRoute
@@ -813,11 +858,13 @@ export interface FileRouteTypes {
     | '/app/bylda-full'
     | '/app/bylda-home'
     | '/app/bylda-os'
+    | '/app/coaching'
     | '/app/command-center'
     | '/app/contacts'
     | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
+    | '/app/insights'
     | '/app/integrations'
     | '/app/launch-control'
     | '/app/launchpad-path'
@@ -827,7 +874,10 @@ export interface FileRouteTypes {
     | '/app/mission-briefing'
     | '/app/mission-control'
     | '/app/monitoring'
+    | '/app/notifications'
+    | '/app/people'
     | '/app/playbook'
+    | '/app/reports'
     | '/app/reputation'
     | '/app/research'
     | '/app/roadmap'
@@ -900,11 +950,13 @@ export interface FileRouteTypes {
     | '/app/bylda-full'
     | '/app/bylda-home'
     | '/app/bylda-os'
+    | '/app/coaching'
     | '/app/command-center'
     | '/app/contacts'
     | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
+    | '/app/insights'
     | '/app/integrations'
     | '/app/launch-control'
     | '/app/launchpad-path'
@@ -914,7 +966,10 @@ export interface FileRouteTypes {
     | '/app/mission-briefing'
     | '/app/mission-control'
     | '/app/monitoring'
+    | '/app/notifications'
+    | '/app/people'
     | '/app/playbook'
+    | '/app/reports'
     | '/app/reputation'
     | '/app/research'
     | '/app/roadmap'
@@ -988,11 +1043,13 @@ export interface FileRouteTypes {
     | '/app/bylda-full'
     | '/app/bylda-home'
     | '/app/bylda-os'
+    | '/app/coaching'
     | '/app/command-center'
     | '/app/contacts'
     | '/app/context-memory'
     | '/app/dashboard'
     | '/app/galaxy'
+    | '/app/insights'
     | '/app/integrations'
     | '/app/launch-control'
     | '/app/launchpad-path'
@@ -1002,7 +1059,10 @@ export interface FileRouteTypes {
     | '/app/mission-briefing'
     | '/app/mission-control'
     | '/app/monitoring'
+    | '/app/notifications'
+    | '/app/people'
     | '/app/playbook'
+    | '/app/reports'
     | '/app/reputation'
     | '/app/research'
     | '/app/roadmap'
@@ -1210,6 +1270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppByldaOsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/coaching': {
+      id: '/app/coaching'
+      path: '/coaching'
+      fullPath: '/app/coaching'
+      preLoaderRoute: typeof AppCoachingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/command-center': {
       id: '/app/command-center'
       path: '/command-center'
@@ -1243,6 +1310,13 @@ declare module '@tanstack/react-router' {
       path: '/galaxy'
       fullPath: '/app/galaxy'
       preLoaderRoute: typeof AppGalaxyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/insights': {
+      id: '/app/insights'
+      path: '/insights'
+      fullPath: '/app/insights'
+      preLoaderRoute: typeof AppInsightsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/integrations': {
@@ -1308,11 +1382,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMonitoringRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/notifications': {
+      id: '/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/people': {
+      id: '/app/people'
+      path: '/people'
+      fullPath: '/app/people'
+      preLoaderRoute: typeof AppPeopleRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/playbook': {
       id: '/app/playbook'
       path: '/playbook'
       fullPath: '/app/playbook'
       preLoaderRoute: typeof AppPlaybookRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/reports': {
+      id: '/app/reports'
+      path: '/reports'
+      fullPath: '/app/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/reputation': {
@@ -1750,11 +1845,13 @@ interface AppRouteChildren {
   AppByldaFullRoute: typeof AppByldaFullRoute
   AppByldaHomeRoute: typeof AppByldaHomeRoute
   AppByldaOsRoute: typeof AppByldaOsRouteWithChildren
+  AppCoachingRoute: typeof AppCoachingRoute
   AppCommandCenterRoute: typeof AppCommandCenterRoute
   AppContactsRoute: typeof AppContactsRoute
   AppContextMemoryRoute: typeof AppContextMemoryRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppGalaxyRoute: typeof AppGalaxyRoute
+  AppInsightsRoute: typeof AppInsightsRoute
   AppIntegrationsRoute: typeof AppIntegrationsRoute
   AppLaunchControlRoute: typeof AppLaunchControlRoute
   AppLaunchpadPathRoute: typeof AppLaunchpadPathRoute
@@ -1764,7 +1861,10 @@ interface AppRouteChildren {
   AppMissionBriefingRoute: typeof AppMissionBriefingRoute
   AppMissionControlRoute: typeof AppMissionControlRoute
   AppMonitoringRoute: typeof AppMonitoringRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
+  AppPeopleRoute: typeof AppPeopleRoute
   AppPlaybookRoute: typeof AppPlaybookRoute
+  AppReportsRoute: typeof AppReportsRoute
   AppReputationRoute: typeof AppReputationRoute
   AppResearchRoute: typeof AppResearchRoute
   AppRoadmapRoute: typeof AppRoadmapRoute
@@ -1817,11 +1917,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppByldaFullRoute: AppByldaFullRoute,
   AppByldaHomeRoute: AppByldaHomeRoute,
   AppByldaOsRoute: AppByldaOsRouteWithChildren,
+  AppCoachingRoute: AppCoachingRoute,
   AppCommandCenterRoute: AppCommandCenterRoute,
   AppContactsRoute: AppContactsRoute,
   AppContextMemoryRoute: AppContextMemoryRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppGalaxyRoute: AppGalaxyRoute,
+  AppInsightsRoute: AppInsightsRoute,
   AppIntegrationsRoute: AppIntegrationsRoute,
   AppLaunchControlRoute: AppLaunchControlRoute,
   AppLaunchpadPathRoute: AppLaunchpadPathRoute,
@@ -1831,7 +1933,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppMissionBriefingRoute: AppMissionBriefingRoute,
   AppMissionControlRoute: AppMissionControlRoute,
   AppMonitoringRoute: AppMonitoringRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
+  AppPeopleRoute: AppPeopleRoute,
   AppPlaybookRoute: AppPlaybookRoute,
+  AppReportsRoute: AppReportsRoute,
   AppReputationRoute: AppReputationRoute,
   AppResearchRoute: AppResearchRoute,
   AppRoadmapRoute: AppRoadmapRoute,

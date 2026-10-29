@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Inactive } from "@/components/app/FigmaPrimitives";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [emailUpdates, setEmailUpdates] = useState(false);
+  const emailUpdates = false;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +40,10 @@ function SignUp() {
   };
 
   return (
-    <AuthShell title="Start your pilot" subtitle="Evaluate Bylda on real calls with a small team.">
+    <AuthShell title="Create your workspace" subtitle="Get started with Bylda.">
+      <div className="mb-5 grid">
+        <Inactive>Continue with Google</Inactive>
+      </div>
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field label="Full name">
           <Input
@@ -50,7 +54,7 @@ function SignUp() {
             className="h-11 bg-surface-2"
           />
         </Field>
-        <Field label="Email">
+        <Field label="Work email">
           <Input
             type="email"
             placeholder="you@company.com"
@@ -66,21 +70,13 @@ function SignUp() {
             placeholder="At least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
+            minLength={12}
             required
             className="h-11 bg-surface-2"
           />
         </Field>
-        <label className="flex items-start gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={emailUpdates}
-            onChange={(e) => setEmailUpdates(e.target.checked)}
-          />
-          Send me Bylda product updates and tips. Optional; unsubscribe anytime.
-        </label>
         <Button className="w-full h-11 mt-2" type="submit" disabled={loading}>
-          {loading ? "Creating…" : "Create pilot workspace"}
+          {loading ? "Creating…" : "Create workspace"}
         </Button>
       </form>
       <p className="mt-5 text-[12.5px] text-muted-foreground">

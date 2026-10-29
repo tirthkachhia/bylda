@@ -90,4 +90,28 @@ describe("importRecording", () => {
     });
     await expect(importRecording(input, deps)).rejects.toThrow("Rep not found in this workspace");
   });
+  it("imports a supplied TXT transcript without uploading it to audio storage", async () => {
+    const deps = makeDeps();
+    const text = "Rep: What matters?\nBuyer: Safe rollout.";
+    const file = new File([text], "call.txt");
+    Object.defineProperty(file, "text", { value: async () => text });
+    await expect(importRecording({ ...input, file }, deps)).resolves.toMatchObject({
+      status: "analyzed",
+    });
+    expect(deps.upload).not.toHaveBeenCalled();
+    expect(deps.invoke).toHaveBeenNthCalledWith(
+      1,
+      "import-call",
+      expect.objectContaining({ transcript: text, consent: true, rep_id: "rep-1" }),
+    );
+    expect(vi.mocked(deps.invoke).mock.calls[0][1]).not.toHaveProperty("audio_path");
+  });
+  it("rejects oversized supplied transcripts before any request", async () => {
+    const deps = makeDeps();
+    const file = new File(["a"], "call.txt");
+    Object.defineProperty(file, "text", { value: async () => "a".repeat(100001) });
+    await expect(importRecording({ ...input, file }, deps)).rejects.toThrow("100,000 characters");
+    expect(deps.upload).not.toHaveBeenCalled();
+    expect(deps.invoke).not.toHaveBeenCalled();
+  });
 });

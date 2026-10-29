@@ -1,16 +1,24 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { type SearchSchemaInput, createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Check, Database, FileText, Mail } from "lucide-react";
+import { Inactive } from "@/components/app/FigmaPrimitives";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Logo } from "@/components/brand/Logo";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/auth/sign-in")({ component: SignIn });
+export const Route = createFileRoute("/auth/sign-in")({
+  validateSearch: (s: Record<string, unknown> & SearchSchemaInput) => ({
+    redirect:
+      typeof s.redirect === "string" && /^\/app(?:\/|\?|$)/.test(s.redirect)
+        ? s.redirect
+        : undefined,
+  }),
+  component: SignIn,
+});
 
 function SignIn() {
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,10 +31,16 @@ function SignIn() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/app" });
+    if (redirect) window.location.replace(redirect);
+    else void navigate({ to: "/app" });
   };
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your revenue workspace.">
+    <AuthShell title="Sign in" subtitle="Welcome back.">
+      <div className="grid gap-2">
+        <Inactive>Continue with Google</Inactive>
+        <Inactive>Continue with Microsoft</Inactive>
+      </div>
+      <p className="my-5 text-center text-[11px] text-by-text-secondary">OR</p>
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field label="Work email">
           <Input
@@ -60,8 +74,8 @@ function SignIn() {
         <Link to="/auth/forgot-password" className="text-[#737982] hover:text-black">
           Forgot password?
         </Link>
-        <Link to="/auth/sign-up" className="font-semibold text-[#3275d8]">
-          Start a pilot
+        <Link to="/auth/sign-up" className="text-by-text-primary">
+          Create a workspace →
         </Link>
       </div>
     </AuthShell>
@@ -78,65 +92,64 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen bg-[#f4f4ef] text-[#111318] lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="relative hidden overflow-hidden bg-[#111318] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
-        <div className="pointer-events-none absolute -right-32 top-12 h-96 w-96 rounded-full bg-[#3275d8]/20 blur-[100px]" />
-        <Link to="/">
-          <Logo className="relative text-white" />
+    <div className="figma-auth figma-surface" data-design-screen="authentication">
+      <section className="figma-auth-art" aria-label="Bylda">
+        <Link to="/auth/sign-in" className="figma-auth-wordmark">
+          B Y L D A
         </Link>
-        <div className="relative max-w-xl">
-          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#78a9f2]">
-            After the call
-          </div>
-          <h2 className="mt-5 text-[48px] font-bold leading-[1.02] tracking-[-0.055em] xl:text-[62px]">
-            The conversation becomes the work.
-          </h2>
-          <div className="mt-9 grid gap-3 sm:grid-cols-3">
-            <AuthBenefit icon={FileText} label="Review" />
-            <AuthBenefit icon={Database} label="Write back" />
-            <AuthBenefit icon={Mail} label="Follow up" />
-          </div>
+        <div className="figma-auth-orbits" aria-hidden="true">
+          {Array.from({ length: 9 }, (_, i) => {
+            const size = 120 + i * 70;
+            return (
+              <img
+                key={i}
+                src={`/figma/auth-${i}.svg`}
+                alt=""
+                style={{
+                  position: "absolute",
+                  left: `calc(50% - ${size / 2}px)`,
+                  top: `calc(50.78% - ${size / 2}px)`,
+                  maxWidth: "none",
+                }}
+              />
+            );
+          })}
+          {Array.from({ length: 12 }, (_, i) => (
+            <span
+              key={i}
+              className="figma-auth-spoke"
+              style={{ transform: `rotate(${-15 * i}deg)` }}
+            />
+          ))}
+          <img
+            src="/figma/auth-9.svg"
+            alt=""
+            style={{
+              position: "absolute",
+              left: "calc(50% - 27.7128px)",
+              top: "47.85%",
+              maxWidth: "none",
+            }}
+          />
         </div>
-        <p className="relative max-w-md text-[11px] leading-5 text-[#727b88]">
-          Bylda works on top of the dialer and CRM your team already uses.
+        <p className="figma-auth-message">
+          Understand your sales team without listening to every call.
         </p>
       </section>
-      <section className="flex min-h-screen items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-[410px]">
-          <div className="mb-12 flex items-center justify-between lg:hidden">
-            <Link to="/">
-              <Logo />
-            </Link>
-            <Link to="/" className="flex items-center gap-1 text-[11px] text-[#737982]">
-              <ArrowLeft className="h-3 w-3" />
-              Home
-            </Link>
-          </div>
-          <h1 className="text-[32px] font-bold tracking-[-0.045em]">{title}</h1>
-          <p className="mt-2 text-[13px] text-[#737982]">{subtitle}</p>
-          <div className="mt-8">{children}</div>
-          <div className="mt-10 flex items-center gap-2 text-[9px] text-[#92969d]">
-            <Check className="h-3 w-3 text-[#3275d8]" />
-            Human-approved CRM updates
-          </div>
+      <main className="figma-auth-main">
+        <div className="figma-auth-form">
+          <h1>{title}</h1>
+          <p className="mb-6 mt-3 text-xs text-by-text-secondary">{subtitle}</p>
+          {children}
         </div>
-      </section>
-    </div>
-  );
-}
-
-function AuthBenefit({ icon: Icon, label }: { icon: typeof FileText; label: string }) {
-  return (
-    <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4">
-      <Icon className="h-4 w-4 text-[#78a9f2]" />
-      <div className="mt-5 text-[11px] font-semibold text-[#c7cdd6]">{label}</div>
+      </main>
     </div>
   );
 }
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <div className="mb-1.5 text-[11px] font-semibold text-[#5f656d]">{label}</div>
+    <label className="figma-field">
+      <span>{label}</span>
       {children}
     </label>
   );

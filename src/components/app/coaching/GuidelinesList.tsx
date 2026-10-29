@@ -1,14 +1,9 @@
-/**
- * GuidelinesList — the behavior checklist extracted from a playbook version.
- * This is what reps are judged on, so the manager should see it next to the
- * text and be able to re-extract after a wording change.
- */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ListChecks, Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { extractPlaybookGuidelines, playbookGuidelinesQuery } from "@/lib/queries";
-
+import { Button } from "@/components/ui/button";
 const PHASE_LABEL: Record<string, string> = {
   opening: "Opening",
   discovery: "Discovery",
@@ -18,70 +13,106 @@ const PHASE_LABEL: Record<string, string> = {
   compliance: "Compliance",
   other: "Other",
 };
-
 export function GuidelinesList({ versionId }: { versionId: string }) {
-  const qc = useQueryClient();
-  const q = useQuery(playbookGuidelinesQuery(versionId));
-  const [busy, setBusy] = useState(false);
+  const qc = useQueryClient(),
+    q = useQuery(playbookGuidelinesQuery(versionId));
+  const [busy, setBusy] = useState(false),
+    [phase, setPhase] = useState<string | null>(null);
   const rows = q.data ?? [];
-
+  const phases = [...new Set(rows.map((r) => r.phase))];
+  const shown = phase ? rows.filter((r) => r.phase === phase) : rows;
   const extract = async () => {
     setBusy(true);
     try {
-      const res = await extractPlaybookGuidelines(versionId);
+      const result = await extractPlaybookGuidelines(versionId);
       await qc.invalidateQueries({ queryKey: ["playbook-guidelines", versionId] });
-      toast.success(`${res.guidelines.length} guidelines extracted`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not extract guidelines");
+      toast.success(`${result.guidelines.length} guidelines extracted`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not extract guidelines");
     } finally {
       setBusy(false);
     }
   };
-
   return (
-    <div className="rounded-xl border p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-          <ListChecks className="h-3.5 w-3.5" /> What reps are judged on
-        </h3>
-        <button
-          type="button"
+    <section className="space-y-4">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base">Observable guidelines</h2>
+          <p className="mt-1 text-xs text-by-text-secondary">
+            Extracted from this saved version · {rows.length} guidelines
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy || q.isPending}
           onClick={() => void extract()}
-          disabled={busy}
-          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1e5faf] underline-offset-2 hover:underline disabled:opacity-50"
         >
-          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}{" "}
           {rows.length ? "Re-extract" : "Extract guidelines"}
-        </button>
-      </div>
-      {q.isLoading ? (
-        <p className="text-[12px] text-neutral-500">Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className="text-[12px] text-neutral-500">
+        </Button>
+      </header>
+      {q.isPending ? (
+        <p role="status" className="p-5 text-sm">
+          Loading guidelines…
+        </p>
+      ) : q.error ? (
+        <p role="alert" className="rounded-xl border border-red-200 p-5 text-sm text-red-700">
+          Guidelines unavailable.{" "}
+          <button type="button" className="underline" onClick={() => void q.refetch()}>
+            Retry
+          </button>
+        </p>
+      ) : !rows.length ? (
+        <p className="rounded-xl border border-by-border-engraved p-6 text-sm leading-6 text-by-text-secondary">
           {busy
-            ? "Reading the playbook and listing the behaviors a reviewer can hear…"
-            : "Not extracted yet. Extraction turns this version into a short checklist of behaviors; adherence, moments, and reports cite these by code."}
+            ? "Reading the saved playbook…"
+            : "No guidelines extracted yet. Extract a checklist of observable actions from this saved version."}
         </p>
       ) : (
-        <ol className="divide-y divide-black/[0.06]">
-          {rows.map((g) => (
-            <li key={g.id} className="flex gap-3 py-2 text-[12px]">
-              <span className="w-8 shrink-0 font-mono font-semibold text-neutral-500">
-                {g.code}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="font-medium">{g.title}</span>
-                  <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
-                    {PHASE_LABEL[g.phase] ?? g.phase}
+        <>
+          <div role="group" aria-label="Guideline phases" className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-pressed={phase === null}
+              onClick={() => setPhase(null)}
+              className={`rounded-lg border px-3 py-2 text-xs ${phase === null ? "border-by-text-primary bg-by-surface-sidebar" : "border-by-border-engraved"}`}
+            >
+              All · {rows.length}
+            </button>
+            {phases.map((p) => (
+              <button
+                type="button"
+                key={p}
+                aria-pressed={phase === p}
+                onClick={() => setPhase(p)}
+                className={`rounded-lg border px-3 py-2 text-xs ${phase === p ? "border-by-text-primary bg-by-surface-sidebar" : "border-by-border-engraved"}`}
+              >
+                {PHASE_LABEL[p] ?? p} · {rows.filter((r) => r.phase === p).length}
+              </button>
+            ))}
+          </div>
+          <ol className="overflow-hidden rounded-xl border border-by-border-engraved">
+            {shown.map((row) => (
+              <li
+                key={row.id}
+                className="flex gap-4 border-b border-by-border-engraved p-4 text-[13px]"
+              >
+                <span className="font-mono text-xs text-by-text-tertiary">{row.code}</span>
+                <div>
+                  <p className="font-medium">{row.title}</p>
+                  {row.detail && (
+                    <p className="mt-2 leading-6 text-by-text-secondary">{row.detail}</p>
+                  )}
+                  <span className="mt-2 inline-block rounded-full border border-by-border-engraved px-2 py-0.5 text-[11px]">
+                    {PHASE_LABEL[row.phase] ?? row.phase}
                   </span>
                 </div>
-                {g.detail && <p className="mt-0.5 text-neutral-600">{g.detail}</p>}
-              </div>
-            </li>
-          ))}
-        </ol>
+              </li>
+            ))}
+          </ol>
+        </>
       )}
-    </div>
+    </section>
   );
 }

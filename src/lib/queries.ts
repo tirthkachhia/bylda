@@ -1705,21 +1705,37 @@ export const auditLogQuery = (limit = 200) =>
     staleTime: 30_000,
   });
 
-export const repsQuery = (orgId: string) =>
+export const repsQuery = (orgId: string, includeArchived = false) =>
   queryOptions({
-    queryKey: ["reps", orgId],
+    queryKey: includeArchived ? ["reps", orgId, "all"] : ["reps", orgId],
     queryFn: async (): Promise<Rep[]> => {
       if (isGuest()) return [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
-      const { data, error } = await db
+      let query = db.from("reps").select("*").eq("organization_id", orgId);
+      if (!includeArchived) query = query.eq("status", "active");
+      const { data, error } = await query.order("name");
+      if (error) throw error;
+      return (data ?? []) as Rep[];
+    },
+  });
+
+/** Exact scoped identity for historical report links, including archived reps. */
+export const repByIdQuery = (orgId: string, repId: string | null) =>
+  queryOptions({
+    queryKey: ["rep", orgId, repId],
+    enabled: !!orgId && !!repId && !isGuest(),
+    queryFn: async (): Promise<Rep | null> => {
+      if (!orgId || !repId) throw new Error("Workspace and rep are required.");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
         .from("reps")
         .select("*")
         .eq("organization_id", orgId)
-        .eq("status", "active")
-        .order("name");
+        .eq("id", repId)
+        .maybeSingle();
       if (error) throw error;
-      return (data ?? []) as Rep[];
+      return data ?? null;
     },
   });
 
@@ -1897,20 +1913,27 @@ export async function archivePlaybook(playbookId: string) {
 export const repReportsQuery = (repId: string) =>
   queryOptions({
     queryKey: ["rep-reports", repId],
+    enabled: !!repId,
     queryFn: async (): Promise<RepReportRow[]> => {
       if (isGuest()) return [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
-      const { data, error } = await db
-        .from("coaching_reports")
-        .select(
-          "id,rep_id,period_start,period_end,trigger,status,error_message,call_count,playbook_version_id,report,drill_guideline_id,previous_report_id,delivered_at,created_at,completed_at",
-        )
-        .eq("rep_id", repId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (error) throw error;
-      return data ?? [];
+      const reports: RepReportRow[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const { data, error } = await db
+          .from("coaching_reports")
+          .select(
+            "id,rep_id,period_start,period_end,trigger,status,error_message,call_count,playbook_version_id,report,drill_guideline_id,previous_report_id,delivered_at,created_at,completed_at",
+          )
+          .eq("rep_id", repId)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(offset, offset + 499);
+        if (error) throw error;
+        if (!Array.isArray(data)) throw new Error("Report history could not be read completely.");
+        reports.push(...data);
+        if (data.length < 500) return reports;
+      }
     },
     staleTime: 15_000,
   });
@@ -1986,3 +2009,149 @@ export async function markReportDelivered(reportId: string, delivered: boolean) 
   if (!data)
     throw new Error("Only an authorized manager can mark this coaching conversation held.");
 }
+
+export type ManagerHomeCall = {
+  id: string;
+  rep_id: string | null;
+  started_at: string | null;
+  created_at: string;
+  duration: number | null;
+  contactName: string;
+};
+export type ManagerHomeInsight = {
+  id: string;
+  call_id: string;
+  summary: string | null;
+  created_at: string;
+};
+/** Exact workspace totals and bounded recent items, not a computed team-performance series. */
+export const managerHomeQuery = (organizationId: string) =>
+  queryOptions({
+    queryKey: ["behavior-manager-home", organizationId],
+    enabled: !!organizationId && !isGuest(),
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const [calls, insights, recent, reports] = await Promise.all([
+        db
+          .from("calls")
+          .select("id", { count: "exact", head: true })
+          .eq("organization_id", organizationId),
+        db
+          .from("call_insights")
+          .select("id,call_id,summary,created_at", { count: "exact" })
+          .eq("organization_id", organizationId)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .limit(5),
+        db
+          .from("calls")
+          .select("id,rep_id,contact_id,started_at,created_at,duration")
+          .eq("organization_id", organizationId)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .limit(6),
+        db
+          .from("coaching_reports")
+          .select("id,rep_id,period_start,period_end,status,call_count,report,created_at")
+          .eq("organization_id", organizationId)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .limit(5),
+      ]);
+      for (const result of [calls, insights, recent, reports]) if (result.error) throw result.error;
+      const insightRows = (insights.data ?? []) as ManagerHomeInsight[];
+      const missingIds = insightRows
+        .map((i) => i.call_id)
+        .filter((id) => !(recent.data ?? []).some((c: { id: string }) => c.id === id));
+      const extra = missingIds.length
+        ? await db
+            .from("calls")
+            .select("id,rep_id,contact_id,started_at,created_at,duration")
+            .eq("organization_id", organizationId)
+            .in("id", missingIds)
+        : { data: [], error: null };
+      if (extra.error) throw extra.error;
+      const callRows = [...(recent.data ?? []), ...(extra.data ?? [])];
+      const contactIds = [
+        ...new Set(
+          callRows.map((c: { contact_id: string | null }) => c.contact_id).filter(Boolean),
+        ),
+      ];
+      const contacts = contactIds.length
+        ? await db
+            .from("contacts")
+            .select("id,first_name,last_name,company")
+            .eq("org_id", organizationId)
+            .in("id", contactIds)
+        : { data: [], error: null };
+      if (contacts.error) throw contacts.error;
+      const names = new Map<string, string>(
+        (contacts.data ?? []).map(
+          (c: {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            company: string | null;
+          }) => [
+            c.id,
+            [c.first_name, c.last_name].filter(Boolean).join(" ") || c.company || "Call recording",
+          ],
+        ),
+      );
+      const hydrated: ManagerHomeCall[] = callRows.map(
+        (c: {
+          id: string;
+          rep_id: string | null;
+          contact_id: string | null;
+          started_at: string | null;
+          created_at: string;
+          duration: number | null;
+        }) => ({
+          id: c.id,
+          rep_id: c.rep_id,
+          started_at: c.started_at,
+          created_at: c.created_at,
+          duration: c.duration,
+          contactName: names.get(c.contact_id ?? "") ?? "Uploaded recording",
+        }),
+      );
+      return {
+        importedCalls: calls.count as number | null,
+        analyzedCalls: insights.count as number | null,
+        calls: hydrated,
+        recentCallIds: (recent.data ?? []).map((c: { id: string }) => c.id) as string[],
+        insights: insightRows,
+        reports: (reports.data ?? []) as Array<
+          Pick<
+            RepReportRow,
+            | "id"
+            | "rep_id"
+            | "period_start"
+            | "period_end"
+            | "status"
+            | "call_count"
+            | "report"
+            | "created_at"
+          >
+        >,
+      };
+    },
+    staleTime: 30_000,
+  });
+
+export const coachingManagerPermissionQuery = (organizationId: string, userId: string) =>
+  queryOptions({
+    queryKey: ["coaching-manager-permission", organizationId, userId],
+    enabled: !!organizationId && !!userId && !isGuest(),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", organizationId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return ["owner", "admin", "manager"].includes(data?.role ?? "");
+    },
+  });

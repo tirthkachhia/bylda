@@ -1,15 +1,24 @@
 /**
  * RepReportPanel — the one-page coaching note for a rep. Generate for a period,
  * read the latest note, browse past ones. Every cited moment links back to the
- * call's Scores tab so the manager can hear the tape before the conversation.
+ * source call so the manager can inspect the underlying evidence.
  */
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, FileText, Loader2, Sparkles } from "lucide-react";
+import { FileText, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
+import { initials } from "@/lib/coaching/calls";
+import { requestCallSource } from "@/lib/coaching/source-navigation";
 import { secondsFromCitation } from "@/lib/coaching/behavior";
 import { BehaviorManagerBrief } from "./BehaviorManagerBrief";
-import { generateRepReport, markReportDelivered, repReportsQuery } from "@/lib/queries";
+import {
+  generateRepReport,
+  repReportsQuery,
+  markReportDelivered,
+  coachingManagerPermissionQuery,
+} from "@/lib/queries";
+import type { SourceNavigationProps } from "@/lib/coaching/source-navigation";
 import type {
   GuidelineTrend,
   RepReport,
@@ -25,6 +34,16 @@ const PERIODS = [
   { days: 90, label: "Last 90 days" },
 ] as const;
 
+export type RepReportPanelProps = SourceNavigationProps & {
+  repId: string;
+  repName: string;
+  initialReportId?: string;
+  initialView?: "reports" | "profile";
+  onViewChange?: (view: "reports" | "profile") => void;
+  onSelectReport?: (id: string) => void;
+  initialProfileTab?: "Overview" | "Evidence" | "Trends";
+};
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(
     new Date(value.length === 10 ? `${value}T00:00:00` : value),
@@ -35,36 +54,49 @@ export function RepReportPanel({
   repId,
   repName,
   onOpenCall,
-}: {
-  repId: string;
-  repName: string;
-  onOpenCall: (callId: string, seconds?: number | null) => void;
-}) {
+  onOpenSource,
+  initialReportId,
+  initialView = "reports",
+  onViewChange,
+  onSelectReport,
+  initialProfileTab = "Overview",
+}: RepReportPanelProps) {
+  const { currentOrgId, user } = useAuth();
+  const permission = useQuery(coachingManagerPermissionQuery(currentOrgId ?? "", user?.id ?? ""));
+  const [view, setView] = useState<"reports" | "profile">(initialView);
   const qc = useQueryClient();
   const reportsQ = useQuery(repReportsQuery(repId));
-  const reports = (reportsQ.data ?? []).filter((r) => r.status === "completed" && r.report);
+  const reports = reportsQ.data ?? [];
   const [days, setDays] = useState<(typeof PERIODS)[number]["days"]>(30);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialReportId ?? null);
   const [busy, setBusy] = useState(false);
 
-  const selected: RepReportRow | null =
-    (selectedId && reports.find((r) => r.id === selectedId)) || reports[0] || null;
+  const selected: RepReportRow | null = selectedId
+    ? (reports.find((r) => r.id === selectedId) ?? null)
+    : (reports[0] ?? null);
 
-  const toggleDelivered = async (row: RepReportRow) => {
+  const markHeld = async () => {
+    if (!selected || !permission.data || busy) return;
+    setBusy(true);
     try {
-      await markReportDelivered(row.id, !row.delivered_at);
+      await markReportDelivered(selected.id, !selected.delivered_at);
       await qc.invalidateQueries({ queryKey: ["rep-reports", repId] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not update the report");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update conversation status");
+    } finally {
+      setBusy(false);
     }
   };
-
+  const chooseReport = (id: string) => {
+    setSelectedId(id);
+    onSelectReport?.(id);
+  };
   const generate = async () => {
     setBusy(true);
     try {
       const res = await generateRepReport(repId, days);
       await qc.invalidateQueries({ queryKey: ["rep-reports", repId] });
-      setSelectedId(res.report_id);
+      chooseReport(res.report_id);
       toast.success(`Report written from ${res.call_count} call${res.call_count === 1 ? "" : "s"}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not generate the report");
@@ -74,100 +106,186 @@ export function RepReportPanel({
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <div className="lg:col-span-2">
-        <BehaviorManagerBrief repId={repId} onOpenCall={onOpenCall} />
-      </div>
-      <section className="rounded-by-card border border-black/[0.09] bg-by-surface-raised p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-[16px] font-bold tracking-[-0.02em]">{repName}</h2>
-            <p className="text-[12px] text-by-text-secondary">
-              {selected
-                ? `${formatDate(selected.period_start)} – ${formatDate(selected.period_end)} · ${selected.call_count} call${selected.call_count === 1 ? "" : "s"}`
-                : "No report yet for this rep."}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value) as typeof days)}
-              className="h-9 rounded-full border border-black/[0.1] bg-white px-3 text-[11px] font-semibold"
-              aria-label="Report period"
-            >
-              {PERIODS.map((p) => (
-                <option key={p.days} value={p.days}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => void generate()}
-              disabled={busy}
-              className="flex h-9 items-center gap-2 rounded-full bg-by-surface-control-dark px-4 text-[11px] font-semibold text-white disabled:opacity-50"
-            >
-              {busy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" />
-              )}
-              {busy ? "Writing…" : "Generate report"}
-            </button>
-          </div>
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]" data-design-screen="rep-reports">
+      <header className="flex flex-wrap items-center gap-4 rounded-xl border border-by-border-engraved bg-white p-5 lg:col-span-2">
+        <span className="flex size-12 items-center justify-center rounded-full bg-by-avatar-metal text-sm">
+          {initials(repName)}
+        </span>
+        <div className="flex-1">
+          <h1 className="text-xl">{repName}</h1>
+          <p className="mt-1 text-xs text-by-text-secondary">Rep profile · manager view</p>
         </div>
-
-        {reportsQ.isLoading ? (
-          <p className="mt-6 text-sm text-neutral-500">Loading…</p>
-        ) : selected?.report ? (
-          <>
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                onClick={() => void toggleDelivered(selected)}
-                className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-[11px] font-semibold ${selected.delivered_at ? "border-[#28764d]/30 bg-[#dff1e7] text-[#28764d]" : "border-black/[0.1] bg-white text-by-text-primary"}`}
-                title="Mark when you have had this coaching conversation with the rep"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {selected.delivered_at
-                  ? `Conversation marked ${formatDate(selected.delivered_at)}`
-                  : "Mark conversation held"}
-              </button>
-            </div>
-            <ReportPage report={selected.report} onOpenCall={onOpenCall} />
-          </>
-        ) : (
-          <p className="mt-6 text-sm text-neutral-500">
-            Generate a report once this rep has scored and analyzed calls in the period. It reads
-            the learning moments across calls and writes one page: what to coach, with the moments
-            to play back and the lines to practice.
-          </p>
-        )}
-      </section>
-
-      <aside className="rounded-by-card border border-black/[0.09] bg-by-surface-raised p-4">
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
-          Past reports
-        </h3>
-        {reports.length === 0 ? (
-          <p className="mt-2 text-xs text-neutral-500">None yet.</p>
-        ) : (
-          <ul className="mt-2 space-y-1">
-            {reports.map((r) => (
-              <li key={r.id}>
-                <button
-                  onClick={() => setSelectedId(r.id)}
-                  className={`flex w-full items-center gap-2 rounded-by-control px-2.5 py-2 text-left text-[12px] ${selected?.id === r.id ? "bg-black/[0.05] font-semibold" : "hover:bg-black/[0.03]"}`}
+        <div
+          className="inline-flex rounded-lg border border-by-border-engraved bg-by-surface-hover p-1"
+          role="group"
+          aria-label="Rep workspace view"
+        >
+          {(
+            [
+              ["profile", "Overview"],
+              ["reports", "Reports"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              type="button"
+              key={key}
+              aria-pressed={view === key}
+              onClick={() => {
+                setView(key);
+                onViewChange?.(key);
+              }}
+              className={`rounded-md px-3 py-2 text-xs ${view === key ? "bg-white shadow-sm" : ""}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </header>
+      {view === "profile" ? (
+        <div className="rounded-xl border border-by-border-engraved bg-white p-5 lg:col-span-2">
+          <BehaviorManagerBrief
+            key={repId}
+            repId={repId}
+            onOpenCall={onOpenCall}
+            onOpenSource={onOpenSource}
+            initialTab={initialProfileTab}
+          />
+        </div>
+      ) : (
+        <>
+          <section className="rounded-by-card border border-black/[0.09] bg-by-surface-raised p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-[16px] font-bold tracking-[-0.02em]">{repName}</h2>
+                <p className="text-[12px] text-by-text-secondary">
+                  {selected
+                    ? `${formatDate(selected.period_start)} – ${formatDate(selected.period_end)} · ${selected.call_count} call${selected.call_count === 1 ? "" : "s"}`
+                    : "No report yet for this rep."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={days}
+                  onChange={(e) => setDays(Number(e.target.value) as typeof days)}
+                  className="h-9 rounded-full border border-black/[0.1] bg-white px-3 text-[11px] font-semibold"
+                  aria-label="Report period"
                 >
-                  <FileText className="h-3.5 w-3.5 text-neutral-400" />
-                  <span className="flex-1">
-                    {formatDate(r.period_start)} – {formatDate(r.period_end)}
-                  </span>
-                  <span className="text-neutral-400">{r.call_count}</span>
+                  {PERIODS.map((p) => (
+                    <option key={p.days} value={p.days}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => void generate()}
+                  disabled={busy}
+                  className="flex h-9 items-center gap-2 rounded-full bg-by-surface-control-dark px-4 text-[11px] font-semibold text-white disabled:opacity-50"
+                >
+                  {busy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {busy ? "Writing…" : "Generate report"}
                 </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </aside>
+              </div>
+            </div>
+
+            {reportsQ.isLoading ? (
+              <p className="mt-6 text-sm text-neutral-500">Loading…</p>
+            ) : reportsQ.error ? (
+              <p role="alert" className="mt-6 text-sm text-red-700">
+                Reports could not load.{" "}
+                <button type="button" className="underline" onClick={() => void reportsQ.refetch()}>
+                  Retry
+                </button>
+              </p>
+            ) : selected?.status === "running" ? (
+              <p role="status" className="mt-6 text-sm text-by-text-secondary">
+                This report is being prepared.{" "}
+                <button type="button" className="underline" onClick={() => void reportsQ.refetch()}>
+                  Refresh status
+                </button>
+              </p>
+            ) : selected?.status === "failed" ? (
+              <p role="alert" className="mt-6 text-sm text-red-700">
+                {selected.error_message ||
+                  "This report could not be generated. Generate a new report to retry."}
+              </p>
+            ) : selected?.report ? (
+              <>
+                {permission.data && (
+                  <div className="my-4 flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void markHeld()}
+                      className="figma-button"
+                    >
+                      {selected.delivered_at
+                        ? `Conversation marked held · ${formatDate(selected.delivered_at)}`
+                        : "Mark conversation held"}
+                    </button>
+                    <span className="text-xs text-by-text-secondary">Manager recorded</span>
+                  </div>
+                )}
+                <ReportPage
+                  report={selected.report}
+                  onOpenCall={(callId, seconds) => {
+                    if (!currentOrgId) return;
+                    void requestCallSource(
+                      {
+                        organizationId: currentOrgId,
+                        repId,
+                        callId,
+                        startSeconds: seconds ?? null,
+                        source: { kind: "report", reportId: selected.id },
+                      },
+                      { onOpenCall, onOpenSource },
+                    ).catch((error) =>
+                      toast.error(error instanceof Error ? error.message : "Source unavailable"),
+                    );
+                  }}
+                />
+              </>
+            ) : (
+              <p className="mt-6 text-sm text-neutral-500">
+                {selectedId
+                  ? "The requested report is unavailable for this rep. Choose another report from history."
+                  : "Generate a report once this rep has scored and analyzed calls in the period. Reports include coaching patterns, evidence and a practice drill."}
+              </p>
+            )}
+          </section>
+
+          <aside className="rounded-by-card border border-black/[0.09] bg-by-surface-raised p-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
+              Past reports
+            </h3>
+            {reports.length === 0 ? (
+              <p className="mt-2 text-xs text-neutral-500">None yet.</p>
+            ) : (
+              <ul className="mt-2 space-y-1">
+                {reports.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      onClick={() => chooseReport(r.id)}
+                      className={`flex w-full items-center gap-2 rounded-by-control px-2.5 py-2 text-left text-[12px] ${selected?.id === r.id ? "bg-black/[0.05] font-semibold" : "hover:bg-black/[0.03]"}`}
+                    >
+                      <FileText className="h-3.5 w-3.5 text-neutral-400" />
+                      <span className="flex-1">
+                        {formatDate(r.period_start)} – {formatDate(r.period_end)}
+                      </span>
+                      <span className="text-neutral-400">
+                        {r.status === "completed" ? r.call_count : r.status}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        </>
+      )}
     </div>
   );
 }
@@ -181,7 +299,7 @@ function ReportPage({
 }) {
   return (
     <div className="mt-5 space-y-6">
-      <p className="text-[17px] font-medium leading-7 text-[#333943]">{report.headline}</p>
+      <p className="text-[20px] font-normal leading-7 text-by-text-primary">{report.headline}</p>
 
       {report.since_last && (report.since_last.drill || report.since_last.moved.length > 0) && (
         <SinceLastSection since={report.since_last} />
@@ -245,8 +363,8 @@ function ReportPage({
       {report.strip.length > 1 && <CallStrip strip={report.strip} onOpenCall={onOpenCall} />}
 
       <p className="text-[10px] text-neutral-400">
-        Written from this rep’s scored calls and the assigned playbook. Every moment cited is one
-        you can open and hear.
+        Written from this rep’s scored calls and the assigned playbook. Citations open the source
+        call where available. Missing recordings fall back to transcript evidence.
       </p>
     </div>
   );
@@ -259,7 +377,12 @@ const ofCalls = (c: GuidelineTrend["current"]) =>
 
 function TrendLine({ t, label }: { t: GuidelineTrend; label?: string }) {
   const up = (t.change ?? 0) > 0;
-  const tone = t.change === null ? "text-neutral-500" : up ? "text-[#28764d]" : "text-[#9b1c1c]";
+  const tone =
+    t.change === null || t.change === 0
+      ? "text-neutral-500"
+      : up
+        ? "text-[#28764d]"
+        : "text-[#9b1c1c]";
   return (
     <li className="flex flex-wrap items-baseline gap-x-2 text-[13px] leading-6">
       {label && <span className="font-semibold">{label}</span>}
@@ -297,7 +420,9 @@ const DRILL_LABEL: Record<string, string> = {
   followed: "✓",
   partial: "½",
   missed: "✗",
-  not_applicable: "–",
+  not_applicable: "N/A",
+  not_observable: "Unknown",
+  adapted: "Adapted",
 };
 
 function CallStrip({
@@ -363,7 +488,7 @@ function Citations({
       {cited.map((c) => (
         <li
           key={`${c.call_id}#${c.exchange_index}`}
-          className="rounded-by-card bg-black/[0.03] px-3 py-2 text-[12px] leading-5"
+          className="rounded-md border border-by-border-engraved bg-by-surface-hover px-3 py-3 text-[12px] leading-5"
         >
           <button
             onClick={() => onOpenCall(c.call_id, secondsFromCitation(c.at))}
