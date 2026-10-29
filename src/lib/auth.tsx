@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { guestStore } from "@/lib/guest";
@@ -10,7 +10,7 @@ type Profile = {
   onboarding_complete: boolean;
 };
 
-type OrgSummary = { id: string; name: string };
+type OrgSummary = { id: string; name: string; owner_id: string };
 
 type AuthContextValue = {
   session: Session | null;
@@ -32,22 +32,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(null);
   const [currentOrg, setCurrentOrg] = useState<OrgSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const identity = useRef<string | null>(null);
+  const profileRequest = useRef(0);
 
   const loadProfile = async (userId: string) => {
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, onboarding_complete")
-      .eq("id", userId)
-      .maybeSingle();
-    setProfile(prof ?? null);
+    const request = ++profileRequest.current;
+    const [profileResult, memberResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, full_name, onboarding_complete")
+        .eq("id", userId)
+        .maybeSingle(),
+      supabase
+        .from("organization_members")
+        .select("organization_id, organizations(id, name, owner_id)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
-    const { data: member } = await supabase
-      .from("organization_members")
-      .select("organization_id, organizations(id, name)")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    // A late response for the previous identity must not restore its workspace.
+    if (identity.current !== userId || profileRequest.current !== request) return;
+    const prof = profileResult.data;
+    const member = memberResult.data;
+    setProfile(prof ?? null);
 
     if (member) {
       setCurrentOrgId(member.organization_id);
@@ -58,38 +67,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentOrgId(null);
       setCurrentOrg(null);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
     // Retired demo state must never replace an authenticated MVP identity.
     guestStore.disable();
-    // Listener FIRST
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setSession(sess);
-      setUser(sess?.user ?? null);
-
-      if (sess?.user) {
-        // defer to avoid deadlock
-        setTimeout(() => {
-          void loadProfile(sess.user.id);
-        }, 0);
-      } else {
+    let active = true;
+    let authEvent = 0;
+    const invalidateProfileRequest = () => {
+      ++profileRequest.current;
+    };
+    const applySession = (sess: Session | null) => {
+      if (!active) return;
+      const nextId = sess?.user.id ?? null;
+      const changedIdentity = identity.current !== nextId;
+      if (changedIdentity) {
+        ++profileRequest.current;
         setProfile(null);
         setCurrentOrgId(null);
         setCurrentOrg(null);
       }
+      identity.current = nextId;
+      setSession(sess);
+      setUser(sess?.user ?? null);
+      if (!sess?.user) {
+        setLoading(false);
+        return;
+      }
+      if (changedIdentity) setLoading(true);
+      // Defer Supabase queries outside the auth callback to avoid its lock.
+      setTimeout(() => {
+        if (active && identity.current === nextId)
+          void loadProfile(sess.user.id).catch(() => {
+            if (active && identity.current === nextId) setLoading(false);
+          });
+      }, 0);
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      ++authEvent;
+      applySession(sess);
     });
 
     // Then existing session
-    supabase.auth.getSession().then(({ data: { session: sess } }) => {
-      setSession(sess);
-      setUser(sess?.user ?? null);
-
-      if (sess?.user) void loadProfile(sess.user.id).finally(() => setLoading(false));
-      else setLoading(false);
-    });
+    const beforeRead = authEvent;
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session: sess } }) => {
+        if (authEvent === beforeRead) applySession(sess);
+      })
+      .catch(() => {
+        if (active && authEvent === beforeRead) setLoading(false);
+      });
 
     return () => {
+      active = false;
+      identity.current = null;
+      invalidateProfileRequest();
       sub.subscription.unsubscribe();
     };
   }, []);

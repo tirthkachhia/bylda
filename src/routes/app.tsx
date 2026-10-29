@@ -11,7 +11,9 @@ export const Route = createFileRoute("/app")({
 });
 
 function ProtectedAppLayout() {
-  const { user, loading } = useAuth();
+  const { user, profile, currentOrg, loading } = useAuth();
+  const needsSetup =
+    !!user && currentOrg?.owner_id === user.id && profile?.onboarding_complete === false;
   const navigate = useNavigate();
   const location = useRouterState({ select: (state) => state.location });
   const [slowSession, setSlowSession] = useState(false);
@@ -33,8 +35,11 @@ function ProtectedAppLayout() {
       replace: true,
     });
   }, [loading, location.hash, location.pathname, location.searchStr, navigate, user]);
+  useEffect(() => {
+    if (!loading && needsSetup) void navigate({ to: "/onboarding", replace: true });
+  }, [loading, needsSetup, navigate]);
 
-  if (loading || !user) {
+  if (loading || !user || needsSetup) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-by-surface-canvas text-sm text-by-text-secondary figma-surface">
         {slowSession ? (

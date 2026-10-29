@@ -36,7 +36,8 @@ function SignUp() {
     toast.success(
       data.session ? "Account created" : "Check your email to confirm your account, then sign in.",
     );
-    navigate({ to: data.session ? "/onboarding" : "/auth/sign-in" });
+    if (data.session) void navigate({ to: "/onboarding" });
+    else void navigate({ to: "/auth/verify-email", search: { email: email.trim() } });
   };
 
   return (
@@ -67,7 +68,7 @@ function SignUp() {
         <Field label="Password">
           <Input
             type="password"
-            placeholder="At least 8 characters"
+            placeholder="At least 12 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={12}

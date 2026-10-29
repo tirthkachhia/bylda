@@ -6,7 +6,7 @@ import { invokeEdge } from "@/lib/invokeEdge";
 import { Inactive } from "@/components/app/FigmaPrimitives";
 export const Route = createFileRoute("/onboarding")({ component: WorkspaceSetup });
 function WorkspaceSetup() {
-  const { user, currentOrgId, refreshProfile, loading } = useAuth();
+  const { user, currentOrgId, currentOrg, profile, refreshProfile, loading } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [teamSize, setTeamSize] = useState("");
@@ -65,7 +65,7 @@ function WorkspaceSetup() {
           <Link className="figma-button" to="/auth/sign-in">
             Sign in to continue
           </Link>
-        ) : currentOrgId ? (
+        ) : currentOrgId && (profile?.onboarding_complete || currentOrg?.owner_id !== user.id) ? (
           <>
             <p className="mb-5 text-sm">Your workspace is ready.</p>
             <Link className="figma-button figma-button-primary" to="/app/integrations">
