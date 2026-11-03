@@ -34,6 +34,7 @@ import { CallList } from "@/components/app/coaching/CallList";
 import { CallDetail } from "@/components/app/coaching/CallDetail";
 import { PlaybooksPanel } from "@/components/app/coaching/PlaybooksPanel";
 import { RepReportPanel } from "@/components/app/coaching/RepReportPanel";
+import { coachingPreferencesQuery } from "@/lib/coaching/preferences";
 export const Route = createFileRoute("/app/crm/calls")({
   validateSearch: (input: Record<string, unknown> & SearchSchemaInput) => readCallsSearch(input),
   component: CallsPage,
@@ -47,6 +48,7 @@ function CallsPage() {
   ) : null;
 }
 function CallsWorkspace({ organizationId, userId }: { organizationId: string; userId: string }) {
+  const preferences = useQuery(coachingPreferencesQuery(organizationId));
   const search = Route.useSearch(),
     navigate = Route.useNavigate(),
     qc = useQueryClient();
@@ -453,6 +455,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                 <CallDetail
                   key={call.id}
                   call={call}
+                  confidenceFloor={preferences.data?.confidence_floor ?? "high"}
                   tab={search.tab ?? "summary"}
                   onTab={(tab) => update({ tab }, true)}
                   seekSeconds={search.at ?? null}
@@ -461,6 +464,9 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                     sourceReady && resolution?.status === "available" ? resolution.turns : null
                   }
                   sourceAnalysis={sourceReady ? (source.data?.analysis ?? null) : null}
+                  sourceStructuredTurns={
+                    sourceReady ? (source.data?.source_snapshot.structured_turns ?? null) : null
+                  }
                   sourceRunId={sourceReady ? runId : null}
                   sourceState={
                     sourceLoading

@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Inactive, FigmaRow } from "@/components/app/FigmaPrimitives";
+import { RecorderSetup } from "@/components/app/coaching/RecorderSetup";
+import { OutcomeImport } from "@/components/app/coaching/OutcomeImport";
+import { DeliveryChannels } from "@/components/app/coaching/DeliveryChannels";
 import { StatusPill } from "@/components/app/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -719,6 +722,8 @@ function IntegrationsPage() {
   const home = useQuery(managerHomeQuery(currentOrgId ?? ""));
   const [tab, setTab] = useState<"sources" | "delivery">(Route.useSearch().tab);
   const [connecting, setConnecting] = useState<IntegrationDef | null>(null);
+  const [recorder, setRecorder] = useState<string | null>(null),
+    [outcomeImport, setOutcomeImport] = useState(false);
   const connected = q.data ?? [];
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["user_integrations", user?.id] });
@@ -771,7 +776,7 @@ function IntegrationsPage() {
           [
             "Delivery channels",
             [
-              ["slack", "Slack", "Account connection; report delivery unavailable", true],
+              ["slack", "Slack", "Account connection; configure report delivery below", true],
               ["teams", "Microsoft Teams", "Report delivery", false],
               ["email", "Email", "Daily brief delivery", false],
               ["webhook", "Webhook", "Report delivery", false],
@@ -838,7 +843,13 @@ function IntegrationsPage() {
                         <p className="text-xs text-by-text-secondary">{detail}</p>
                       </div>
                       <span className="text-[11px] text-by-text-secondary">
-                        {active ? (entry ? "Connected" : "Not connected") : "Not available yet"}
+                        {active
+                          ? entry
+                            ? "Connected"
+                            : "Not connected"
+                          : tab === "sources"
+                            ? "Webhook / file ingestion"
+                            : "Configure destination below"}
                       </span>
                       {active ? (
                         <button
@@ -848,8 +859,14 @@ function IntegrationsPage() {
                         >
                           {entry ? "Manage" : "Connect"}
                         </button>
+                      ) : tab === "sources" ? (
+                        <button className="figma-button" onClick={() => setRecorder(name)}>
+                          Configure ingestion
+                        </button>
                       ) : (
-                        <Inactive>Connect</Inactive>
+                        <a href="#report-delivery" className="figma-button">
+                          Configure delivery
+                        </a>
                       )}
                     </div>
                   );
@@ -875,10 +892,19 @@ function IntegrationsPage() {
                 </Link>
               </FigmaRow>
               <FigmaRow label="CSV import" detail="Deal outcomes for teams without CRM">
-                <Inactive>Import</Inactive>
+                <button className="figma-button" onClick={() => setOutcomeImport((v) => !v)}>
+                  Import
+                </button>
               </FigmaRow>
             </div>
           </section>
+        )}
+        {recorder && <RecorderSetup name={recorder} onClose={() => setRecorder(null)} />}
+        {outcomeImport && <OutcomeImport />}
+        {tab === "delivery" && (
+          <div id="report-delivery">
+            <DeliveryChannels />
+          </div>
         )}
         {connecting && (
           <ConnectModal

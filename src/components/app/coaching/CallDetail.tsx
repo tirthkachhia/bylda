@@ -1,4 +1,3 @@
-import { Inactive } from "@/components/app/FigmaPrimitives";
 import { FigmaCallTimeline } from "./FigmaCallTimeline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, Trash2 } from "lucide-react";
@@ -13,7 +12,10 @@ import {
 import { BehaviorInsights, EvidenceLinks } from "./BehaviorInsights";
 import { CallRecording } from "./CallRecording";
 import { CallScores } from "./CallScores";
-export type DetailTab = "summary" | "transcript" | "analysis" | "methodology" | "scores";
+import { CallNotes } from "./CallNotes";
+import { AssignmentForm } from "./CoachingAssignments";
+import type { ParsedTurn } from "../../../../supabase/functions/_shared/coaching/transcript-parse";
+export type DetailTab = "summary" | "transcript" | "analysis" | "methodology" | "scores" | "notes";
 export function CallDetail({
   call,
   tab,
@@ -23,11 +25,13 @@ export function CallDetail({
   seekSeconds = null,
   seekRequest = 0,
   sourceTurns = null,
+  sourceStructuredTurns = null,
   sourceAnalysis = null,
   sourceRunId = null,
   sourceState = "legacy",
   highlightedTurnId = null,
   focusedOccurrenceKey = null,
+  confidenceFloor = "medium",
 }: {
   call: CoachingCall;
   tab: DetailTab;
@@ -37,13 +41,17 @@ export function CallDetail({
   seekSeconds?: number | null;
   seekRequest?: number;
   sourceTurns?: Evidence[] | null;
+  sourceStructuredTurns?: ParsedTurn[] | null;
   sourceAnalysis?: BehaviorAnalysis | null;
   sourceRunId?: string | null;
   sourceState?: "loading" | "unavailable" | "ready" | "legacy";
   highlightedTurnId?: number | null;
   focusedOccurrenceKey?: string | null;
+  confidenceFloor?: "medium" | "high";
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [shareLink, setShareLink] = useState("");
   const [localSeek, setLocalSeek] = useState(seekSeconds),
     [request, setRequest] = useState(seekRequest),
     [highlight, setHighlight] = useState<number | null>(highlightedTurnId),
@@ -229,9 +237,26 @@ export function CallDetail({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Inactive>Share</Inactive>
-            <Inactive>Add note</Inactive>
-            <Inactive>Assign coaching</Inactive>
+            <button
+              type="button"
+              className="figma-button"
+              onClick={() => {
+                const url = new URL("/app/crm/calls", window.location.origin);
+                url.searchParams.set("callId", call.id);
+                if (sourceRunId) url.searchParams.set("runId", sourceRunId);
+                if (call.rep_id) url.searchParams.set("repId", call.rep_id);
+                if (localSeek !== null) url.searchParams.set("at", String(localSeek));
+                setShareLink(url.toString());
+              }}
+            >
+              Share
+            </button>
+            <button type="button" className="figma-button" onClick={() => onTab("notes")}>
+              Add note
+            </button>
+            <button type="button" className="figma-button" onClick={() => setAssigning((v) => !v)}>
+              Assign coaching
+            </button>
             {onReanalyze && call.transcript && (
               <button
                 type="button"
@@ -257,6 +282,44 @@ export function CallDetail({
           </div>
         </div>
       </header>
+      {shareLink && (
+        <section
+          className="rounded-lg border border-by-border-engraved p-4 text-xs"
+          aria-label="Share call"
+        >
+          <p>Only signed-in members of this workspace can open this call.</p>
+          <input
+            aria-label="Call share link"
+            readOnly
+            value={shareLink}
+            onFocus={(e) => e.target.select()}
+            className="my-2 w-full rounded border p-2"
+          />
+          <button
+            type="button"
+            className="figma-button"
+            onClick={() =>
+              void navigator.clipboard.writeText(shareLink).then(
+                () => toast.success("Link copied"),
+                () => toast.error("Select and copy the link above."),
+              )
+            }
+          >
+            Copy link
+          </button>
+          <button type="button" className="figma-button ml-2" onClick={() => setShareLink("")}>
+            Close
+          </button>
+        </section>
+      )}
+      {assigning && (
+        <AssignmentForm
+          presetRepId={call.rep_id ?? undefined}
+          callId={call.id}
+          runId={sourceRunId}
+          onSaved={() => setAssigning(false)}
+        />
+      )}
       {processing && (
         <p
           role="status"
@@ -318,6 +381,7 @@ export function CallDetail({
             ["analysis", "Analysis"],
             ["methodology", "Methodology"],
             ["scores", "Learning moments"],
+            ["notes", "Notes"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -330,14 +394,6 @@ export function CallDetail({
             {label}
           </button>
         ))}
-        <button
-          type="button"
-          disabled
-          title="Not available yet"
-          className="shrink-0 px-1 py-3 text-[13px] text-by-text-tertiary"
-        >
-          Notes
-        </button>
       </nav>
       <CallRecording
         key={call.id}
@@ -349,12 +405,16 @@ export function CallDetail({
       <FigmaCallTimeline
         analysis={analysis ?? null}
         duration={call.duration}
+        turns={sourceTurns ?? []}
+        structuredTurns={sourceStructuredTurns}
         onSelect={(e, key) => {
-          setMoment(key);
+          if (key) setMoment(key);
           selectEvidence(e, "summary");
         }}
       />
-      {tab === "scores" ? (
+      {tab === "notes" ? (
+        <CallNotes key={call.id} callId={call.id} />
+      ) : tab === "scores" ? (
         <>
           <p className="text-xs leading-5 text-by-text-secondary">
             Exchange-scoring moments are observations for review, not verified outcomes or
@@ -430,6 +490,7 @@ export function CallDetail({
               <BehaviorInsights
                 key={sourceRunId}
                 analysis={analysis}
+                confidenceFloor={confidenceFloor}
                 runId={sourceRunId}
                 onSeek={seek}
                 onSelectEvidence={selectEvidence}

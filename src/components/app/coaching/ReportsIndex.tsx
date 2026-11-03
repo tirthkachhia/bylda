@@ -6,8 +6,13 @@ import { repsQuery } from "@/lib/queries";
 import type { RepReportRow } from "@/lib/coaching/types";
 import { Inactive } from "@/components/app/FigmaPrimitives";
 import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
+import { useState } from "react";
+import { toast } from "sonner";
+import { ReportSchedules } from "./ReportSchedules";
 export function ReportsIndex() {
   const { currentOrgId } = useAuth();
+  const [scheduling, setScheduling] = useState(false),
+    [share, setShare] = useState("");
   const reps = useQuery({ ...repsQuery(currentOrgId ?? "", true), enabled: !!currentOrgId });
   const q = useQuery({
     queryKey: ["workspace-coaching-reports", currentOrgId],
@@ -42,8 +47,37 @@ export function ReportsIndex() {
             Your saved coaching reports and source evidence.
           </p>
         </div>
-        <Inactive>Schedule a report</Inactive>
+        <button className="figma-button" onClick={() => setScheduling((v) => !v)}>
+          Schedule a report
+        </button>
       </div>
+      {scheduling && <ReportSchedules />}
+      {share && (
+        <section className="rounded border p-3 text-xs">
+          <p>Workspace membership is required to open this report.</p>
+          <input
+            readOnly
+            aria-label="Report share link"
+            className="w-full my-2 border p-2"
+            value={share}
+            onFocus={(e) => e.target.select()}
+          />
+          <button
+            className="figma-button"
+            onClick={() =>
+              void navigator.clipboard.writeText(share).then(
+                () => toast.success("Link copied"),
+                () => toast.error("Select and copy the link above."),
+              )
+            }
+          >
+            Copy link
+          </button>
+          <button className="figma-button ml-2" onClick={() => setShare("")}>
+            Close
+          </button>
+        </section>
+      )}
       <div className="figma-tabs" role="tablist" aria-label="Report type">
         <button role="tab" aria-selected="true">
           All {q.data?.length ?? ""}
@@ -101,7 +135,18 @@ export function ReportsIndex() {
                   </td>
                   <td>{r.status}</td>
                   <td>
-                    <Inactive>Share</Inactive>
+                    <button
+                      className="figma-button"
+                      onClick={() => {
+                        const url = new URL("/app/crm/calls", window.location.origin);
+                        url.searchParams.set("view", "report");
+                        url.searchParams.set("repId", r.rep_id);
+                        url.searchParams.set("reportId", r.id);
+                        setShare(url.toString());
+                      }}
+                    >
+                      Share
+                    </button>
                   </td>
                 </tr>
               ))}

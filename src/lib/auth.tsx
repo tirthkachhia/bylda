@@ -8,6 +8,7 @@ type Profile = {
   email: string | null;
   full_name: string | null;
   onboarding_complete: boolean;
+  avatar_url?: string | null;
 };
 
 type OrgSummary = { id: string; name: string; owner_id: string };
@@ -21,6 +22,7 @@ type AuthContextValue = {
   loading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  switchWorkspace: (organizationId: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -55,7 +57,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // A late response for the previous identity must not restore its workspace.
     if (identity.current !== userId || profileRequest.current !== request) return;
     const prof = profileResult.data;
-    const member = memberResult.data;
+    let member = memberResult.data;
+    let preferred: string | null = null;
+    try {
+      preferred = sessionStorage.getItem(`bylda-workspace:${userId}`);
+    } catch {
+      /* Storage may be disabled. */
+    }
+    if (preferred && preferred !== member?.organization_id) {
+      const saved = await supabase
+        .from("organization_members")
+        .select("organization_id, organizations(id, name, owner_id)")
+        .eq("user_id", userId)
+        .eq("organization_id", preferred)
+        .maybeSingle();
+      if (saved.data) member = saved.data;
+    }
+    if (identity.current !== userId || profileRequest.current !== request) return;
     setProfile(prof ?? null);
 
     if (member) {
@@ -136,10 +154,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
+  const switchWorkspace = async (organizationId: string) => {
+    if (!user) throw new Error("Sign in to switch workspaces.");
+    const { data, error } = await supabase
+      .from("organization_members")
+      .select("organization_id, organizations(id, name, owner_id)")
+      .eq("user_id", user.id)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    if (error || !data || identity.current !== user.id)
+      throw new Error("Workspace membership could not be verified.");
+    ++profileRequest.current;
+    const organization = (data as { organizations?: OrgSummary | OrgSummary[] }).organizations;
+    setCurrentOrgId(data.organization_id);
+    setCurrentOrg(Array.isArray(organization) ? (organization[0] ?? null) : (organization ?? null));
+    try {
+      sessionStorage.setItem(`bylda-workspace:${user.id}`, data.organization_id);
+    } catch {
+      /* Membership is still checked on every reload. */
+    }
+  };
 
   return (
     <AuthContext.Provider
-      value={{ session, user, profile, currentOrgId, currentOrg, loading, refreshProfile, signOut }}
+      value={{
+        session,
+        user,
+        profile,
+        currentOrgId,
+        currentOrg,
+        loading,
+        refreshProfile,
+        signOut,
+        switchWorkspace,
+      }}
     >
       {children}
     </AuthContext.Provider>

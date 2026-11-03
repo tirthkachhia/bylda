@@ -22,10 +22,14 @@ describe("Figma page coverage", () => {
       else expect(existsSync(`src/routes/${path.slice(1).replaceAll("/", ".")}.tsx`)).toBe(true);
     }
   });
-  it("keeps all new empty views disconnected from backend writes and temporary assets", () => {
+  it("routes prototype destinations to live workspace features without temporary assets", () => {
     const views = readFileSync("src/components/app/FigmaPageViews.tsx", "utf8");
     expect(views).not.toMatch(/supabase|invokeEdge|\.insert\(|\.update\(/);
-    expect(views).toContain('data-unavailable="true"');
+    expect(views).not.toContain('data-unavailable="true"');
+    expect(readFileSync("src/routes/app.views.$screen.tsx", "utf8")).toContain("ConnectedPageView");
+    expect(readFileSync("src/routes/app.views.$screen.tsx", "utf8")).not.toContain(
+      "FigmaEmptyView",
+    );
     expect(views).not.toContain("figma.com/api/mcp/asset");
     for (const asset of ["empty-state.svg", "empty-avatar.svg"]) {
       const svg = readFileSync(`public/figma/${asset}`, "utf8");

@@ -33,7 +33,7 @@ export interface Env extends BaseEnv {
   SCORE_QUEUE: QueueLike<TranscribeMessage>;
 }
 
-export type MessageKind = "transcribe" | "score";
+export type MessageKind = "transcribe" | "score" | "analyze";
 
 export type TranscribeMessage = {
   kind?: MessageKind; // defaults to "transcribe"
@@ -75,8 +75,15 @@ export function parseEnqueueItems(input: unknown): TranscribeMessage[] | null {
   for (const raw of items) {
     const item = raw as Partial<TranscribeMessage> | null;
     if (!item) return null;
-    const kind: MessageKind = item.kind === "score" ? "score" : "transcribe";
-    if (item.kind !== undefined && item.kind !== "score" && item.kind !== "transcribe") return null;
+    const kind: MessageKind =
+      item.kind === "score" ? "score" : item.kind === "analyze" ? "analyze" : "transcribe";
+    if (
+      item.kind !== undefined &&
+      item.kind !== "score" &&
+      item.kind !== "transcribe" &&
+      item.kind !== "analyze"
+    )
+      return null;
     if (
       typeof item.call_id !== "string" ||
       !UUID.test(item.call_id) ||
@@ -115,8 +122,8 @@ async function handleEnqueue(request: Request, env: Env): Promise<Response> {
   const items = parseEnqueueItems(body);
   if (!items) return json({ error: "Provide 1-50 valid items" }, 400);
   // Scoring and transcription have very different durations; keep them on separate queues.
-  const transcribe = items.filter((item) => item.kind !== "score");
-  const score = items.filter((item) => item.kind === "score");
+  const transcribe = items.filter((item) => item.kind === "transcribe");
+  const score = items.filter((item) => item.kind === "score" || item.kind === "analyze");
   if (transcribe.length)
     await env.TRANSCRIBE_QUEUE.sendBatch(transcribe.map((item) => ({ body: item })));
   if (score.length) await env.SCORE_QUEUE.sendBatch(score.map((item) => ({ body: item })));
@@ -179,6 +186,11 @@ async function processScoreMessage(msg: TranscribeMessage, env: Env): Promise<vo
 
 /** Full pipeline for one message. Throws on transient errors; returns "failed" on permanent ones. */
 export async function processMessage(msg: TranscribeMessage, env: Env): Promise<"done" | "failed"> {
+  if (msg.kind === "analyze") {
+    if (!(await triggerAnalysis(env, msg.call_id)))
+      throw new Error("Saved-transcript analysis did not complete");
+    return "done";
+  }
   if (msg.kind === "score") {
     await processScoreMessage(msg, env);
     return "done";
@@ -231,6 +243,14 @@ export async function processMessage(msg: TranscribeMessage, env: Env): Promise<
 }
 
 export default {
+  async scheduled(_event: unknown, env: Env): Promise<void> {
+    const response = await fetch(`${env.SUPABASE_URL}/functions/v1/coaching-scheduled-reports`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.COACHING_WORKER_SECRET}` },
+      signal: AbortSignal.timeout(120000),
+    });
+    if (!response.ok) throw new Error(`Scheduled reports failed (${response.status})`);
+  },
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (request.method === "GET" && pathname === "/health") return json({ ok: true });

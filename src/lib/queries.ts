@@ -1890,11 +1890,11 @@ export const callScoresQuery = (callId: string) =>
     staleTime: 15_000,
   });
 
-/** Re-score (Jev) then re-analyze (Claude) one call. Returns once queued; the page polls the stage. */
-export async function rescoreCall(callId: string) {
+/** Re-analyze the saved transcript by default. Explicit rescore also refreshes exchange scores, never audio. */
+export async function rescoreCall(callId: string, mode: "analyze" | "rescore" = "analyze") {
   return invokeEdge<{ ok: boolean; call_id: string; coaching_stage: string }>(
     "coaching-rescore",
-    { call_id: callId },
+    { call_id: callId, mode },
     { timeoutMs: 30_000 },
   );
 }

@@ -138,9 +138,14 @@ describe("manager source and uncertainty behavior", () => {
       }),
     );
   });
-  it("withholds source links without a snapshot handler and comparisons without buyer context", () => {
+  it("uses a validated source route without a snapshot handler and withholds unsupported comparisons", () => {
     act(() => root.render(<BehaviorManagerBrief repId="rep" onOpenCall={vi.fn()} />));
-    expect(button("Review at").disabled).toBe(true);
+    const source = [...host.querySelectorAll("a")].find((a) =>
+      a.textContent?.includes("Review at"),
+    )!;
+    expect(source.getAttribute("href")).toContain("runId=run");
+    expect(source.getAttribute("href")).toContain("eventId=event");
+    expect(source.getAttribute("href")).toContain("turnId=0&at=0");
     act(() => button("Trends").click());
     expect(host.textContent).toContain("Not enough comparable evidence");
     expect(host.textContent).not.toContain("Improving");

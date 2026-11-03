@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { formatWhen } from "@/lib/coaching/calls";
-import { Inactive } from "./FigmaPrimitives";
+import { Link } from "@tanstack/react-router";
 export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "drawer" }) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -104,11 +104,13 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
         <p className="figma-empty">No {unread ? "unread " : ""}notifications.</p>
       )}
       <div className="mt-6">
-        <Inactive>Notification preferences</Inactive>
+        <Link className="figma-button" to="/app/settings" search={{ tab: "notifications" }}>
+          Notification preferences
+        </Link>
       </div>
       <p className="mt-3 text-xs text-by-text-secondary">
         Shows the latest 100 notifications available to your account. Behavioral alert categories
-        remain unavailable.
+        are shown when the corresponding saved events exist.
       </p>
     </section>
   );

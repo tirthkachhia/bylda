@@ -17,6 +17,13 @@ import { blockIfGuest } from "@/lib/guest";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { FigmaField, FigmaRow, Inactive } from "@/components/app/FigmaPrimitives";
 import { initials } from "@/lib/coaching/calls";
+import { FeatureSettings, AnalysisPreferences } from "@/components/app/coaching/FeatureSettings";
+import { AccountSecurity } from "@/components/app/AccountSecurity";
+import { ProfilePhoto } from "@/components/app/ProfilePhoto";
+import { DeleteWorkspace } from "@/components/app/coaching/PrivacySettings";
+import { BillingPlans } from "@/components/app/coaching/BillingPlans";
+import { coachingUsageQuery } from "@/lib/coaching/usage";
+import { csvText, downloadFile } from "@/lib/download";
 
 export const Route = createFileRoute("/app/settings")({
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput) => ({
@@ -132,7 +139,7 @@ function Settings() {
         ) : tab === "usage" ? (
           <Usage />
         ) : (
-          <DeadSettings title={label} tab={tab} />
+          <FeatureSettings tab={tab} />
         )}
       </div>
     </div>
@@ -144,17 +151,23 @@ function General() {
   const q = useQuery({ ...organizationQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
   const canEdit = !!user && q.data?.owner_id === user.id;
   const [name, setName] = useState("");
+  const [website, setWebsite] = useState("");
   const [busy, setBusy] = useState(false);
+  const loadedName = q.data?.name ?? "",
+    loadedWebsite = (q.data as { website_url?: string | null } | undefined)?.website_url ?? "";
   useEffect(() => {
-    setName(q.data?.name ?? "");
-  }, [q.data?.name]);
+    setName(loadedName);
+    setWebsite(loadedWebsite);
+  }, [loadedName, loadedWebsite]);
   async function save() {
     if (!currentOrgId || !canEdit || !name.trim() || blockIfGuest()) return;
     setBusy(true);
     try {
+      if (website.trim() && !/^https?:$/.test(new URL(website.trim()).protocol))
+        throw new Error("Enter an HTTP or HTTPS website URL.");
       const { data, error } = await supabase
         .from("organizations")
-        .update({ name: name.trim() })
+        .update({ name: name.trim(), website_url: website.trim() || null } as never)
         .eq("id", currentOrgId)
         .select("id")
         .maybeSingle();
@@ -189,24 +202,40 @@ function General() {
               onChange={(e) => setName(e.target.value)}
             />
           </FigmaField>
-          <FigmaField label="Domain">
-            <input disabled placeholder="Not available yet" />
-            <small>People with this email domain can request to join.</small>
+          <FigmaField label="Company website">
+            <input
+              type="url"
+              value={website}
+              disabled={!canEdit}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://company.com"
+            />
+            <small>
+              Workspace membership is controlled through verified invitations under Users.
+            </small>
           </FigmaField>
           <FigmaRow label="Time zone" detail="Briefs and ‘yesterday’ use this.">
-            <Inactive>Time zone —</Inactive>
+            <Link className="figma-button" to="/app/settings" search={{ tab: "analysis" }}>
+              Configure workspace time zone
+            </Link>
           </FigmaRow>
           <FigmaRow label="Week starts on" detail="Weekly report schedule">
-            <Inactive>—</Inactive>
+            <Link className="figma-button" to="/app/settings" search={{ tab: "analysis" }}>
+              Configure calendar week
+            </Link>
           </FigmaRow>
           <FigmaRow
             label="Default language for analysis"
             detail="Transcription and behavior detection"
           >
-            <Inactive>—</Inactive>
+            <Link className="figma-button" to="/app/settings" search={{ tab: "analysis" }}>
+              Configure coaching language
+            </Link>
           </FigmaRow>
-          <FigmaRow label="Allow join requests from domain">
-            <input type="checkbox" disabled aria-label="Allow join requests from domain" />
+          <FigmaRow label="Workspace membership">
+            <Link className="figma-button" to="/app/settings" search={{ tab: "users" }}>
+              Invite and manage members
+            </Link>
           </FigmaRow>
           <button
             className="figma-button figma-button-primary mt-5"
@@ -219,9 +248,7 @@ function General() {
       )}
       <div className="mt-5 rounded-lg bg-red-50 p-4">
         <h3 className="!mt-0">Danger zone</h3>
-        <FigmaRow label="Delete workspace" detail="Not available yet">
-          <Inactive>Delete workspace</Inactive>
-        </FigmaRow>
+        <DeleteWorkspace />
       </div>
     </section>
   );
@@ -255,7 +282,7 @@ function Profile() {
         <span className="flex size-14 items-center justify-center rounded-full bg-by-avatar-metal">
           {initials(profile?.full_name ?? user?.email ?? "Me")}
         </span>
-        <Inactive>Change photo</Inactive>
+        <ProfilePhoto />
       </div>
       <FigmaField label="Name">
         <input value={name} onChange={(e) => setName(e.target.value)} />
@@ -272,19 +299,16 @@ function Profile() {
         {busy ? "Saving…" : "Save profile"}
       </button>
       <FigmaRow label="My daily brief">
-        <Inactive>Schedule —</Inactive>
+        <Link className="figma-button" to="/app/reports">
+          Manage report schedules
+        </Link>
       </FigmaRow>
       <FigmaRow label="Password">
         <Link className="figma-button" to="/auth/forgot-password">
           Change
         </Link>
       </FigmaRow>
-      <FigmaRow label="Two-factor authentication">
-        <input type="checkbox" disabled aria-label="Two-factor authentication" />
-      </FigmaRow>
-      <FigmaRow label="Sessions">
-        <Inactive>Sign out others</Inactive>
-      </FigmaRow>
+      <AccountSecurity />
     </section>
   );
 }
@@ -348,7 +372,21 @@ function Users({ rolesOnly }: { rolesOnly: boolean }) {
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1>{rolesOnly ? "Roles & permissions" : "Users"}</h1>
-        <Inactive>Export</Inactive>
+        <button
+          className="figma-button"
+          disabled={!q.data?.length}
+          onClick={() =>
+            downloadFile(
+              "workspace-users.csv",
+              csvText([
+                ["Name", "Email", "Role", "Joined"],
+                ...(q.data ?? []).map((m) => [m.full_name, m.email, m.role, m.created_at]),
+              ]),
+            )
+          }
+        >
+          Export
+        </button>
       </div>
       <p className="mt-2 text-xs text-by-text-secondary">
         Workspace access uses the roles supported by your account.
@@ -442,6 +480,7 @@ function Users({ rolesOnly }: { rolesOnly: boolean }) {
 }
 function Billing() {
   const { currentOrgId } = useAuth();
+  const usage = useQuery(coachingUsageQuery(currentOrgId ?? ""));
   const sub = useQuery({ ...subscriptionQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
   const plans = useQuery(planEntitlementsQuery());
   const invoices = useQuery({
@@ -522,24 +561,11 @@ function Billing() {
           <FigmaRow label="Price">
             <span>{plan ? `$${plan.price_usd} / month` : "—"}</span>
           </FigmaRow>
-          <div className="my-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {["Free", "Team", "Growth", "Scale"].map((name) => (
-              <article
-                key={name}
-                className="rounded-xl border border-by-border-engraved p-4 opacity-50"
-                data-unavailable="true"
-              >
-                <h2 className="!text-xs uppercase">{name}</h2>
-                <p className="my-3 text-2xl">—</p>
-                <p className="mb-4 text-[11px] text-by-text-secondary">
-                  Plan mapping not available yet
-                </p>
-                <Inactive>{name === "Scale" ? "Upgrade" : "Switch"}</Inactive>
-              </article>
-            ))}
-          </div>
+          {canManage && <BillingPlans existingSubscription={!!sub.data?.stripe_subscription_id} />}
           <FigmaRow label="Analyzed seats">
-            <span>—</span>
+            <span>
+              {usage.error ? "Usage could not load" : (usage.data?.analyzed_reps ?? "Loading…")}
+            </span>
           </FigmaRow>
           <FigmaRow label="Payment method">
             <button
@@ -593,7 +619,13 @@ function Billing() {
                         Download PDF
                       </a>
                     ) : (
-                      <Inactive>Download PDF</Inactive>
+                      <button
+                        className="figma-button"
+                        disabled={busy || !canManage}
+                        onClick={() => void portal()}
+                      >
+                        Open invoice in billing portal
+                      </button>
                     )}
                   </li>
                 );
@@ -603,8 +635,8 @@ function Billing() {
             <p className="mt-3 text-xs text-by-text-secondary">No invoices available.</p>
           )}
           <p className="mt-5 rounded-lg bg-amber-50 p-4 text-xs">
-            Figma’s seat-based tiers are inactive until they map to backend billing products. Your
-            existing account plan and billing portal remain available.
+            Billing products and checkout use your configured Stripe prices. Prices are not inferred
+            from a design mockup.
           </p>
         </>
       )}
@@ -613,6 +645,7 @@ function Billing() {
 }
 function Usage() {
   const { currentOrgId } = useAuth();
+  const usage = useQuery(coachingUsageQuery(currentOrgId ?? ""));
   const q = useQuery(managerHomeQuery(currentOrgId ?? ""));
   return (
     <section>
@@ -625,12 +658,16 @@ function Usage() {
         <span>{q.data?.analyzedCalls ?? "—"}</span>
       </FigmaRow>
       <FigmaRow label="Analyzed seats">
-        <span>—</span>
+        <span>{usage.data?.analyzed_reps ?? "Loading…"}</span>
       </FigmaRow>
       <FigmaRow label="Recording storage">
-        <span>—</span>
+        <span>
+          {usage.data
+            ? `${(usage.data.storage_bytes / 1024 / 1024).toFixed(1)} MB · ${usage.data.known_size_recordings}/${usage.data.recordings} objects with size metadata`
+            : "Loading…"}
+        </span>
       </FigmaRow>
-      {q.error && (
+      {(q.error || usage.error) && (
         <p role="alert" className="mt-4 text-xs">
           Usage could not load.{" "}
           <button className="underline" onClick={() => void q.refetch()}>
@@ -642,194 +679,21 @@ function Usage() {
   );
 }
 function RolePermissions() {
-  const capabilities = [
-    "Workspace, billing, integrations",
-    "Methodology & behavior rules",
-    "Users & teams",
-    "See team intelligence & patterns",
-    "See calls & call review",
-    "Hear call audio",
-    "See other reps’ behavior profiles",
-    "Assign coaching",
-    "Receive coaching / daily rep brief",
-    "Rep comparison & team overview",
-    "Share call clips with reps",
-  ];
   return (
-    <section>
-      <h1>Roles & permissions</h1>
-      <p className="my-3 text-xs text-by-text-secondary">
-        The Figma capability matrix and rep-privacy controls are not available yet. Existing account
-        roles are managed under Users.
-      </p>
-      <div className="overflow-x-auto">
-        <table className="figma-table">
-          <thead>
-            <tr>
-              <th>Capability</th>
-              {["Owner", "Manager", "Rep", "Viewer", "Coach"].map((t) => (
-                <th key={t}>{t}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {capabilities.map((label) => (
-              <tr key={label}>
-                <td>{label}</td>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <td key={i} data-unavailable="true">
-                    —
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <section className="space-y-5">
+      <Users rolesOnly />
+      <div className="rounded-lg border p-4 text-sm leading-6">
+        <h2>Workspace access</h2>
+        <p>
+          Owner and admin are the account's manager roles. Workspace members can review shared
+          calls, evidence and notes. Notes can be edited or deleted only by their author. Coaching
+          assignments, approved guidance, team configuration and audit history require manager
+          access. Private rooms are limited to their creator and invited members.
+        </p>
+        <Link className="figma-button mt-3" to="/app/settings" search={{ tab: "users" }}>
+          Manage user access
+        </Link>
       </div>
-      <h3>Rep privacy</h3>
-      {[
-        "Reps can see their own calls",
-        "Reps can see teammates’ calls",
-        "Show reps team averages",
-        "Leaderboards",
-      ].map((label) => (
-        <FigmaRow key={label} label={label}>
-          <Inactive>Unavailable</Inactive>
-        </FigmaRow>
-      ))}
-      <Link className="figma-button mt-5" to="/app/settings" search={{ tab: "users" }}>
-        Manage existing user roles
-      </Link>
-    </section>
-  );
-}
-function DeadSettings({ title, tab }: { title: string; tab: string }) {
-  if (tab === "teams")
-    return (
-      <section>
-        <div className="flex items-center justify-between gap-4">
-          <h1>Teams</h1>
-          <Inactive>New team</Inactive>
-        </div>
-        <p className="my-3 text-xs text-by-text-secondary">
-          Team-level methodology and routing are not available yet.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="figma-table">
-            <thead>
-              <tr>
-                {["Team", "Manager", "Reps", "Methodology", "Brief time"].map((t) => (
-                  <th key={t}>{t}</th>
-                ))}
-              </tr>
-            </thead>
-          </table>
-        </div>
-        <div className="figma-empty mt-4">Team management is not available yet.</div>
-      </section>
-    );
-  if (tab === "notifications")
-    return (
-      <section>
-        <h1>Notifications</h1>
-        <p className="my-3 text-xs text-by-text-secondary">
-          Notification preferences and delivery routing are not available yet. This matrix does not
-          show saved settings.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="figma-table">
-            <thead>
-              <tr>
-                <th>Notify me about</th>
-                {["In-app", "Email", "Slack", "Push"].map((t) => (
-                  <th key={t}>{t}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                "Daily brief",
-                "Behavior regression on my team",
-                "Important call",
-                "Coaching acknowledged / completed",
-                "Emerging pattern",
-                "Integration problem",
-                "Report ready",
-              ].map((label) => (
-                <tr key={label}>
-                  <td>{label}</td>
-                  {["In-app", "Email", "Slack", "Push"].map((channel) => (
-                    <td key={channel}>
-                      <input
-                        type="checkbox"
-                        disabled
-                        aria-label={`${label}: ${channel} unavailable`}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <FigmaRow label="Quiet hours" detail="Nothing but the brief outside these hours.">
-          <Inactive>—</Inactive>
-        </FigmaRow>
-        <FigmaRow label="Batch low-priority items into the brief">
-          <input
-            type="checkbox"
-            disabled
-            aria-label="Batch low-priority notifications unavailable"
-          />
-        </FigmaRow>
-      </section>
-    );
-  const labels: Record<string, string[]> = {
-    analysis: [
-      "Minimum calls before judging a rep",
-      "Minimum confidence for coaching suggestions",
-      "Baseline window",
-      "Exclude calls shorter than",
-      "Internal calls",
-      "Outcome associations",
-      "Language for relationships",
-      "Save",
-      "Reset to defaults",
-    ],
-    privacy: [
-      "Keep call audio for",
-      "Keep transcripts for",
-      "Keep behavioral events & insights for",
-      "Redact PII in transcripts",
-      "Recording consent notice",
-      "Use data to train shared models",
-      "Export all data",
-      "Delete a person’s data",
-      "DPA & subprocessors",
-    ],
-    rules: ["New behavior rule"],
-    objections: ["New objection"],
-    success: ["Define success criteria"],
-    api: ["Create API key"],
-    audit: ["Export audit log"],
-  };
-  return (
-    <section>
-      <h1>{title}</h1>
-      <p className="mt-2 text-xs text-by-text-secondary">Not available yet.</p>
-      {(labels[tab] ?? ["Save changes"]).map((label) => (
-        <FigmaRow key={label} label={label}>
-          <Inactive>
-            {label.startsWith("Save") ||
-            label.startsWith("Create") ||
-            label.startsWith("New") ||
-            label.startsWith("Export") ||
-            label.startsWith("Reset")
-              ? label
-              : "—"}
-          </Inactive>
-        </FigmaRow>
-      ))}
     </section>
   );
 }

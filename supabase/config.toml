@@ -225,5 +225,23 @@ verify_jwt = false
 [functions.coaching-report]
 verify_jwt = true
 
+[functions.coaching-scheduled-reports]
+verify_jwt = false
+
+[functions.coaching-api-keys]
+verify_jwt = true
+
+[functions.coaching-api]
+verify_jwt = false
+
+[functions.coaching-billing-catalog]
+verify_jwt = true
+
+[functions.coaching-data-controls]
+verify_jwt = true
+
+[functions.coaching-delivery-channels]
+verify_jwt = true
+
 [functions.coaching-playbook-guidelines]
 verify_jwt = true

@@ -14,6 +14,7 @@ import {
   type Evidence,
 } from "@/lib/coaching/behavior";
 import { selectBehaviorMoments } from "../../../../supabase/functions/_shared/coaching/behavior-intelligence";
+import { CallBreakdown } from "./CallBreakdown";
 const DIMENSION_LABELS = {
   playbook_execution: "Playbook execution",
   sales_effectiveness: "Sales effectiveness",
@@ -30,43 +31,8 @@ const tone = (result: string) =>
       : ["mixed", "partial"].includes(result)
         ? "bg-amber-100 text-amber-900"
         : "bg-neutral-100 text-neutral-600";
-export function EvidenceLinks({
-  evidence,
-  onSeek,
-  onSelect,
-}: {
-  evidence: Evidence[];
-  onSeek: (seconds: number) => void;
-  onSelect?: (evidence: Evidence) => void;
-}) {
-  return (
-    <ul className="mt-3 space-y-2">
-      {evidence.map((e) => (
-        <li
-          key={e.turn_id}
-          className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-md border border-by-border-engraved bg-by-surface-hover px-3 py-3 text-xs"
-        >
-          <div>
-            <button
-              type="button"
-              disabled={!onSelect && e.start_s === null}
-              onClick={() => {
-                if (onSelect) onSelect(e);
-                else if (e.start_s !== null) onSeek(e.start_s);
-              }}
-              className="font-mono underline-offset-4 hover:underline disabled:text-by-text-tertiary"
-            >
-              {timeLabel(e.start_s)}
-            </button>
-            <p className="mt-1 text-[10px] uppercase text-by-text-secondary">{e.speaker}</p>
-            <span className="text-[9px] text-by-text-tertiary">Turn {e.turn_id}</span>
-          </div>
-          <blockquote className="whitespace-pre-wrap leading-5">“{e.text}”</blockquote>
-        </li>
-      ))}
-    </ul>
-  );
-}
+export { EvidenceLinks } from "./EvidenceLinks";
+import { EvidenceLinks } from "./EvidenceLinks";
 export function BehaviorInsights({
   analysis,
   runId,
@@ -75,6 +41,7 @@ export function BehaviorInsights({
   mode = "overview",
   focusedOccurrenceKey,
   onChooseMoment,
+  confidenceFloor = "medium",
 }: {
   analysis: BehaviorAnalysis;
   runId: string;
@@ -83,6 +50,7 @@ export function BehaviorInsights({
   mode?: "overview" | "analysis";
   focusedOccurrenceKey?: string | null;
   onChooseMoment?: (key: string, evidence?: Evidence) => void;
+  confidenceFloor?: "medium" | "high";
 }) {
   const [localKey, setLocalKey] = useState<string | null>(null);
   const q = useQuery(behaviorEventsQuery(runId));
@@ -120,6 +88,7 @@ export function BehaviorInsights({
     return (
       ready &&
       !!row &&
+      (confidenceFloor !== "high" || row.assessment.confidence === "high") &&
       feedbackAllowsRecommendation((feedback.data ?? []).filter((f) => f.event_id === row.id))
     );
   };
@@ -146,6 +115,13 @@ export function BehaviorInsights({
   };
   return (
     <section className="space-y-4" aria-label="Evidence-backed behavioral analysis">
+      {mode === "overview" && ready && (
+        <CallBreakdown
+          analysis={analysis}
+          events={analysis.events.filter((e) => canRecommend(e.occurrence_key))}
+          onSelect={onSelectEvidence}
+        />
+      )}
       <header>
         <h2 className="text-sm font-medium uppercase tracking-wide">Moments on this call</h2>
         <p className="mt-1 text-[11px] leading-5 text-by-text-secondary">

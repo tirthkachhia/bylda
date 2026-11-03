@@ -1,5 +1,11 @@
 import type { CallSourceTarget } from "./source-navigation";
-export type CallReviewTab = "summary" | "transcript" | "analysis" | "methodology" | "scores";
+export type CallReviewTab =
+  | "summary"
+  | "transcript"
+  | "analysis"
+  | "methodology"
+  | "scores"
+  | "notes";
 export type CallsSearch = {
   view: "calls" | "report" | "playbooks" | "people" | "insights";
   repId?: string;
@@ -39,7 +45,11 @@ export function readCallsSearch(input: Record<string, unknown>): CallsSearch {
     result.sourceError = "The source call is missing.";
   if ((result.turnId !== undefined || result.eventId) && !result.runId)
     result.sourceError = "The source analysis is missing.";
-  if (["summary", "transcript", "analysis", "methodology", "scores"].includes(String(input.tab)))
+  if (
+    ["summary", "transcript", "analysis", "methodology", "scores", "notes"].includes(
+      String(input.tab),
+    )
+  )
     result.tab = input.tab as CallReviewTab;
   return result;
 }

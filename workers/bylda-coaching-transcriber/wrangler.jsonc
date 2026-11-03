@@ -8,6 +8,7 @@
   ],
   "account_id": "25b7202ade639506ffce966e37a116e1",
   "main": "worker.ts",
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "SUPABASE_URL": "https://ipidfqwlszuhjgjygbvx.supabase.co",
   },
