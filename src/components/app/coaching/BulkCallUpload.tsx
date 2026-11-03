@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { importRecording, validateImportFile, type ImportDeps } from "@/lib/coaching/import-one";
 import type { UploadItem } from "@/lib/coaching/types";
 import { UploadRows } from "./UploadRows";
+import { uploadCallAudio } from "@/lib/coaching/upload-audio";
 
 const deps: ImportDeps = {
-  upload: (path, file, contentType) =>
-    supabase.storage.from("call-audio").upload(path, file, { contentType, upsert: false }),
+  upload: uploadCallAudio,
   invoke: (name, body) => supabase.functions.invoke(name, { body }),
 };
 
