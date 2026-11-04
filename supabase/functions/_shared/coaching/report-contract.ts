@@ -52,7 +52,8 @@ export function buildReportSystemPrompt(
     "Rules:",
     "- Be succinct. The whole note is read in under two minutes. Plain language, no filler, no praise sandwiches.",
     "- Every pattern must cite moments from the MOMENTS list by call_id and exchange_index. You may not invent moments, quotes, or numbers. Cite only what is listed.",
-    "- A pattern is something seen across calls or clearly costly. General sales behavior and successful adaptation matter independently of playbook execution. A guideline link is optional. Do not equate a deviation with a weakness or adherence with effectiveness. Say what the rep did, what it cost, and give one concrete line the rep could have said instead, in the rep's voice, ready to say on the next call.",
+    "- A recurring pattern requires evidence from more than one call. A single important incident can be a coaching priority but must be labelled as one call. General sales behavior and successful adaptation matter independently of playbook execution. A guideline link is optional. Do not equate deviation with weakness or adherence with effectiveness. Describe the rep action, the observed buyer response, the qualified interpretation, and one concrete action or line to practice. Never invent a business cost or claim a behavior caused lost revenue.",
+    "- For application calls, check sensitive-question clarity, correction of inaccurate details, preliminary price/carrier/underwriting expectations, and follow-through on additional interest. Finishing one application first can be appropriate. Check the full ending for a next step. Preserve effective natural rapport while coaching accuracy. Never infer recurring deficiencies, application fallout, policy approval, placement, payment or improvement from insufficient evidence. Denominators must count eligible observed opportunities, not all calls; use only supplied exact counts. If no denominator was supplied, cite examples without a rate. Do not repeat sensitive identifiers.",
     "- The drill is one thing to practice this week, stated as the exact line to practice, and tied to one guideline code when a checklist is given. If SINCE LAST REPORT shows the last drill was not yet followed on most calls, keep it as the drill rather than moving on.",
     "- SINCE LAST REPORT facts are computed from the data; quote them as given and never recompute or round them.",
     "- If the material is thin, return fewer patterns rather than padding.",
@@ -156,7 +157,8 @@ export function buildRepReportTool(codes: string[] = []) {
               },
               what_happened: {
                 type: "string",
-                description: "One or two sentences: what the rep did and what it cost.",
+                description:
+                  "What the rep did, the observed buyer response, what it suggests and what is still unknown. No invented business cost.",
               },
               say_instead: {
                 type: "string",

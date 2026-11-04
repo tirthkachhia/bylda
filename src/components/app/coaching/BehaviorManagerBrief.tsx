@@ -13,6 +13,8 @@ import {
 } from "@/lib/coaching/behavior";
 import { behaviorTrend } from "../../../../supabase/functions/_shared/coaching/behavior-trends";
 import { FAMILIES } from "../../../../supabase/functions/_shared/coaching/behavior-intelligence";
+import { coachingPreferencesQuery } from "@/lib/coaching/preferences";
+import { RepPerformanceBreakdown } from "./RepPerformanceBreakdown";
 import { requestCallSource, type SourceNavigationProps } from "@/lib/coaching/source-navigation";
 
 export type BehaviorManagerBriefProps = SourceNavigationProps & {
@@ -34,11 +36,16 @@ export function BehaviorManagerBrief({
 }: BehaviorManagerBriefProps) {
   const { currentOrgId } = useAuth();
   const [now] = useState(Date.now);
+  const preferences = useQuery(coachingPreferencesQuery(currentOrgId ?? ""));
+  const confidenceFloor = preferences.data?.confidence_floor ?? "high";
+  const allowsCoaching = (confidence: string) =>
+    confidence === "high" || (confidenceFloor === "medium" && confidence === "medium");
+  const historyDays = preferences.data?.history_days ?? 60;
   const [tab, setTab] = useState<"Overview" | "Evidence" | "Trends">(initialTab);
   const q = useQuery(
     repBehaviorQuery(
       repId,
-      new Date(now - 60 * 86400_000).toISOString(),
+      new Date(now - historyDays * 86400_000).toISOString(),
       currentOrgId ?? undefined,
     ),
   );
@@ -128,7 +135,7 @@ export function BehaviorManagerBrief({
         <div>
           <h2 className="text-lg">Behavioral profile</h2>
           <p className="mt-1 text-xs text-by-text-secondary">
-            {runs.length} calls · last 60 days · latest analysis per call
+            {runs.length} calls · last {historyDays} days · latest analysis per call
           </p>
         </div>
         <div
@@ -194,6 +201,18 @@ export function BehaviorManagerBrief({
           ))}
         </div>
       )}
+      {tab === "Overview" && ready && (
+        <RepPerformanceBreakdown
+          events={eligible.filter(
+            (e) =>
+              ["high", "medium"].includes(e.assessment.confidence) &&
+              allowsCoaching(e.assessment.confidence) &&
+              feedbackAllowsRecommendation(reviewsFor(e.id)),
+          )}
+          callCount={runs.length}
+          days={historyDays}
+        />
+      )}
       {tab === "Trends" ? (
         <p className="rounded-xl border border-by-border-engraved p-4 text-xs leading-6 text-by-text-secondary">
           Comparisons need matching model, prompt, taxonomy, objective, stage and buyer constraints;
@@ -233,6 +252,7 @@ export function BehaviorManagerBrief({
                     {e.assessment.observed_progression}
                   </p>
                   {["high", "medium"].includes(e.assessment.confidence) &&
+                    allowsCoaching(e.assessment.confidence) &&
                     feedbackAllowsRecommendation(reviewsFor(e.id)) && (
                       <p className="mt-2 leading-6">{e.assessment.coaching_action}</p>
                     )}
@@ -243,40 +263,46 @@ export function BehaviorManagerBrief({
                         ? new Date(byRun.get(e.run_id)!.call_occurred_at).toLocaleDateString()
                         : "Call time unknown"}
                     </span>
-                    <button
-                      type="button"
-                      disabled={!onOpenSource || !currentOrgId}
-                      title={
-                        !onOpenSource
-                          ? "Source navigation is not available in this view"
-                          : undefined
-                      }
-                      className="rounded-md border border-by-border-control px-3 py-2 text-xs disabled:opacity-40"
-                      onClick={() => {
-                        if (!currentOrgId) return;
-                        void requestCallSource(
-                          {
-                            organizationId: currentOrgId,
-                            repId,
-                            callId: e.call_id,
-                            startSeconds: e.start_s,
-                            source: {
-                              kind: "behavior",
-                              runId: e.run_id,
-                              eventId: e.id,
-                              turnId: e.evidence.rep[0]?.turn_id,
+                    {!onOpenSource ? (
+                      <a
+                        className="rounded-md border border-by-border-control px-3 py-2 text-xs"
+                        href={`/app/crm/calls?callId=${encodeURIComponent(e.call_id)}&runId=${encodeURIComponent(e.run_id)}&eventId=${encodeURIComponent(e.id)}${e.evidence.rep[0] ? `&turnId=${e.evidence.rep[0].turn_id}` : ""}${e.start_s !== null ? `&at=${e.start_s}` : ""}`}
+                      >
+                        {e.start_s === null ? "Review source" : "Review at " + timeLabel(e.start_s)}{" "}
+                        →
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!currentOrgId}
+                        className="rounded-md border border-by-border-control px-3 py-2 text-xs disabled:opacity-40"
+                        onClick={() => {
+                          if (!currentOrgId) return;
+                          void requestCallSource(
+                            {
+                              organizationId: currentOrgId,
+                              repId,
+                              callId: e.call_id,
+                              startSeconds: e.start_s,
+                              source: {
+                                kind: "behavior",
+                                runId: e.run_id,
+                                eventId: e.id,
+                                turnId: e.evidence.rep[0]?.turn_id,
+                              },
                             },
-                          },
-                          { onOpenCall, onOpenSource },
-                        ).catch((error) =>
-                          toast.error(
-                            error instanceof Error ? error.message : "Source unavailable",
-                          ),
-                        );
-                      }}
-                    >
-                      {e.start_s === null ? "Review source" : "Review at " + timeLabel(e.start_s)} →
-                    </button>
+                            { onOpenCall, onOpenSource },
+                          ).catch((error) =>
+                            toast.error(
+                              error instanceof Error ? error.message : "Source unavailable",
+                            ),
+                          );
+                        }}
+                      >
+                        {e.start_s === null ? "Review source" : "Review at " + timeLabel(e.start_s)}{" "}
+                        →
+                      </button>
+                    )}
                   </div>
                 </article>
               ))

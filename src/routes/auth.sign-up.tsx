@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Inactive } from "@/components/app/FigmaPrimitives";
+import { OAuthSignIn } from "@/components/app/OAuthSignIn";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ function SignUp() {
   return (
     <AuthShell title="Create your workspace" subtitle="Get started with Bylda.">
       <div className="mb-5 grid">
-        <Inactive>Continue with Google</Inactive>
+        <OAuthSignIn provider="google" redirect="/onboarding" />
       </div>
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field label="Full name">

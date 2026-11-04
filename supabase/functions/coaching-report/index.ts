@@ -4,6 +4,7 @@
 // adherence for the rep's calls in the period, ranks them (report-input), asks
 // Claude to write the note (report-contract), verifies every citation, and stores
 // the result in coaching_reports. Synchronous: returns the finished report.
+import { reportBehaviorAllowed } from "../_shared/coaching/report-feedback.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { buildUsageRows, callPAL } from "../_shared/pal/index.ts";
 import {
@@ -48,18 +49,23 @@ Deno.serve(async (req) => {
   if (!serviceKey) return json({ error: "Reports are not configured" }, 503);
 
   const authorization = req.headers.get("Authorization") ?? "";
-  const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: authorization } },
-  });
-  const {
-    data: { user },
-  } = await client.auth.getUser();
-  if (!user) return json({ error: "Sign in to generate reports" }, 401);
-
   const body = (await req.json().catch(() => null)) as {
     rep_id?: unknown;
     days?: unknown;
+    requested_by?: unknown;
+    request_key?: unknown;
   } | null;
+  const internal = authorization === `Bearer ${serviceKey}`;
+  const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authorization } },
+  });
+  const user = internal
+    ? typeof body?.requested_by === "string" && /^[0-9a-f-]{36}$/i.test(body.requested_by)
+      ? { id: body.requested_by }
+      : null
+    : (await client.auth.getUser()).data.user;
+  if (!user) return json({ error: "Sign in to generate reports" }, 401);
+
   const repId = typeof body?.rep_id === "string" ? body.rep_id : "";
   if (!/^[0-9a-f-]{36}$/i.test(repId)) return json({ error: "rep_id is required" }, 400);
   const days = Math.min(365, Math.max(1, Math.round(num(body?.days, 30))));
@@ -76,6 +82,39 @@ Deno.serve(async (req) => {
   if (!rep) return json({ error: "Rep not found" }, 404);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+  if (internal) {
+    const { data: member } = await admin
+      .from("organization_members")
+      .select("role")
+      .eq("organization_id", rep.organization_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member || !["owner", "admin", "manager"].includes(member.role))
+      return json({ error: "Schedule creator no longer has manager access" }, 403);
+  }
+  const requestKey =
+    internal && typeof body?.request_key === "string" ? body.request_key.slice(0, 250) : null;
+  if (requestKey) {
+    const { data: existing, error } = await admin
+      .from("coaching_reports")
+      .select("id,status,report,call_count")
+      .eq("request_key", requestKey)
+      .eq("organization_id", rep.organization_id)
+      .maybeSingle();
+    if (error) return json({ error: "Could not check scheduled report" }, 500);
+    if (existing)
+      return json(
+        {
+          ok: existing.status === "completed",
+          report_id: existing.id,
+          report: existing.report,
+          call_count: existing.call_count,
+          status: existing.status,
+          ...(existing.status === "failed" ? { error: "Scheduled report previously failed" } : {}),
+        },
+        existing.status === "completed" ? 200 : 409,
+      );
+  }
 
   // The previous completed report defines "last time": its period is the comparison
   // window and its drill is what we check first. Without one, compare against the
@@ -249,10 +288,73 @@ Deno.serve(async (req) => {
   >();
   for (const run of behaviorRuns ?? [])
     if (!latestRuns.has(run.call_id)) latestRuns.set(run.call_id, run);
+  // Do not resurrect legacy or reviewer-rejected moments for calls with retained runs.
+  for (let i = moments.length - 1; i >= 0; i--)
+    if (latestRuns.has(moments[i].call_id)) moments.splice(i, 1);
+  const { data: preferences, error: preferenceError } = await admin
+    .from("coaching_workspace_preferences")
+    .select("confidence_floor")
+    .eq("organization_id", rep.organization_id)
+    .maybeSingle();
+  if (preferenceError) return json({ error: "Could not validate coaching preferences" }, 503);
+  const confidenceFloor = preferences?.confidence_floor ?? "medium";
+  const runIds = [...latestRuns.values()].map((r) => r.id);
+  type StoredEvent = { id: string; run_id: string; occurrence_key: string };
+  const storedEvents: StoredEvent[] = [];
+  for (let batch = 0; batch < runIds.length; batch += 100) {
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await admin
+        .from("coaching_behavior_events")
+        .select("id,run_id,occurrence_key")
+        .in("run_id", runIds.slice(batch, batch + 100))
+        .order("id")
+        .range(offset, offset + 499);
+      if (error) return json({ error: "Could not validate behavioral evidence" }, 503);
+      storedEvents.push(...(data ?? []));
+      if ((data ?? []).length < 500) break;
+    }
+  }
+  type Review = {
+    event_id: string;
+    reviewed_by: string;
+    accuracy: string;
+    usefulness: string;
+    created_at: string;
+    id: string;
+  };
+  const reviews: Review[] = [];
+  for (let batch = 0; batch < storedEvents.length; batch += 100) {
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await admin
+        .from("coaching_behavior_feedback")
+        .select("event_id,reviewed_by,accuracy,usefulness,created_at,id")
+        .in(
+          "event_id",
+          storedEvents.slice(batch, batch + 100).map((e) => e.id),
+        )
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(offset, offset + 499);
+      if (error) return json({ error: "Could not validate reviewer feedback" }, 503);
+      reviews.push(...(data ?? []));
+      if ((data ?? []).length < 500) break;
+    }
+  }
+  const eventIds = new Map(storedEvents.map((e) => [`${e.run_id}:${e.occurrence_key}`, e.id]));
   for (const [callId, run] of latestRuns)
     for (const e of run.analysis?.events ?? []) {
+      const eventId = eventIds.get(`${run.id}:${e.occurrence_key}`);
       const repEvidence = e.rep_evidence[0];
-      if (!repEvidence) continue;
+      if (
+        !eventId ||
+        !repEvidence ||
+        !reportBehaviorAllowed(
+          e,
+          reviews.filter((r) => r.event_id === eventId),
+          confidenceFloor,
+        )
+      )
+        continue;
       moments.push({
         call_id: callId,
         exchange_index: -1 - repEvidence.turn_id,
@@ -431,6 +533,7 @@ Deno.serve(async (req) => {
       playbook_version_id: playbook?.versionId ?? null,
       previous_report_id: previousReport?.id ?? null,
       input,
+      ...(requestKey ? { request_key: requestKey } : {}),
     })
     .select("id")
     .single();
@@ -458,6 +561,7 @@ Deno.serve(async (req) => {
         ].join("\n\n"),
         tool: buildRepReportTool(codes),
         maxTokens: 2500,
+        timeoutMs: 90000,
       },
       { ANTHROPIC_API_KEY: Deno.env.get("ANTHROPIC_API_KEY") },
     );
@@ -487,6 +591,10 @@ Deno.serve(async (req) => {
     })
     .eq("id", row.id);
   if (updateError) return fail(updateError.message, 500);
+  const { error: deliveryQueueError } = await admin.rpc("queue_coaching_report_delivery", {
+    p_report: row.id,
+  });
+  if (deliveryQueueError) console.error("[coaching-report] delivery queue failed", row.id);
 
   const { creditRow, usageRow } = buildUsageRows(result, {
     userId: user.id,

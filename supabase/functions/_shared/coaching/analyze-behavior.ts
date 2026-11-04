@@ -28,6 +28,7 @@ export async function analyzeBehavior(
   reviewedExamples: Array<{ family: string; interpretation: string; coaching_action: string }> = [],
   priorContext = "No sourced prior context available.",
   policies: ApprovedPolicy[] = [],
+  outputLanguage = "English",
 ) {
   const plan = chunkEvidence(source);
   const chunks: BehaviorAnalysis[] = [];
@@ -65,7 +66,7 @@ export async function analyzeBehavior(
       ).values(),
     ];
     const response = await ask({
-      systemPrompt: BEHAVIOR_SYSTEM_PROMPT,
+      systemPrompt: `${BEHAVIOR_SYSTEM_PROMPT}\nWrite explanations and coaching in ${outputLanguage}. Keep source references and source wording unchanged.`,
       tool: behaviorTool,
       maxTokens: 9000,
       userPrompt: JSON.stringify({
@@ -106,5 +107,7 @@ export async function analyzeBehavior(
     tokensIn += response.tokensIn;
     tokensOut += response.tokensOut;
   }
-  return { analysis: mergeBehavior(chunks, source), models: [...models], tokensIn, tokensOut };
+  const analysis = mergeBehavior(chunks, source);
+  analysis.prompt_version = `${analysis.prompt_version}/${outputLanguage}`;
+  return { analysis, models: [...models], tokensIn, tokensOut };
 }

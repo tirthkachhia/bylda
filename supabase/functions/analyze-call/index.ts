@@ -388,6 +388,15 @@ Deno.serve(async (req: Request) => {
   const promptContext = renderContextPackageForPrompt(contextPackage);
 
   try {
+    const { data: preferences, error: preferencesError } = await admin
+      .from("coaching_workspace_preferences")
+      .select("analysis_language")
+      .eq("organization_id", call.organization_id)
+      .maybeSingle();
+    if (preferencesError)
+      throw new Error(
+        "Coaching preferences could not load; apply the workspace-preferences migration before re-analysis.",
+      );
     const { data: reviewed, error: reviewError } = await admin
       .from("coaching_reviewed_examples")
       .select("family,assessment")
@@ -421,6 +430,7 @@ Deno.serve(async (req: Request) => {
       })),
       promptContext,
       approvedPolicies,
+      preferences?.analysis_language ?? "English",
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Behavior analysis failed";
@@ -571,7 +581,7 @@ Deno.serve(async (req: Request) => {
         rep_id: call.rep_id ?? null,
         behavior_attempt_id: behaviorAttemptId,
         started_at: behaviorStartedAt,
-        prompt_version: BEHAVIOR_PROMPT_VERSION,
+        prompt_version: behavioral.analysis.prompt_version,
         models: behavioral.models,
         tokens_in: behavioral.tokensIn,
         tokens_out: behavioral.tokensOut,

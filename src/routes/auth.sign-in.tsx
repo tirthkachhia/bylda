@@ -1,6 +1,6 @@
 import { type SearchSchemaInput, createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Inactive } from "@/components/app/FigmaPrimitives";
+import { OAuthSignIn } from "@/components/app/OAuthSignIn";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,8 +37,8 @@ function SignIn() {
   return (
     <AuthShell title="Sign in" subtitle="Welcome back.">
       <div className="grid gap-2">
-        <Inactive>Continue with Google</Inactive>
-        <Inactive>Continue with Microsoft</Inactive>
+        <OAuthSignIn provider="google" redirect={redirect} />
+        <OAuthSignIn provider="azure" redirect={redirect} />
       </div>
       <p className="my-5 text-center text-[11px] text-by-text-secondary">OR</p>
       <form className="space-y-4" onSubmit={onSubmit}>

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useGuest } from "@/lib/guest";
 import { managerHomeQuery, repsQuery } from "@/lib/queries";
 import { formatWhen, initials } from "@/lib/coaching/calls";
+import { coachingAssignmentsQuery } from "@/lib/coaching/collaboration";
 
 export function TodayBrief() {
   const { profile, currentOrgId } = useAuth();
@@ -13,6 +14,7 @@ export function TodayBrief() {
   const brief = useQuery(managerHomeQuery(currentOrgId ?? ""));
   const reps = useQuery({ ...repsQuery(currentOrgId ?? ""), enabled: !!currentOrgId && !isGuest });
   const data = brief.data;
+  const assignments = useQuery(coachingAssignmentsQuery(currentOrgId ?? ""));
   const calls = new Map((data?.calls ?? []).map((c) => [c.id, c]));
   const repNames = new Map((reps.data ?? []).map((r) => [r.id, r.name]));
   const loading = brief.isPending;
@@ -205,11 +207,52 @@ export function TodayBrief() {
         </section>
         <section>
           <h2 className="mb-3 text-xs uppercase">Coach today</h2>
-          <div className="figma-empty !min-h-20">Not available yet</div>
+          {assignments.error ? (
+            <p role="alert" className="text-xs">
+              Assignments could not load.{" "}
+              <button className="underline" onClick={() => void assignments.refetch()}>
+                Retry
+              </button>
+            </p>
+          ) : assignments.isPending ? (
+            <p className="text-xs">Loading coaching focus…</p>
+          ) : (assignments.data ?? []).filter((a) => a.status === "active").length ? (
+            <ul className="space-y-3">
+              {assignments.data
+                ?.filter((a) => a.status === "active")
+                .slice(0, 4)
+                .map((a) => (
+                  <li key={a.id}>
+                    <Link className="text-xs underline" to="/app/coaching">
+                      {repNames.get(a.rep_id) ?? "Rep"} · {a.focus} · Check-in {a.check_in_at}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p className="text-xs">
+              No active coaching assignments.{" "}
+              <Link className="underline" to="/app/coaching">
+                Assign a focus
+              </Link>
+            </p>
+          )}
         </section>
         <section>
           <h2 className="mb-3 text-xs uppercase">Team activity</h2>
-          <div className="figma-empty !min-h-20">Not available yet</div>
+          <ul className="space-y-3">
+            {(assignments.data ?? []).slice(0, 5).map((a) => (
+              <li key={a.id} className="text-xs">
+                {repNames.get(a.rep_id) ?? "Rep"} · {a.status} coaching · {formatWhen(a.updated_at)}
+              </li>
+            ))}
+          </ul>
+          {!assignments.data?.length && (
+            <p className="text-xs">
+              Saved coaching activity will appear here as your team assigns and checks in on focus
+              behaviors.
+            </p>
+          )}
         </section>
         <section>
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wide">Your reps</h2>

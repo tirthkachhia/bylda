@@ -12,6 +12,7 @@ import { integrationsQuery } from "@/lib/queries";
 import { clearLastAppPath } from "@/lib/session-restore";
 import { initials } from "@/lib/coaching/calls";
 import { behavioralNavigation, workspaceNavigation } from "@/lib/workspace-navigation";
+import { WorkspacePicker } from "./WorkspacePicker";
 
 export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
   const { user, profile, currentOrg, signOut } = useAuth(),
@@ -126,7 +127,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
     ? "Connection check failed"
     : connections.isPending
       ? "Checking sources…"
-      : `${connections.data?.filter((i) => i.is_connected).length ?? 0} sources connected`;
+      : `${connections.data?.filter((i) => i.is_connected && ["readymode", "close_io", "hubspot", "salesforce", "gohighlevel", "google_calendar", "zoom", "gong", "aircall", "googlemeet"].includes(i.integration_key)).length ?? 0} sources connected`;
   return (
     <div className="bylda light revenue-workspace v1-workspace figma-surface flex h-dvh overflow-hidden bg-by-surface-canvas text-by-text-primary">
       <a
@@ -241,20 +242,8 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
             <X size={17} />
           </button>
         </div>
-        <button
-          type="button"
-          disabled
-          title="Workspace switching is not available yet"
-          className="mb-5 flex w-full text-left items-center gap-2 rounded-lg bg-by-surface-sidebar-active/40 px-3 py-2"
-        >
-          <span className="min-w-0 flex-1">
-            <strong className="block truncate text-[13px] font-medium">
-              {currentOrg?.name || "Your workspace"}
-            </strong>
-            <span className="mt-0.5 block text-[12px] text-by-text-secondary">{sourceLabel}</span>
-          </span>
-          <img src="/figma/chevron.svg" alt="" />
-        </button>
+        <WorkspacePicker />
+        <p className="mb-3 text-[10px] text-by-text-secondary">{sourceLabel}</p>
         <FigmaPageBrowser />
         <nav aria-label="Workspace" className="space-y-1">
           {behavioralNavigation.map((item) => (

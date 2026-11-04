@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Field } from "./auth.sign-in";
 import { invokeEdge } from "@/lib/invokeEdge";
-import { Inactive } from "@/components/app/FigmaPrimitives";
 export const Route = createFileRoute("/onboarding")({ component: WorkspaceSetup });
 function WorkspaceSetup() {
   const { user, currentOrgId, currentOrg, profile, refreshProfile, loading } = useAuth();
@@ -11,6 +10,8 @@ function WorkspaceSetup() {
   const [name, setName] = useState("");
   const [teamSize, setTeamSize] = useState("");
   const [industry, setIndustry] = useState("");
+  const [salesMotion, setSalesMotion] = useState("");
+  const [salesRole, setSalesRole] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function submit() {
@@ -24,6 +25,8 @@ function WorkspaceSetup() {
           business_name: name.trim(),
           team_size: teamSize.trim(),
           industry: industry.trim(),
+          sales_motion: salesMotion,
+          sales_role: salesRole,
         },
       });
       await refreshProfile();
@@ -108,7 +111,15 @@ function WorkspaceSetup() {
                   "Transactional",
                   "Renewal / expansion",
                 ].map((t) => (
-                  <Inactive key={t}>{t}</Inactive>
+                  <button
+                    type="button"
+                    key={t}
+                    className="figma-button"
+                    aria-pressed={salesMotion === t}
+                    onClick={() => setSalesMotion(t)}
+                  >
+                    {t}
+                  </button>
                 ))}
               </div>
             </Field>
@@ -121,7 +132,15 @@ function WorkspaceSetup() {
                   "Founder",
                   "Rep",
                 ].map((t) => (
-                  <Inactive key={t}>{t}</Inactive>
+                  <button
+                    type="button"
+                    key={t}
+                    className="figma-button"
+                    aria-pressed={salesRole === t}
+                    onClick={() => setSalesRole(t)}
+                  >
+                    {t}
+                  </button>
                 ))}
               </div>
             </Field>
@@ -134,7 +153,15 @@ function WorkspaceSetup() {
               {busy ? "Creating…" : "Create workspace"}
             </button>
             <div className="mt-4">
-              <Inactive reason="Create a workspace before inviting users">Invite team</Inactive>
+              {currentOrgId ? (
+                <Link className="figma-button" to="/app/settings" search={{ tab: "users" }}>
+                  Invite team
+                </Link>
+              ) : (
+                <p className="text-xs">
+                  After creating your workspace, invite teammates under Settings → Users.
+                </p>
+              )}
             </div>
           </form>
         )}

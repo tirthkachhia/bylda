@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 
 import { useEffect, useState } from "react";
+import { AuthenticatorGate } from "@/components/app/AuthenticatorGate";
 import { LiveWorkspaceShell } from "@/components/app/LiveWorkspaceShell";
 
 import { useAuth } from "@/lib/auth";
@@ -63,7 +64,11 @@ function ProtectedAppLayout() {
     );
   }
 
-  return <AppLayout />;
+  return (
+    <AuthenticatorGate>
+      <AppLayout />
+    </AuthenticatorGate>
+  );
 }
 
 function AppLayout() {
