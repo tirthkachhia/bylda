@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { guestStore } from "@/lib/guest";
+import { clearWorkspaceView } from "./workspace-view-session";
 
 type Profile = {
   id: string;
@@ -153,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    if (user) clearWorkspaceView(user.id);
   };
   const switchWorkspace = async (organizationId: string) => {
     if (!user) throw new Error("Sign in to switch workspaces.");

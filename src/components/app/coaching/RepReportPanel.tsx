@@ -1,3 +1,6 @@
+import type { ComponentProps } from "react";
+import { useWorkspaceView } from "@/lib/workspace-view";
+import { AgentRepReportPanel } from "./AgentRepReportPanel";
 /**
  * RepReportPanel — the one-page coaching note for a rep. Generate for a period,
  * read the latest note, browse past ones. Every cited moment links back to the
@@ -50,7 +53,7 @@ function formatDate(value: string) {
   );
 }
 
-export function RepReportPanel({
+function ManagerRepReportPanel({
   repId,
   repName,
   onOpenCall,
@@ -619,5 +622,13 @@ function CallStrip({
         </table>
       </div>
     </section>
+  );
+}
+
+export function RepReportPanel(props: ComponentProps<typeof ManagerRepReportPanel>) {
+  return useWorkspaceView() === "manager" ? (
+    <ManagerRepReportPanel {...props} />
+  ) : (
+    <AgentRepReportPanel {...props} />
   );
 }

@@ -1,3 +1,6 @@
+import type { ComponentProps } from "react";
+import { useWorkspaceView } from "@/lib/workspace-view";
+import { AgentCallDetail } from "./AgentCallDetail";
 import { FigmaCallTimeline } from "./FigmaCallTimeline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, Trash2 } from "lucide-react";
@@ -16,7 +19,7 @@ import { CallNotes } from "./CallNotes";
 import { AssignmentForm } from "./CoachingAssignments";
 import type { ParsedTurn } from "../../../../supabase/functions/_shared/coaching/transcript-parse";
 export type DetailTab = "summary" | "transcript" | "analysis" | "methodology" | "scores" | "notes";
-export function CallDetail({
+function ManagerCallDetail({
   call,
   tab,
   onTab,
@@ -554,5 +557,13 @@ function LegacySummary({ call }: { call: CoachingCall }) {
         This is a legacy analysis. Re-analyze to create source-linked behavioral history.
       </p>
     </div>
+  );
+}
+
+export function CallDetail(props: ComponentProps<typeof ManagerCallDetail>) {
+  return useWorkspaceView() === "manager" ? (
+    <ManagerCallDetail {...props} />
+  ) : (
+    <AgentCallDetail {...props} />
   );
 }

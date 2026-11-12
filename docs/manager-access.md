@@ -1,6 +1,7 @@
 # Manager access
 
 - Managers sign in with their own credentials at `/auth/manager-sign-in` and land at `/app/manager`.
+- The Page 30 interface is selected only by manager sign-in after server role verification. Regular sign-in and agent OAuth retain the pre-Page-30 interface, including the sidebar, home, calls and reports, even when the account also has a manager/owner/admin role. Reloading preserves the selected view in that tab; sign-out clears it. Existing sessions default to the agent interface.
 - Owners/admins invite managers or change a member's role under Settings → Users. Manager access does not grant billing, API-key or workspace-administration privileges.
 - Managers open **Manage my agents** from their dashboard, create a team (assigned to themselves by default), and add agents by name and email. New accounts receive an invitation to set a password; existing accounts keep their credentials.
 - Adding an agent atomically creates their workspace membership, links their auth identity to the rep profile, and assigns the rep to the selected team. Invites never silently downgrade or promote existing memberships.

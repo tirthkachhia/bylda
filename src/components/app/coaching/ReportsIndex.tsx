@@ -1,3 +1,5 @@
+import { useWorkspaceView } from "@/lib/workspace-view";
+import { AgentReportsIndex } from "./AgentReportsIndex";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +10,7 @@ import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews"
 import { useState } from "react";
 import { toast } from "sonner";
 import { ReportSchedules } from "./ReportSchedules";
-export function ReportsIndex() {
+function ManagerReportsIndex() {
   const { currentOrgId, user } = useAuth();
   const permission = useQuery(coachingManagerPermissionQuery(currentOrgId ?? "", user?.id ?? ""));
   const [scheduling, setScheduling] = useState(false),
@@ -265,4 +267,8 @@ export function ReportsIndex() {
       )}
     </section>
   );
+}
+
+export function ReportsIndex() {
+  return useWorkspaceView() === "manager" ? <ManagerReportsIndex /> : <AgentReportsIndex />;
 }

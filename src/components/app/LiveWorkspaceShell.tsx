@@ -1,3 +1,6 @@
+import type { ComponentProps } from "react";
+import { useWorkspaceView } from "@/lib/workspace-view";
+import { AgentLiveWorkspaceShell } from "./AgentLiveWorkspaceShell";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -24,7 +27,7 @@ const dock = [
   { key: "settings", label: "Settings", to: "/app/settings" },
 ] as const;
 
-export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
+function ManagerLiveWorkspaceShell({ children }: { children: ReactNode }) {
   const { user, profile, currentOrg, currentOrgId, signOut } = useAuth(),
     queryClient = useQueryClient(),
     navigate = useNavigate();
@@ -421,5 +424,13 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         </footer>
       </div>
     </div>
+  );
+}
+
+export function LiveWorkspaceShell(props: ComponentProps<typeof ManagerLiveWorkspaceShell>) {
+  return useWorkspaceView() === "manager" ? (
+    <ManagerLiveWorkspaceShell {...props} />
+  ) : (
+    <AgentLiveWorkspaceShell {...props} />
   );
 }
