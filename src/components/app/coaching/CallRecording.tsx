@@ -9,11 +9,15 @@ export function CallRecording({
   recordingUrl = null,
   seekSeconds,
   seekRequest = 0,
+  playOnSeek = true,
+  onPositionChange,
 }: {
   path: string | null;
   recordingUrl?: string | null;
   seekSeconds: number | null;
   seekRequest?: number;
+  playOnSeek?: boolean;
+  onPositionChange?: (seconds: number) => void;
 }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false),
@@ -53,8 +57,8 @@ export function CallRecording({
     if (at === null) return;
     player.currentTime = at;
     setCurrent(at);
-    play();
-  }, [seekSeconds, play]);
+    if (playOnSeek) play();
+  }, [seekSeconds, play, playOnSeek]);
   useEffect(seek, [seek, seekRequest, src]);
   const move = (seconds: number) => {
     const player = audio.current;
@@ -66,6 +70,7 @@ export function CallRecording({
     if (at !== null) {
       player.currentTime = at;
       setCurrent(at);
+      onPositionChange?.(at);
     }
   };
   return (
@@ -85,7 +90,11 @@ export function CallRecording({
               );
               seek();
             }}
-            onTimeUpdate={() => setCurrent(audio.current?.currentTime ?? 0)}
+            onTimeUpdate={() => {
+              const seconds = audio.current?.currentTime ?? 0;
+              setCurrent(seconds);
+              onPositionChange?.(seconds);
+            }}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             onEnded={() => setPlaying(false)}

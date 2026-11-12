@@ -209,6 +209,9 @@ export type RepReportRow = {
   call_count: number;
   playbook_version_id: string | null;
   report: import("../../../supabase/functions/_shared/coaching/report-contract").RepReport | null;
+  adherence?:
+    | import("../../../supabase/functions/_shared/coaching/report-input").AdherenceTally[]
+    | null;
   drill_guideline_id: string | null;
   previous_report_id: string | null;
   delivered_at: string | null;

@@ -8,7 +8,7 @@ import { Link } from "@tanstack/react-router";
 export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "drawer" }) {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [unread, setUnread] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unread" | "reports">("all");
   const [busy, setBusy] = useState(false);
   const q = useQuery({
     queryKey: ["figma-notifications", user?.id],
@@ -40,14 +40,19 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
       setBusy(false);
     }
   }
-  const rows = (q.data ?? []).filter((r) => !unread || !r.read);
+  const rows = (q.data ?? []).filter((row) =>
+    filter === "unread" ? !row.read : filter === "reports" ? row.type === "coaching_report" : true,
+  );
   return (
     <section
       className={`figma-surface ${variant === "drawer" ? "figma-notification-drawer-content" : "figma-panel min-h-[calc(100dvh-72px)]"}`}
       data-design-screen="notifications"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1>Notifications</h1>
+        <div>
+          {variant === "page" && <p className="page30-label">Inbox</p>}
+          <h1>{variant === "page" ? "Your intelligence" : "Notifications"}</h1>
+        </div>
         <button
           className="figma-button"
           disabled={busy || !q.data?.some((r) => !r.read)}
@@ -57,17 +62,19 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
         </button>
       </div>
       <div className="figma-tabs" role="tablist" aria-label="Notification filter">
-        <button role="tab" aria-selected={!unread} onClick={() => setUnread(false)}>
+        <button role="tab" aria-selected={filter === "all"} onClick={() => setFilter("all")}>
           All
         </button>
-        <button role="tab" aria-selected={unread} onClick={() => setUnread(true)}>
+        <button role="tab" aria-selected={filter === "unread"} onClick={() => setFilter("unread")}>
           Unread
         </button>
-        {["Mentions", "Coaching", "Insights"].map((t) => (
-          <button role="tab" key={t} disabled>
-            {t}
-          </button>
-        ))}
+        <button
+          role="tab"
+          aria-selected={filter === "reports"}
+          onClick={() => setFilter("reports")}
+        >
+          Reports
+        </button>
       </div>
       {q.isPending ? (
         <p role="status">Loading notifications…</p>
@@ -91,6 +98,11 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
               <div className="min-w-0 flex-1">
                 <p>{r.message ?? "Workspace notification"}</p>
                 <p className="mt-2 text-xs text-by-text-secondary">{formatWhen(r.created_at)}</p>
+                {r.type === "coaching_report" && (
+                  <Link className="page30-source-link mt-2" to="/app/reports">
+                    Open reports
+                  </Link>
+                )}
               </div>
               {!r.read && (
                 <button className="figma-button" disabled={busy} onClick={() => void mark(r.id)}>
@@ -101,7 +113,13 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
           ))}
         </ul>
       ) : (
-        <p className="figma-empty">No {unread ? "unread " : ""}notifications.</p>
+        <p className="figma-empty">
+          {filter === "reports"
+            ? "No report notifications."
+            : filter === "unread"
+              ? "No unread notifications."
+              : "No notifications."}
+        </p>
       )}
       <div className="mt-6">
         <Link className="figma-button" to="/app/settings" search={{ tab: "notifications" }}>

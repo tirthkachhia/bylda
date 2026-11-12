@@ -1923,7 +1923,7 @@ export const repReportsQuery = (repId: string) =>
         const { data, error } = await db
           .from("coaching_reports")
           .select(
-            "id,rep_id,period_start,period_end,trigger,status,error_message,call_count,playbook_version_id,report,drill_guideline_id,previous_report_id,delivered_at,created_at,completed_at",
+            "id,rep_id,period_start,period_end,trigger,status,error_message,call_count,playbook_version_id,report,adherence:input->adherence,drill_guideline_id,previous_report_id,delivered_at,created_at,completed_at",
           )
           .eq("rep_id", repId)
           .order("created_at", { ascending: false })
@@ -2016,6 +2016,7 @@ export type ManagerHomeCall = {
   started_at: string | null;
   created_at: string;
   duration: number | null;
+  coachingStage: string | null;
   contactName: string;
 };
 export type ManagerHomeInsight = {
@@ -2024,40 +2025,52 @@ export type ManagerHomeInsight = {
   summary: string | null;
   created_at: string;
 };
-/** Exact workspace totals and bounded recent items, not a computed team-performance series. */
-export const managerHomeQuery = (organizationId: string) =>
+/** Exact totals and bounded recent items for a workspace or a linked rep. */
+export const managerHomeQuery = (organizationId: string, repId?: string | null) =>
   queryOptions({
-    queryKey: ["behavior-manager-home", organizationId],
-    enabled: !!organizationId && !isGuest(),
+    queryKey:
+      repId === undefined
+        ? ["behavior-manager-home", organizationId]
+        : ["behavior-manager-home", organizationId, repId],
+    enabled: !!organizationId && repId !== null && !isGuest(),
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
+      const callCount = db
+        .from("calls")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", organizationId);
+      const recentCalls = db
+        .from("calls")
+        .select("id,rep_id,contact_id,started_at,created_at,duration,metadata")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .order("id")
+        .limit(6);
+      const recentInsights = db
+        .from("call_insights")
+        .select(
+          repId
+            ? "id,call_id,summary,created_at,calls!inner(rep_id)"
+            : "id,call_id,summary,created_at",
+          { count: "exact" },
+        )
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .order("id")
+        .limit(5);
+      const recentReports = db
+        .from("coaching_reports")
+        .select("id,rep_id,period_start,period_end,status,call_count,report,created_at")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .order("id")
+        .limit(5);
       const [calls, insights, recent, reports] = await Promise.all([
-        db
-          .from("calls")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", organizationId),
-        db
-          .from("call_insights")
-          .select("id,call_id,summary,created_at", { count: "exact" })
-          .eq("organization_id", organizationId)
-          .order("created_at", { ascending: false })
-          .order("id")
-          .limit(5),
-        db
-          .from("calls")
-          .select("id,rep_id,contact_id,started_at,created_at,duration")
-          .eq("organization_id", organizationId)
-          .order("created_at", { ascending: false })
-          .order("id")
-          .limit(6),
-        db
-          .from("coaching_reports")
-          .select("id,rep_id,period_start,period_end,status,call_count,report,created_at")
-          .eq("organization_id", organizationId)
-          .order("created_at", { ascending: false })
-          .order("id")
-          .limit(5),
+        repId ? callCount.eq("rep_id", repId) : callCount,
+        repId ? recentInsights.eq("calls.rep_id", repId) : recentInsights,
+        repId ? recentCalls.eq("rep_id", repId) : recentCalls,
+        repId ? recentReports.eq("rep_id", repId) : recentReports,
       ]);
       for (const result of [calls, insights, recent, reports]) if (result.error) throw result.error;
       const insightRows = (insights.data ?? []) as ManagerHomeInsight[];
@@ -2067,7 +2080,7 @@ export const managerHomeQuery = (organizationId: string) =>
       const extra = missingIds.length
         ? await db
             .from("calls")
-            .select("id,rep_id,contact_id,started_at,created_at,duration")
+            .select("id,rep_id,contact_id,started_at,created_at,duration,metadata")
             .eq("organization_id", organizationId)
             .in("id", missingIds)
         : { data: [], error: null };
@@ -2107,12 +2120,14 @@ export const managerHomeQuery = (organizationId: string) =>
           started_at: string | null;
           created_at: string;
           duration: number | null;
+          metadata: { coaching_stage?: string } | null;
         }) => ({
           id: c.id,
           rep_id: c.rep_id,
           started_at: c.started_at,
           created_at: c.created_at,
           duration: c.duration,
+          coachingStage: c.metadata?.coaching_stage ?? null,
           contactName: names.get(c.contact_id ?? "") ?? "Uploaded recording",
         }),
       );

@@ -10,7 +10,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/coaching/calls";
 import { requestCallSource } from "@/lib/coaching/source-navigation";
-import { secondsFromCitation } from "@/lib/coaching/behavior";
+import { reportCitationSeconds } from "@/lib/coaching/behavior";
+import { ReportCallEvidence } from "./ReportCallEvidence";
 import { BehaviorManagerBrief } from "./BehaviorManagerBrief";
 import {
   generateRepReport,
@@ -21,7 +22,6 @@ import {
 import type { SourceNavigationProps } from "@/lib/coaching/source-navigation";
 import type {
   GuidelineTrend,
-  RepReport,
   RepReportRow,
   ReportCitation,
   SinceLast,
@@ -106,14 +106,16 @@ export function RepReportPanel({
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px]" data-design-screen="rep-reports">
-      <header className="flex flex-wrap items-center gap-4 rounded-xl border border-by-border-engraved bg-white p-5 lg:col-span-2">
+    <div className="page30-report-layout" data-design-screen="rep-reports">
+      <header className="page30-glass flex flex-wrap items-center gap-4 p-5 lg:col-span-2">
         <span className="flex size-12 items-center justify-center rounded-full bg-by-avatar-metal text-sm">
           {initials(repName)}
         </span>
         <div className="flex-1">
-          <h1 className="text-xl">{repName}</h1>
-          <p className="mt-1 text-xs text-by-text-secondary">Rep profile · manager view</p>
+          <h1 className="page30-profile-title">
+            {view === "reports" ? "Coaching report" : repName}
+          </h1>
+          {view === "reports" && <p className="mt-1 text-xs text-by-text-secondary">{repName}</p>}
         </div>
         <div
           className="inline-flex rounded-lg border border-by-border-engraved bg-by-surface-hover p-1"
@@ -153,10 +155,9 @@ export function RepReportPanel({
         </div>
       ) : (
         <>
-          <section className="rounded-by-card border border-black/[0.09] bg-by-surface-raised p-5 sm:p-6">
+          <section className="page30-glass min-w-0 p-5 sm:p-7">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-[16px] font-bold tracking-[-0.02em]">{repName}</h2>
                 <p className="text-[12px] text-by-text-secondary">
                   {selected
                     ? `${formatDate(selected.period_start)} – ${formatDate(selected.period_end)} · ${selected.call_count} call${selected.call_count === 1 ? "" : "s"}`
@@ -179,7 +180,7 @@ export function RepReportPanel({
                 <button
                   onClick={() => void generate()}
                   disabled={busy}
-                  className="flex h-9 items-center gap-2 rounded-full bg-by-surface-control-dark px-4 text-[11px] font-semibold text-white disabled:opacity-50"
+                  className="figma-button page30-primary"
                 >
                   {busy ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -230,16 +231,27 @@ export function RepReportPanel({
                   </div>
                 )}
                 <ReportPage
+                  key={selected.id}
+                  row={selected}
                   report={selected.report}
-                  onOpenCall={(callId, seconds) => {
+                  organizationId={currentOrgId}
+                  onOpenCall={(callId, seconds, citation) => {
                     if (!currentOrgId) return;
+                    const source = citation?.behavior_source;
                     void requestCallSource(
                       {
                         organizationId: currentOrgId,
                         repId,
                         callId,
                         startSeconds: seconds ?? null,
-                        source: { kind: "report", reportId: selected.id },
+                        source: source
+                          ? {
+                              kind: "behavior",
+                              runId: source.run_id,
+                              turnId: source.turn_id,
+                              eventId: source.event_id,
+                            }
+                          : { kind: "report", reportId: selected.id },
                       },
                       { onOpenCall, onOpenSource },
                     ).catch((error) =>
@@ -257,7 +269,7 @@ export function RepReportPanel({
             )}
           </section>
 
-          <aside className="rounded-by-card border border-black/[0.09] bg-by-surface-raised p-4">
+          <aside className="page30-glass p-4">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
               Past reports
             </h3>
@@ -291,82 +303,219 @@ export function RepReportPanel({
 }
 
 function ReportPage({
+  row,
   report,
+  organizationId,
   onOpenCall,
 }: {
-  report: RepReport;
-  onOpenCall: (callId: string, seconds?: number | null) => void;
+  row: RepReportRow;
+  report: NonNullable<RepReportRow["report"]>;
+  organizationId: string | null;
+  onOpenCall: (callId: string, seconds?: number | null, citation?: ReportCitation) => void;
 }) {
-  return (
-    <div className="mt-5 space-y-6">
-      <p className="text-[20px] font-normal leading-7 text-by-text-primary">{report.headline}</p>
+  const strength = report.strength;
+  const entries = [
+    ...report.patterns.flatMap((pattern) =>
+      pattern.cited.map((citation) => ({
+        title: pattern.title,
+        guideline: pattern.guideline,
+        description: pattern.what_happened,
+        action: pattern.say_instead,
+        citation,
+      })),
+    ),
+    ...(strength?.cited.map((citation) => ({
+      title: strength.title,
+      guideline: null,
+      description: strength.what_happened,
+      action: "",
+      citation,
+    })) ?? []),
+  ];
+  const citedCalls = [...new Set(entries.map((item) => item.citation.call_id))];
+  const tasks = new Map<string, string>();
+  if (report.drill.focus || report.drill.line_to_practice)
+    tasks.set(report.drill.line_to_practice || report.drill.focus, report.drill.focus);
+  for (const pattern of report.patterns) {
+    if (pattern.say_instead && !tasks.has(pattern.say_instead))
+      tasks.set(pattern.say_instead, pattern.title);
+  }
 
-      {report.since_last && (report.since_last.drill || report.since_last.moved.length > 0) && (
-        <SinceLastSection since={report.since_last} />
+  return (
+    <article className="page30-report" aria-label="Coaching report">
+      <header className="page30-report-hero">
+        <div>
+          <p className="page30-label">Your 30-second read</p>
+          <h2>{report.headline || "Your focus for the next calls"}</h2>
+        </div>
+        <div className="page30-report-count">
+          <strong>{row.call_count}</strong>
+          <span>Calls reviewed</span>
+        </div>
+      </header>
+
+      <div className="page30-report-columns">
+        <ReportScorecard row={row} citedCalls={citedCalls.length} />
+        <section className="page30-glass page30-report-card" aria-label="Five-call plan">
+          <h3>Your next 5 calls</h3>
+          {tasks.size ? (
+            <ol className="page30-plan">
+              {[...tasks].map(([action, label]) => (
+                <li key={action}>
+                  <div>
+                    {label && <h4>{label}</h4>}
+                    {label !== action && <p>{action}</p>}
+                  </div>
+                  <span className="page30-plan-calls" aria-label="Practice on calls 1 through 5">
+                    {[1, 2, 3, 4, 5].map((call) => (
+                      <span key={call} aria-hidden="true">
+                        {call}
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="page30-muted">This report has no saved practice drill.</p>
+          )}
+        </section>
+      </div>
+
+      {entries.length > 0 && (
+        <section className="page30-glass page30-report-card">
+          <header className="page30-section-header">
+            <h3>What happened, and what to focus on</h3>
+            <span className="page30-muted">
+              {citedCalls.length} cited {citedCalls.length === 1 ? "call" : "calls"}
+            </span>
+          </header>
+          {citedCalls.map((callId) => {
+            const moments = entries
+              .filter((item) => item.citation.call_id === callId)
+              .sort(
+                (a, b) =>
+                  (reportCitationSeconds(a.citation) ?? Infinity) -
+                  (reportCitationSeconds(b.citation) ?? Infinity),
+              );
+            return (
+              <ol
+                key={callId}
+                className="page30-moments"
+                aria-label="Call evidence in timestamp order"
+              >
+                {moments.map(({ citation, title, description, guideline, action }, index) => (
+                  <li key={`${citation.exchange_index}:${title}:${index}`}>
+                    <div className="page30-moment-name">
+                      <span className="page30-moment-number" aria-hidden="true">
+                        {index + 1}
+                      </span>
+                      <h4>{title}</h4>
+                    </div>
+                    <ReportCallEvidence
+                      citation={citation}
+                      organizationId={organizationId}
+                      repId={row.rep_id}
+                      onOpenCall={onOpenCall}
+                    />
+                    <div className="page30-moment-focus">
+                      <p className="page30-label">{action ? "Focus on" : "What happened"}</p>
+                      {action && (
+                        <p>
+                          <strong>{action}</strong>
+                        </p>
+                      )}
+                      <p>{description}</p>
+                      {guideline && <p className="page30-muted">Playbook · {guideline}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            );
+          })}
+        </section>
       )}
 
-      {report.patterns.length > 0 && (
-        <section>
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
-            Coach on
-          </h3>
-          <ol className="mt-2 space-y-5">
-            {report.patterns.map((p, i) => (
-              <li key={i}>
-                <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-[11px] font-semibold text-neutral-400">
-                    {i + 1}.
+      {strength && !strength.cited.length && (
+        <section className="page30-glass page30-report-card">
+          <h3>Keep doing</h3>
+          <h4>{strength.title}</h4>
+          <p>{strength.what_happened}</p>
+        </section>
+      )}
+      {report.since_last && (report.since_last.drill || report.since_last.moved.length > 0) ? (
+        <SinceLastSection since={report.since_last} />
+      ) : (
+        <section className="page30-glass page30-report-card">
+          <h3>Change over time</h3>
+          <p className="page30-muted">This report has no comparable prior observations.</p>
+        </section>
+      )}
+      {(report.strip?.length ?? 0) > 1 && (
+        <CallStrip strip={report.strip} onOpenCall={onOpenCall} />
+      )}
+    </article>
+  );
+}
+
+function ReportScorecard({ row, citedCalls }: { row: RepReportRow; citedCalls: number }) {
+  const since = row.report?.since_last;
+  const changes = new Map(
+    [...(since?.moved ?? []), ...(since?.drill ? [since.drill] : [])].map(
+      (item) => [item.guideline_id, item.change] as const,
+    ),
+  );
+  const scores = (row.adherence ?? [])
+    .flatMap((item) => {
+      const judged = item.followed + item.partial + item.missed;
+      if (judged <= 0) return [];
+      return [
+        {
+          ...item,
+          judged,
+          score: Math.round(((item.followed + item.partial / 2) / judged) * 100),
+          change: item.guideline_id ? changes.get(item.guideline_id) : undefined,
+        },
+      ];
+    })
+    .sort((a, b) => b.score - a.score || b.judged - a.judged);
+  return (
+    <section className="page30-glass page30-report-card" aria-label="Behavior scorecard">
+      <h3>Behavior scorecard</h3>
+      <p className="page30-muted">
+        {citedCalls} {citedCalls === 1 ? "call" : "calls"} with cited evidence
+      </p>
+      {scores.length ? (
+        <>
+          <p className="page30-muted">
+            Playbook adherence on judged calls. Partial adherence earns half credit.
+          </p>
+          <ul className="page30-scorecard">
+            {scores.map((score) => (
+              <li key={score.guideline_id ?? score.guideline}>
+                <div>
+                  <strong>{score.guideline}</strong>
+                  <span className="page30-muted">
+                    {score.followed} of {score.judged} followed
+                    {score.partial > 0 && ` · ${score.partial} partial`}
                   </span>
-                  <span className="text-[15px] font-semibold">{p.title}</span>
                 </div>
-                <p className="mt-1 text-sm leading-6 text-neutral-700">{p.what_happened}</p>
-                {p.guideline && (
-                  <p className="mt-0.5 text-[11px] text-[#4774b5]">Playbook: {p.guideline}</p>
-                )}
-                <Citations cited={p.cited} onOpenCall={onOpenCall} />
-                {p.say_instead && (
-                  <p className="mt-2 text-[13px] leading-6 text-[#28764d]">
-                    <span className="font-semibold">Say instead:</span> “{p.say_instead}”
-                  </p>
+                <meter min={0} max={100} value={score.score} aria-label={score.guideline} />
+                <strong className="font-mono">{score.score}%</strong>
+                {score.change != null && (
+                  <span className="page30-muted font-mono">
+                    {score.change > 0 ? "+" : ""}
+                    {Math.round(score.change * 100)} pp
+                  </span>
                 )}
               </li>
             ))}
-          </ol>
-        </section>
+          </ul>
+        </>
+      ) : (
+        <p className="page30-muted">No scored playbook behaviors are saved for this period.</p>
       )}
-
-      {report.strength && (
-        <section>
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
-            Keep doing
-          </h3>
-          <p className="mt-1 text-[15px] font-semibold">{report.strength.title}</p>
-          <p className="mt-1 text-sm leading-6 text-neutral-700">{report.strength.what_happened}</p>
-          <Citations cited={report.strength.cited} onOpenCall={onOpenCall} />
-        </section>
-      )}
-
-      {(report.drill.focus || report.drill.line_to_practice) && (
-        <section className="rounded-by-card border border-[#28764d]/25 bg-[#28764d]/[0.06] p-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#28764d]">
-            This week’s drill
-          </h3>
-          <p className="mt-1 text-[15px] font-semibold">{report.drill.focus}</p>
-          {report.drill.line_to_practice && (
-            <p className="mt-1 text-[13px] leading-6 text-neutral-700">
-              “{report.drill.line_to_practice}”
-            </p>
-          )}
-        </section>
-      )}
-
-      {report.strip.length > 1 && <CallStrip strip={report.strip} onOpenCall={onOpenCall} />}
-
-      <p className="text-[10px] text-neutral-400">
-        Written from this rep’s scored calls and the assigned playbook. Citations open the source
-        call where available. Missing recordings fall back to transcript evidence.
-      </p>
-    </div>
+    </section>
   );
 }
 
@@ -396,7 +545,7 @@ function TrendLine({ t, label }: { t: GuidelineTrend; label?: string }) {
 
 function SinceLastSection({ since }: { since: SinceLast }) {
   return (
-    <section className="rounded-by-card border border-black/[0.08] bg-black/[0.02] p-4">
+    <section className="page30-glass page30-report-card">
       <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
         Since last report
         {since.previous_period && (
@@ -434,10 +583,8 @@ function CallStrip({
 }) {
   const hasDrill = strip.some((s) => s.drill_status);
   return (
-    <section>
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">
-        Call by call
-      </h3>
+    <section className="page30-glass page30-report-card">
+      <h3>Call by call</h3>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead className="text-left text-[10px] uppercase tracking-[0.08em] text-neutral-500">
@@ -472,40 +619,5 @@ function CallStrip({
         </table>
       </div>
     </section>
-  );
-}
-
-function Citations({
-  cited,
-  onOpenCall,
-}: {
-  cited: ReportCitation[];
-  onOpenCall: (callId: string, seconds?: number | null) => void;
-}) {
-  if (!cited.length) return null;
-  return (
-    <ul className="mt-2 space-y-1.5">
-      {cited.map((c) => (
-        <li
-          key={`${c.call_id}#${c.exchange_index}`}
-          className="rounded-md border border-by-border-engraved bg-by-surface-hover px-3 py-3 text-[12px] leading-5"
-        >
-          <button
-            onClick={() => onOpenCall(c.call_id, secondsFromCitation(c.at))}
-            className="font-mono text-[11px] font-semibold text-[#4774b5] hover:underline"
-          >
-            Open call at {c.at}
-          </button>
-          <p>
-            <span className="font-semibold text-[#474d55]">Rep:</span> {c.rep_text}
-          </p>
-          {c.customer_text && (
-            <p className="text-neutral-600">
-              <span className="font-semibold text-[#474d55]">Customer:</span> {c.customer_text}
-            </p>
-          )}
-        </li>
-      ))}
-    </ul>
   );
 }

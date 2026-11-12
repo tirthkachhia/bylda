@@ -360,6 +360,7 @@ Deno.serve(async (req) => {
         exchange_index: -1 - repEvidence.turn_id,
         type: "behavior_observation",
         behavior_family: e.family,
+        behavior_source: { run_id: run.id, turn_id: repEvidence.turn_id, event_id: eventId },
         valence: e.result,
         score: e.result === "concern" ? 1 : 0.8,
         low_confidence: false,

@@ -215,11 +215,7 @@ export function CallDetail({
   const legacyItems = Array.isArray(vertical.playbook_adherence) ? vertical.playbook_adherence : [];
   const items = execution?.items ?? legacyItems;
   return (
-    <div
-      ref={root}
-      className="space-y-4 rounded-xl border border-by-border-engraved bg-white p-4 shadow-sm sm:p-6"
-      data-design-screen="call-review"
-    >
+    <div ref={root} className="page30-glass space-y-4 p-4 sm:p-6" data-design-screen="call-review">
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -338,7 +334,7 @@ export function CallDetail({
         </p>
       )}
       {analysis && (
-        <section className="grid gap-4 rounded-xl border border-by-border-engraved bg-by-surface-hover p-4 md:grid-cols-[minmax(0,1fr)_230px]">
+        <section className="page30-glass grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_230px]">
           <div>
             <h2 className="text-[11px] font-medium uppercase">Bylda summary</h2>
             <p className="mt-2 text-[13px] leading-6">{analysis.final_state.label}</p>
@@ -372,7 +368,7 @@ export function CallDetail({
       )}
       <nav
         aria-label="Call review sections"
-        className="flex gap-5 overflow-x-auto border-b border-by-border-engraved"
+        className="page30-call-tabs flex gap-2 overflow-x-auto"
       >
         {(
           [
@@ -389,7 +385,7 @@ export function CallDetail({
             key={key}
             aria-pressed={tab === key}
             onClick={() => onTab(key)}
-            className={`shrink-0 border-b-2 px-1 py-3 text-[13px] ${tab === key ? "border-by-text-primary font-medium" : "border-transparent text-by-text-secondary"}`}
+            className="shrink-0 rounded-full px-3 py-2 text-[13px]"
           >
             {label}
           </button>

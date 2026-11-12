@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({
   permission: true,
   held: vi.fn(),
   reports: [] as unknown[],
+  call: null as unknown,
+  source: null as unknown,
 }));
 vi.mock("@/lib/auth", () => ({
   useAuth: () => ({ currentOrgId: "org", user: { id: "manager" } }),
@@ -28,6 +30,8 @@ vi.mock("@tanstack/react-query", async (importOriginal) => ({
     if (q.queryKey[0] === "behavior-feedback")
       return { data: state.reviews, isPending: state.feedbackPending, error: state.feedbackError };
     if (q.queryKey[0] === "rep-reports") return { data: state.reports, isPending: false };
+    if (q.queryKey[0] === "coaching-call") return { data: state.call, isPending: false };
+    if (q.queryKey[0] === "behavior-run-source") return { data: state.source, isPending: false };
     return { data: state.permission, isPending: false };
   },
 }));
@@ -39,6 +43,8 @@ document.body.append(host);
 let root = createRoot(host);
 beforeEach(() => {
   state.permission = true;
+  state.call = null;
+  state.source = null;
   state.held.mockClear();
   state.feedbackError = null;
   state.feedbackPending = false;
@@ -193,6 +199,74 @@ describe("manager source and uncertainty behavior", () => {
       startSeconds: 0,
       source: { kind: "report", reportId: "report" },
     });
+  });
+  it("opens retained call evidence inline and selects transcript turns without audio", () => {
+    const turns = [
+      { speaker: "customer", text: "This is over budget", start_s: 5, end_s: 7 },
+      { speaker: "rep", text: "Where did the budget come from?", start_s: 10, end_s: 12 },
+    ];
+    state.call = {
+      id: "call",
+      rep_id: "rep",
+      contactName: "Evidence call",
+      duration: 60,
+      audio_path: null,
+      recording_url: null,
+      segments: [],
+      insight: { vertical_insights: { behavior_analysis: { run_id: "run" } } },
+    };
+    state.source = {
+      id: "run",
+      call_id: "call",
+      rep_id: "rep",
+      organization_id: "org",
+      transcript_hash: "retained",
+      source_snapshot: { structured_turns: turns, transcript_text: "" },
+      analysis: {
+        events: [
+          {
+            occurrence_key: "objection",
+            family: "objection_resolution",
+            result: "strength",
+            stage: "decision",
+            rep_behavior: "Asked a clarifying question",
+            rep_evidence: [{ turn_id: 1 }],
+            buyer_evidence: [{ turn_id: 0 }],
+          },
+        ],
+      },
+    };
+    const onOpenSource = vi.fn();
+    act(() =>
+      root.render(
+        <RepReportPanel
+          repId="rep"
+          repName="Jordan"
+          onOpenCall={vi.fn()}
+          onOpenSource={onOpenSource}
+        />,
+      ),
+    );
+    const details = host.querySelector("details")!;
+    expect(host.querySelector('[aria-label="Call timeline"]')).toBeNull();
+    act(() => {
+      details.open = true;
+      details.dispatchEvent(new Event("toggle"));
+    });
+    expect(host.querySelector('[aria-label="Call timeline"]')).not.toBeNull();
+    expect(host.textContent).toContain("Recording unavailable.");
+    expect(host.querySelector("audio")).toBeNull();
+    const marker = host.querySelector<HTMLButtonElement>('[aria-label="Behavior moments"] button')!;
+    act(() => marker.click());
+    expect(
+      host.querySelector('[aria-label="Transcript turns"] [aria-current="true"]')?.textContent,
+    ).toContain("This is over budget");
+    expect(onOpenSource).not.toHaveBeenCalled();
+    act(() => {
+      details.open = false;
+      details.dispatchEvent(new Event("toggle"));
+    });
+    expect(host.querySelector('[aria-label="Call timeline"]')).toBeNull();
   });
   it("records a manager-held conversation through the existing backend action", async () => {
     act(() => root.render(<RepReportPanel repId="rep" repName="Jordan" onOpenCall={vi.fn()} />));
