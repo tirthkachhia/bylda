@@ -72,13 +72,14 @@ export function SignIn({ manager = false }: { manager?: boolean }) {
             <OAuthSignIn provider="google" redirect={redirect} />
             <OAuthSignIn provider="azure" redirect={redirect} />
           </div>
-          <p className="my-5 text-center text-[11px] text-by-text-secondary">OR</p>
+          <p className="page30-auth-divider">Or sign in with email</p>
         </>
       )}
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field label="Work email">
           <Input
             type="email"
+            autoComplete="email"
             placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -89,6 +90,7 @@ export function SignIn({ manager = false }: { manager?: boolean }) {
         <Field label="Password">
           <Input
             type="password"
+            autoComplete="current-password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -97,7 +99,7 @@ export function SignIn({ manager = false }: { manager?: boolean }) {
           />
         </Field>
         <Button
-          className="mt-2 h-11 w-full rounded-xl bg-[#111318] text-white hover:bg-[#292e36]"
+          className="figma-button page30-primary mt-2 w-full"
           type="submit"
           disabled={loading}
         >
@@ -132,56 +134,17 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="figma-auth figma-surface" data-design-screen="authentication">
-      <section className="figma-auth-art" aria-label="Bylda">
-        <Link to="/auth/sign-in" className="figma-auth-wordmark">
-          B Y L D A
-        </Link>
-        <div className="figma-auth-orbits" aria-hidden="true">
-          {Array.from({ length: 9 }, (_, i) => {
-            const size = 120 + i * 70;
-            return (
-              <img
-                key={i}
-                src={`/figma/auth-${i}.svg`}
-                alt=""
-                style={{
-                  position: "absolute",
-                  left: `calc(50% - ${size / 2}px)`,
-                  top: `calc(50.78% - ${size / 2}px)`,
-                  maxWidth: "none",
-                }}
-              />
-            );
-          })}
-          {Array.from({ length: 12 }, (_, i) => (
-            <span
-              key={i}
-              className="figma-auth-spoke"
-              style={{ transform: `rotate(${-15 * i}deg)` }}
-            />
-          ))}
-          <img
-            src="/figma/auth-9.svg"
-            alt=""
-            style={{
-              position: "absolute",
-              left: "calc(50% - 27.7128px)",
-              top: "47.85%",
-              maxWidth: "none",
-            }}
-          />
-        </div>
-        <p className="figma-auth-message">
-          Understand your sales team without listening to every call.
-        </p>
+    <div className="page30-entry" data-design-screen="authentication">
+      <Link to="/auth/sign-in" className="page30-wordmark">
+        BYLDA
+      </Link>
+      <section className="page30-entry-message" aria-label="Bylda">
+        <p>Understand your sales team without listening to every call.</p>
       </section>
-      <main className="figma-auth-main">
-        <div className="figma-auth-form">
-          <h1>{title}</h1>
-          <p className="mb-6 mt-3 text-xs text-by-text-secondary">{subtitle}</p>
-          {children}
-        </div>
+      <main className="page30-glass page30-entry-panel">
+        <h1>{title}</h1>
+        <p className="page30-muted mb-5">{subtitle}</p>
+        {children}
       </main>
     </div>
   );

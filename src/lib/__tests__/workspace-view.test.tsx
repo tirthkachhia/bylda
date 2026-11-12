@@ -44,6 +44,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  createLink: (component: unknown) => component,
   useNavigate: () => vi.fn(),
   useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
     select({ location: { pathname: "/app", search: {} } }),
@@ -100,24 +101,22 @@ afterEach(() => {
   root = createRoot(host);
 });
 
-it("keeps the old agent shell and call table for an owner signing in normally", () => {
+it("renders Page 30 for regular sign-in and keeps agent invitation behind manager sign-in", () => {
   setWorkspaceView("owner", "agent");
   render();
   expect(host.querySelector('[data-view="agent"]')).not.toBeNull();
-  expect(host.querySelector(".workspace-rail")).not.toBeNull();
-  expect(host.querySelector(".page30-workspace")).toBeNull();
+  expect(host.querySelector(".page30-workspace")).not.toBeNull();
   expect(host.querySelector('[aria-label="Add an agent"]')).toBeNull();
-  expect(host.querySelector('[aria-label="Calls list"]')?.className).toContain("bg-white");
+  expect(host.querySelector('[aria-label="Calls list"]')?.className).toContain("page30-glass");
   expect(state.queries).toHaveBeenCalledWith(
     expect.objectContaining({ queryKey: ["permission"], enabled: false }),
   );
 });
-it("defaults existing sessions to the old UI even when a manager role is cached", () => {
+it("uses Page 30 for existing agent sessions", () => {
   render();
-  expect(host.querySelector(".workspace-rail")).not.toBeNull();
-  expect(host.querySelector(".page30-workspace")).toBeNull();
+  expect(host.querySelector(".page30-workspace")).not.toBeNull();
 });
-it("renders the Page 30 shell and calls only after manager login and role verification", () => {
+it("allows agent invitations after manager login and role verification", () => {
   setWorkspaceView("owner", "manager");
   render();
   expect(host.querySelector('[data-view="manager"]')).not.toBeNull();
@@ -125,7 +124,7 @@ it("renders the Page 30 shell and calls only after manager login and role verifi
   expect(host.querySelector('[aria-label="Add an agent"]')).not.toBeNull();
   expect(host.querySelector('[aria-label="Calls list"]')?.className).toContain("page30-glass");
 });
-it("does not show Page 30 while manager access is pending or denied", () => {
+it("keeps manager invitations inaccessible while manager access is pending or denied", () => {
   setWorkspaceView("owner", "manager");
   state.pending = true;
   render();
@@ -134,15 +133,16 @@ it("does not show Page 30 while manager access is pending or denied", () => {
   state.pending = false;
   state.allowed = false;
   render();
-  expect(host.querySelector(".page30-workspace")).toBeNull();
-  expect(host.querySelector(".workspace-rail")).not.toBeNull();
+  expect(host.querySelector(".page30-workspace")).not.toBeNull();
+  expect(host.querySelector('[aria-label="Add an agent"]')).toBeNull();
 });
 it("does not carry a manager presentation across account changes", () => {
   setWorkspaceView("owner", "manager");
   render();
   state.userId = "agent";
   render();
-  expect(host.querySelector(".page30-workspace")).toBeNull();
+  expect(host.querySelector(".page30-workspace")).not.toBeNull();
+  expect(host.querySelector('[aria-label="Add an agent"]')).toBeNull();
   expect(host.querySelector('[data-view="agent"]')).not.toBeNull();
 });
 it("uses agent UI after agent OAuth even if the account previously used manager login", () => {
@@ -150,7 +150,8 @@ it("uses agent UI after agent OAuth even if the account previously used manager 
   startAgentOAuth();
   render();
   expect(readWorkspaceView("owner")).toBe("agent");
-  expect(host.querySelector(".page30-workspace")).toBeNull();
+  expect(host.querySelector(".page30-workspace")).not.toBeNull();
+  expect(host.querySelector('[aria-label="Add an agent"]')).toBeNull();
 });
 it("preserves the chosen view on reload and clears it on sign-out", () => {
   setWorkspaceView("owner", "manager");

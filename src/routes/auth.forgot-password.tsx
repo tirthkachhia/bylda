@@ -11,6 +11,7 @@ export const Route = createFileRoute("/auth/forgot-password")({ component: Forgo
 function Forgot() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,8 +21,29 @@ function Forgot() {
     });
     setLoading(false);
     if (error) toast.error(error.message);
-    else toast.success("Reset link sent");
+    else setSent(true);
   };
+
+  if (sent) {
+    return (
+      <AuthShell
+        title="Check your email"
+        subtitle="Follow the recovery link to reset your password."
+      >
+        <p role="status" className="page30-muted">
+          Recovery requested for {email}.
+        </p>
+        <div className="page30-home-actions">
+          <Link className="figma-button page30-primary" to="/auth/sign-in">
+            Back to sign in
+          </Link>
+          <button type="button" className="figma-button" onClick={() => setSent(false)}>
+            Use another email
+          </button>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell title="Reset your password" subtitle="We'll email you a recovery link.">

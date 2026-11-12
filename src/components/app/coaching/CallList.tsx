@@ -1,6 +1,3 @@
-import type { ComponentProps } from "react";
-import { useWorkspaceView } from "@/lib/workspace-view";
-import { AgentCallList } from "./AgentCallList";
 import { formatDuration, formatWhen, initials, type CoachingCall } from "@/lib/coaching/calls";
 function callStageLabel(call: CoachingCall) {
   if (call.coaching_stage === "queued" || call.coaching_stage === "transcribing")
@@ -11,7 +8,7 @@ function callStageLabel(call: CoachingCall) {
   if (call.coaching_stage === "failed") return "Processing failed";
   return call.insight ? "Analyzed" : call.transcript ? "Transcript ready" : "Awaiting transcript";
 }
-function ManagerCallList({
+export function CallList({
   calls,
   selectedId,
   onSelect,
@@ -115,13 +112,5 @@ function ManagerCallList({
         </p>
       )}
     </section>
-  );
-}
-
-export function CallList(props: ComponentProps<typeof ManagerCallList>) {
-  return useWorkspaceView() === "manager" ? (
-    <ManagerCallList {...props} />
-  ) : (
-    <AgentCallList {...props} />
   );
 }

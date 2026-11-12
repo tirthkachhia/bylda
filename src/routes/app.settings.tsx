@@ -19,6 +19,7 @@ import { FigmaField, FigmaRow, Inactive } from "@/components/app/FigmaPrimitives
 import { initials } from "@/lib/coaching/calls";
 import { FeatureSettings, AnalysisPreferences } from "@/components/app/coaching/FeatureSettings";
 import { AccountSecurity } from "@/components/app/AccountSecurity";
+import { WorkspaceToolsNav } from "@/components/app/WorkspaceToolsNav";
 import { ProfilePhoto } from "@/components/app/ProfilePhoto";
 import { DeleteWorkspace } from "@/components/app/coaching/PrivacySettings";
 import { BillingPlans } from "@/components/app/coaching/BillingPlans";
@@ -93,54 +94,57 @@ function Settings() {
   const label =
     groups.map((g) => g[1].find(([key]) => key === tab)?.[1]).find(Boolean) ?? "Settings";
   return (
-    <div className="figma-surface figma-panel figma-settings" data-design-screen="settings">
-      <nav className="figma-settings-nav" aria-label="Settings sections">
-        {groups.map(([heading, items]) => (
-          <section key={heading}>
-            <h2>{heading}</h2>
-            {items.map(([key, name]) =>
-              key === "methodology" ? (
-                <Link key={key} to="/app/crm/calls" search={{ view: "playbooks" }}>
-                  {name}
-                </Link>
-              ) : key === "integrations" || key === "delivery" ? (
-                <Link
-                  key={key}
-                  to="/app/integrations"
-                  search={{ tab: key === "delivery" ? "delivery" : "sources" } as never}
-                >
-                  {name}
-                </Link>
-              ) : (
-                <Link
-                  key={key}
-                  to="/app/settings"
-                  search={{ tab: key }}
-                  aria-current={tab === key ? "page" : undefined}
-                >
-                  {name}
-                </Link>
-              ),
-            )}
-          </section>
-        ))}
-      </nav>
-      <div className="figma-settings-main">
-        {tab === "general" ? (
-          <General />
-        ) : tab === "profile" ? (
-          <Profile />
-        ) : tab === "users" ? (
-          <Users rolesOnly={false} />
-        ) : tab === "roles" ? (
-          <RolePermissions />
-        ) : tab === "plan" ? (
-          <Billing />
-        ) : tab === "usage" ? (
-          <Usage />
-        ) : (
-          <FeatureSettings tab={tab} />
-        )}
+    <div className="space-y-4" data-design-screen="settings">
+      <WorkspaceToolsNav active={tab} />
+      <div className="figma-panel figma-settings">
+        <nav className="figma-settings-nav" aria-label="Settings sections">
+          {groups.map(([heading, items]) => (
+            <section key={heading}>
+              <h2>{heading}</h2>
+              {items.map(([key, name]) =>
+                key === "methodology" ? (
+                  <Link key={key} to="/app/crm/calls" search={{ view: "playbooks" }}>
+                    {name}
+                  </Link>
+                ) : key === "integrations" || key === "delivery" ? (
+                  <Link
+                    key={key}
+                    to="/app/integrations"
+                    search={{ tab: key === "delivery" ? "delivery" : "sources" } as never}
+                  >
+                    {name}
+                  </Link>
+                ) : (
+                  <Link
+                    key={key}
+                    to="/app/settings"
+                    search={{ tab: key }}
+                    aria-current={tab === key ? "page" : undefined}
+                  >
+                    {name}
+                  </Link>
+                ),
+              )}
+            </section>
+          ))}
+        </nav>
+        <div className="figma-settings-main">
+          {tab === "general" ? (
+            <General />
+          ) : tab === "profile" ? (
+            <Profile />
+          ) : tab === "users" ? (
+            <Users rolesOnly={false} />
+          ) : tab === "roles" ? (
+            <RolePermissions />
+          ) : tab === "plan" ? (
+            <Billing />
+          ) : tab === "usage" ? (
+            <Usage />
+          ) : (
+            <FeatureSettings tab={tab} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -312,7 +316,7 @@ function Profile() {
     </section>
   );
 }
-function Users({ rolesOnly }: { rolesOnly: boolean }) {
+export function Users({ rolesOnly, bulk = false }: { rolesOnly: boolean; bulk?: boolean }) {
   const { currentOrgId, user } = useAuth();
   const qc = useQueryClient();
   const q = useQuery({ ...organizationMembersQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
@@ -327,14 +331,43 @@ function Users({ rolesOnly }: { rolesOnly: boolean }) {
     if (!manage || !currentOrgId || blockIfGuest()) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("team-invite", {
-        body: { organizationId: currentOrgId, email: email.trim(), role },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setEmail("");
-      await refresh();
-      toast.success(data?.status === "added_existing" ? "Member added" : "Invite sent");
+      const emails = [
+        ...new Set(
+          email
+            .split(bulk ? /[,\n]+/ : /\n/)
+            .map((value) => value.trim())
+            .filter(Boolean),
+        ),
+      ];
+      if (
+        !emails.length ||
+        emails.length > 20 ||
+        emails.some((value) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+      )
+        throw new Error("Enter up to 20 valid email addresses.");
+      const failures: string[] = [];
+      let sent = 0;
+      for (const address of emails) {
+        const { data, error } = await supabase.functions.invoke("team-invite", {
+          body: { organizationId: currentOrgId, email: address, role },
+        });
+        if (error || data?.error) {
+          if (!bulk) throw error || new Error(data.error);
+          failures.push(address);
+        } else {
+          sent++;
+          if (!bulk)
+            toast.success(data?.status === "added_existing" ? "Member added" : "Invite sent");
+        }
+      }
+      setEmail(failures.join(", "));
+      if (sent) await refresh();
+      if (bulk && sent)
+        toast.success(`${sent} ${sent === 1 ? "invitation processed" : "invitations processed"}`);
+      if (failures.length)
+        toast.error(
+          "Some invitations could not be sent. Review the remaining addresses and retry.",
+        );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Invite failed");
     } finally {
@@ -399,8 +432,24 @@ function Users({ rolesOnly }: { rolesOnly: boolean }) {
             void invite();
           }}
         >
-          <FigmaField label="Invite by email">
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <FigmaField
+            label={bulk ? "Invite by email (comma or new line separated)" : "Invite by email"}
+          >
+            {bulk ? (
+              <textarea
+                rows={2}
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            ) : (
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            )}
           </FigmaField>
           <FigmaField label="Role">
             <select value={role} onChange={(e) => setRole(e.target.value as typeof role)}>

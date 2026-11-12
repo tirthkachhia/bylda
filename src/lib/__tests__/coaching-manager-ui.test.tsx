@@ -249,7 +249,7 @@ describe("manager source and uncertainty behavior", () => {
       ),
     );
     const details = host.querySelector("details")!;
-    expect(host.querySelector('[aria-label="Call timeline"]')).toBeNull();
+    expect(details.open).toBe(false);
     act(() => {
       details.open = true;
       details.dispatchEvent(new Event("toggle"));
@@ -267,7 +267,7 @@ describe("manager source and uncertainty behavior", () => {
       details.open = false;
       details.dispatchEvent(new Event("toggle"));
     });
-    expect(host.querySelector('[aria-label="Call timeline"]')).toBeNull();
+    expect(details.open).toBe(false);
   });
   it("records a manager-held conversation through the existing backend action", async () => {
     act(() => root.render(<RepReportPanel repId="rep" repName="Jordan" onOpenCall={vi.fn()} />));

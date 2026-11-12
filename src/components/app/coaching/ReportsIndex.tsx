@@ -1,38 +1,42 @@
-import { useWorkspaceView } from "@/lib/workspace-view";
-import { AgentReportsIndex } from "./AgentReportsIndex";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { coachingManagerPermissionQuery, repsQuery } from "@/lib/queries";
+import { repsQuery } from "@/lib/queries";
 import type { RepReportRow } from "@/lib/coaching/types";
 import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
+import { canTransitionPage30 } from "@/lib/coaching/page30-motion";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ReportSchedules } from "./ReportSchedules";
-function ManagerReportsIndex() {
-  const { currentOrgId, user } = useAuth();
-  const permission = useQuery(coachingManagerPermissionQuery(currentOrgId ?? "", user?.id ?? ""));
+export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
+  const { currentOrgId } = useAuth();
+  const access = useCoachingWorkspaceAccess();
+  const focusLink = useRef<HTMLAnchorElement>(null);
   const [scheduling, setScheduling] = useState(false),
     [share, setShare] = useState(""),
     [repFilter, setRepFilter] = useState<string | null>(null),
     [period, setPeriod] = useState("");
   const reps = useQuery({ ...repsQuery(currentOrgId ?? "", true), enabled: !!currentOrgId });
   const q = useQuery({
-    queryKey: ["workspace-coaching-reports", currentOrgId],
-    enabled: !!currentOrgId,
+    queryKey: ["workspace-coaching-reports", currentOrgId, access.rep?.id],
+    enabled: !!currentOrgId && Boolean(access.manager || access.rep),
     refetchInterval: (query) =>
       query.state.data?.some((report) => report.status === "running") ? 10_000 : false,
     queryFn: async () => {
       const reports: RepReportRow[] = [];
       for (let from = 0; ; from += 500) {
-        const { data, error } = await supabase
+        let query = supabase
           .from("coaching_reports" as never)
           .select("id,rep_id,period_start,period_end,call_count,status,report,created_at")
           .eq("organization_id", currentOrgId!)
           .order("created_at", { ascending: false })
           .order("id")
           .range(from, from + 499);
+        if (access.rep) query = query.eq("rep_id", access.rep.id);
+        const { data, error } = await query;
         if (error) throw error;
         const rows = data as unknown as RepReportRow[];
         if (!Array.isArray(rows)) throw new Error("Report history unavailable");
@@ -41,9 +45,8 @@ function ManagerReportsIndex() {
       }
     },
   });
-  const email = user?.email?.toLowerCase();
-  const ownRep = email ? reps.data?.find((rep) => rep.email?.toLowerCase() === email) : undefined;
-  const selectedRep = repFilter ?? (permission.data === false ? ownRep?.id : undefined) ?? "";
+  const ownRep = access.rep;
+  const selectedRep = access.manager ? (repFilter ?? "") : (ownRep?.id ?? "");
   const scoped = (q.data ?? []).filter((report) => !selectedRep || report.rep_id === selectedRep);
   const periods = [
     ...new Set(scoped.map((report) => `${report.period_start} – ${report.period_end}`)),
@@ -53,6 +56,9 @@ function ManagerReportsIndex() {
     (report) =>
       !selectedPeriod || `${report.period_start} – ${report.period_end}` === selectedPeriod,
   );
+  useEffect(() => {
+    if (focusId && focusLink.current) focusLink.current.focus();
+  }, [focusId, q.isLoading]);
   const latest = rows.find((report) => report.status === "completed" && report.report);
   const running = rows.some((report) => report.status === "running");
   const citedCalls = latest?.report
@@ -67,13 +73,11 @@ function ManagerReportsIndex() {
     <section className="page30-library space-y-4" data-design-screen="reports-index">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="page30-label">
-            {permission.data === true ? "Manager workspace" : "Saved analysis"}
-          </p>
+          <p className="page30-label">{access.manager ? "Manager workspace" : "Saved analysis"}</p>
           <h1>
             {ownRep && selectedRep === ownRep.id
               ? "My reports"
-              : permission.data
+              : access.manager
                 ? "Team reports"
                 : "Reports"}
           </h1>
@@ -81,23 +85,38 @@ function ManagerReportsIndex() {
             Your saved coaching reports and source evidence.
           </p>
         </div>
-        <button className="figma-button" onClick={() => setScheduling((v) => !v)}>
-          Schedule a report
-        </button>
+        {access.manager && (
+          <button className="figma-button" onClick={() => setScheduling(true)}>
+            Schedule a report
+          </button>
+        )}
       </div>
-      {scheduling && <ReportSchedules />}
-      {share && (
-        <section className="rounded border p-3 text-xs">
-          <p>Workspace membership is required to open this report.</p>
+      <Dialog open={scheduling} onOpenChange={setScheduling}>
+        <DialogContent
+          className="page30-dialog max-h-[85dvh] overflow-auto"
+          aria-describedby={undefined}
+        >
+          <DialogTitle>Report schedules</DialogTitle>
+          <ReportSchedules />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(share)}
+        onOpenChange={(open) => {
+          if (!open) setShare("");
+        }}
+      >
+        <DialogContent className="page30-dialog">
+          <DialogTitle>Share report</DialogTitle>
+          <DialogDescription>Members with access can open this coaching report.</DialogDescription>
           <input
             readOnly
             aria-label="Report share link"
-            className="w-full my-2 border p-2"
             value={share}
-            onFocus={(e) => e.target.select()}
+            onFocus={(event) => event.target.select()}
           />
           <button
-            className="figma-button"
+            className="figma-button page30-primary"
             onClick={() =>
               void navigator.clipboard.writeText(share).then(
                 () => toast.success("Link copied"),
@@ -107,29 +126,28 @@ function ManagerReportsIndex() {
           >
             Copy link
           </button>
-          <button className="figma-button ml-2" onClick={() => setShare("")}>
-            Close
-          </button>
-        </section>
-      )}
+        </DialogContent>
+      </Dialog>
       <div className="page30-library-filters page30-glass">
-        <label>
-          <span>Representative</span>
-          <select
-            value={selectedRep}
-            onChange={(event) => {
-              setRepFilter(event.target.value);
-              setPeriod("");
-            }}
-          >
-            <option value="">All</option>
-            {reps.data?.map((rep) => (
-              <option key={rep.id} value={rep.id}>
-                {rep.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {access.manager && (
+          <label>
+            <span>Representative</span>
+            <select
+              value={selectedRep}
+              onChange={(event) => {
+                setRepFilter(event.target.value);
+                setPeriod("");
+              }}
+            >
+              <option value="">All</option>
+              {reps.data?.map((rep) => (
+                <option key={rep.id} value={rep.id}>
+                  {rep.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           <span>Period</span>
           <select value={selectedPeriod} onChange={(event) => setPeriod(event.target.value)}>
@@ -139,22 +157,37 @@ function ManagerReportsIndex() {
             ))}
           </select>
         </label>
-        <div className="figma-tabs" aria-label="Report views">
-          {[
-            ["daily-manager-brief", "Daily briefs"],
-            ["weekly-manager-report", "Weekly manager"],
-            ["team-report", "Team"],
-            ["behavior-report", "Behavior"],
-          ].map(([key, title]) => (
-            <FigmaViewLink key={key} screen={key} className="">
-              {title}
-            </FigmaViewLink>
-          ))}
-        </div>
+        {access.manager && (
+          <div className="figma-tabs" aria-label="Report views">
+            <Link to="/app" search={{ view: "brief" }}>
+              Daily briefs
+            </Link>
+            {[
+              ["weekly-manager-report", "Weekly manager"],
+              ["team-report", "Team"],
+              ["behavior-report", "Behavior"],
+            ].map(([key, title]) => (
+              <FigmaViewLink key={key} screen={key} className="">
+                {title}
+              </FigmaViewLink>
+            ))}
+          </div>
+        )}
       </div>
-      <FigmaViewPicker group="reports" />
-      {q.isPending ? (
-        <p role="status">Loading reports…</p>
+      {access.manager && <FigmaViewPicker group="reports" />}
+      {access.error ? (
+        <p role="alert">
+          Workspace access could not load.{" "}
+          <button className="underline" onClick={() => void access.retry()}>
+            Retry
+          </button>
+        </p>
+      ) : access.pending || q.isLoading ? (
+        <p role="status" className="page30-pending">
+          Loading reports…
+        </p>
+      ) : !access.manager && !ownRep ? (
+        <p>Ask your manager to link your account to a rep profile to see your reports.</p>
       ) : q.error ? (
         <p role="alert">
           Reports could not load.{" "}
@@ -193,11 +226,34 @@ function ManagerReportsIndex() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id}>
+                  <tr
+                    key={r.id}
+                    data-report-card={r.id}
+                    style={r.id === focusId ? { viewTransitionName: "bylda-report" } : undefined}
+                  >
                     <td>
                       <Link
+                        ref={r.id === focusId ? focusLink : undefined}
                         className="underline underline-offset-4"
                         to="/app/crm/calls"
+                        viewTransition
+                        onClick={(event) => {
+                          if (
+                            !canTransitionPage30() ||
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                          )
+                            return;
+                          const row = event.currentTarget.closest("tr");
+                          const previous = row
+                            ?.closest("tbody")
+                            ?.querySelector<HTMLElement>('[style*="view-transition-name"]');
+                          if (previous && previous !== row)
+                            previous.style.removeProperty("view-transition-name");
+                          row?.style.setProperty("view-transition-name", "bylda-report");
+                        }}
                         search={{ view: "report", repId: r.rep_id, reportId: r.id }}
                       >
                         {reps.data?.find((p) => p.id === r.rep_id)?.name ?? "Rep unavailable"} ·
@@ -267,8 +323,4 @@ function ManagerReportsIndex() {
       )}
     </section>
   );
-}
-
-export function ReportsIndex() {
-  return useWorkspaceView() === "manager" ? <ManagerReportsIndex /> : <AgentReportsIndex />;
 }

@@ -1,6 +1,3 @@
-import type { ComponentProps } from "react";
-import { useWorkspaceView } from "@/lib/workspace-view";
-import { AgentFigmaCallTimeline } from "./AgentFigmaCallTimeline";
 import { useMemo } from "react";
 import type { BehaviorAnalysis, Evidence } from "@/lib/coaching/types";
 import type { ParsedTurn } from "../../../../supabase/functions/_shared/coaching/transcript-parse";
@@ -22,19 +19,21 @@ const empty: Record<TimelineTrack, string> = {
   Control: "No timed question-and-response pairs identified.",
   Sentiment: "No retained tone annotations for this transcript.",
 };
-function ManagerFigmaCallTimeline({
+export function FigmaCallTimeline({
   analysis,
   duration,
   turns = noTurns,
   structuredTurns = null,
   onSelect,
   position = null,
+  activeMoment = null,
 }: {
   analysis: BehaviorAnalysis | null;
   duration: number | null;
   turns?: Evidence[];
   structuredTurns?: ParsedTurn[] | null;
   position?: number | null;
+  activeMoment?: string | null;
   onSelect: (e: Evidence, key: string | null) => void;
 }) {
   const timeline = useMemo(
@@ -64,6 +63,7 @@ function ManagerFigmaCallTimeline({
                   title={`${m.label} · ${timeLabel(m.start)} — ${timeLabel(m.end)}\n${m.detail}`}
                   aria-label={`${label}: ${m.label} at ${timeLabel(m.start)}`}
                   className={`page30-timeline-marker ${colors[m.color]}`}
+                  aria-pressed={m.occurrence !== null ? activeMoment === m.occurrence : undefined}
                   style={{
                     left: `${Math.min(99, (m.start / timeline.duration!) * 100)}%`,
                     width: `${Math.max(0.5, Math.min(100 - (m.start / timeline.duration!) * 100, ((m.end - m.start) / timeline.duration!) * 100))}%`,
@@ -104,7 +104,11 @@ function ManagerFigmaCallTimeline({
             .sort((a, b) => a.start - b.start)
             .map((item) => (
               <li key={item.key}>
-                <button type="button" onClick={() => onSelect(item.evidence, item.occurrence)}>
+                <button
+                  type="button"
+                  aria-pressed={activeMoment === item.occurrence}
+                  onClick={() => onSelect(item.evidence, item.occurrence)}
+                >
                   <time className="font-mono">{timeLabel(item.start)}</time> {item.label}
                 </button>
               </li>
@@ -123,13 +127,5 @@ function ManagerFigmaCallTimeline({
         </p>
       )}
     </section>
-  );
-}
-
-export function FigmaCallTimeline(props: ComponentProps<typeof ManagerFigmaCallTimeline>) {
-  return useWorkspaceView() === "manager" ? (
-    <ManagerFigmaCallTimeline {...props} />
-  ) : (
-    <AgentFigmaCallTimeline {...props} />
   );
 }

@@ -11,8 +11,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { Sentry } from "@/lib/observability";
 import appCss from "../styles.css?url";
 
-const themeBootScript = `document.documentElement.classList.remove('dark');document.documentElement.classList.add('light');document.documentElement.style.colorScheme='light';`;
-
 interface RouterContext {
   queryClient: QueryClient;
 }
@@ -82,10 +80,9 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="light" style={{ colorScheme: "light" }}>
       <head>
         <HeadContent />
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
         {children}

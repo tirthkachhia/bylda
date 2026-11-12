@@ -29,6 +29,8 @@ export function ReportCallEvidence({
   onOpenCall: (callId: string, seconds: number | null, citation: ReportCitation) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [visited, setVisited] = useState(false);
+  const disclosure = useRef<HTMLDetailsElement>(null);
   const at = reportCitationSeconds(citation);
   return (
     <>
@@ -69,14 +71,25 @@ export function ReportCallEvidence({
       </div>
       {organizationId && (
         <details
-          className="page30-evidence-details"
-          onToggle={(e) => setOpen(e.currentTarget.open)}
+          ref={disclosure}
+          className="page30-evidence-details page30-spring-disclosure"
+          onToggle={(event) => {
+            const expanded = event.currentTarget.open;
+            setOpen(expanded);
+            if (expanded) setVisited(true);
+          }}
         >
           <summary>
             <ChevronDown size={15} aria-hidden="true" /> Full behavior timeline
           </summary>
-          {open && (
+          {visited && (
             <InlineCall
+              active={open}
+              onCollapse={() => {
+                if (!disclosure.current) return;
+                disclosure.current.open = false;
+                disclosure.current.querySelector("summary")?.focus();
+              }}
               organizationId={organizationId}
               repId={repId}
               citation={citation}
@@ -94,13 +107,17 @@ function InlineCall({
   repId,
   citation,
   initialSeconds,
+  active: expanded,
+  onCollapse,
 }: {
   organizationId: string;
   repId: string;
   citation: ReportCitation;
   initialSeconds: number | null;
+  active: boolean;
+  onCollapse: () => void;
 }) {
-  const callQuery = useQuery(coachingCallQuery(organizationId, citation.call_id));
+  const callQuery = useQuery(coachingCallQuery(organizationId, citation.call_id, repId));
   const call = callQuery.data?.rep_id === repId ? callQuery.data : null;
   const savedSource = citation.behavior_source;
   const runId = savedSource?.run_id ?? call?.insight?.vertical_insights?.behavior_analysis?.run_id;
@@ -201,13 +218,16 @@ function InlineCall({
         {validSourceSeconds(call.duration) && (
           <span className="font-mono">{formatDuration(call.duration)}</span>
         )}
+        <button type="button" className="figma-button" onClick={onCollapse}>
+          Collapse timeline
+        </button>
       </header>
       {!savedSource && target && (
         <p className="page30-muted">
           Currently available call analysis. The saved excerpt appears above.
         </p>
       )}
-      {(call.audio_path || call.recording_url) && (
+      {expanded && (call.audio_path || call.recording_url) && (
         <CallRecording
           path={call.audio_path}
           recordingUrl={call.recording_url}
@@ -240,6 +260,7 @@ function InlineCall({
           turns={turns}
           structuredTurns={snapshot?.source_snapshot.structured_turns ?? null}
           position={position}
+          activeMoment={occurrence}
           onSelect={(e: Evidence, key) => select(e.start_s, e.turn_id, key)}
         />
       )}
@@ -251,6 +272,11 @@ function InlineCall({
           {event.buyer_reaction && (
             <p>
               <strong>Buyer response</strong> · {event.buyer_reaction}
+            </p>
+          )}
+          {event.coaching_action && (
+            <p>
+              <strong>Recommended action</strong> · {event.coaching_action}
             </p>
           )}
           {event.interpretation && (

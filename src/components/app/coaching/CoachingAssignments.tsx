@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { callsSearchFromSource } from "@/lib/coaching/calls-search";
+import { BehaviorManagerBrief } from "./BehaviorManagerBrief";
 import { repsQuery, coachingManagerPermissionQuery } from "@/lib/queries";
 import {
   coachingAssignmentsQuery,
@@ -134,12 +138,35 @@ function AssignmentCard({
   name,
   manager,
   onChange,
+  detailed = false,
 }: {
   row: CoachingAssignment;
   name: string;
   manager: boolean;
   onChange: () => Promise<unknown>;
+  detailed?: boolean;
 }) {
+  const { user } = useAuth();
+  const practiceKey =
+    detailed && !manager && user
+      ? `bylda-practice:${user.id}:${row.organization_id}:${row.id}`
+      : null;
+  const [practice, setPractice] = useState<{ practiced: boolean; useful: boolean | null }>(() => {
+    try {
+      if (practiceKey) {
+        const saved = JSON.parse(localStorage.getItem(practiceKey) ?? "null");
+        if (saved)
+          return {
+            practiced: saved.practiced === true,
+            useful: typeof saved.useful === "boolean" ? saved.useful : null,
+          };
+      }
+    } catch {
+      // The practice controls remain usable when browser storage is unavailable.
+    }
+    return { practiced: false, useful: null };
+  });
+  const [tab, setTab] = useState("Overview");
   const [note, setNote] = useState(row.check_in_note),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -155,18 +182,103 @@ function AssignmentCard({
       setBusy(false);
     }
   }
+  function record(patch: Partial<typeof practice>) {
+    if (!practiceKey) return;
+    const next = { ...practice, ...patch };
+    setPractice(next);
+    try {
+      localStorage.setItem(practiceKey, JSON.stringify(next));
+      setError("");
+    } catch {
+      setError(
+        "This browser could not save your practice. It is available until you leave this page.",
+      );
+    }
+  }
+  if (!detailed)
+    return (
+      <article className="page30-status-card">
+        <div className="page30-section-header">
+          <h3>
+            {name} · {row.focus}
+          </h3>
+          <span className="page30-chip">{row.status}</span>
+        </div>
+        <p>{row.note}</p>
+        <span className="page30-muted">Check-in {row.check_in_at}</span>
+        <Link className="figma-button" to="/app/coaching" search={{ assignment: row.id }}>
+          Open coaching focus
+        </Link>
+      </article>
+    );
   return (
-    <article className="rounded-xl border border-by-border-engraved p-4 space-y-3">
+    <article className="page30-glass page30-setup-panel space-y-4">
       <div className="flex flex-wrap justify-between gap-2">
-        <h3>
-          {name} · {row.focus}
-        </h3>
+        <div>
+          <p className="page30-label">Coaching · {name}</p>
+          <h1>{row.focus}</h1>
+        </div>
         <span className="text-xs">
           {row.status} · Check-in {row.check_in_at}
         </span>
       </div>
-      <p className="whitespace-pre-wrap text-sm">{row.note}</p>
-      {row.call_id && (
+      <nav className="figma-tabs" aria-label="Coaching detail">
+        {["Overview", "Evidence", "Progress", "Check-in"].map((item) => (
+          <button type="button" key={item} aria-pressed={tab === item} onClick={() => setTab(item)}>
+            {item}
+          </button>
+        ))}
+      </nav>
+      {tab === "Overview" && (
+        <section className="page30-status-card">
+          <h2>{manager ? "Focus" : "Practice"}</h2>
+          <p className="whitespace-pre-wrap">{row.note || row.focus}</p>
+          <p className="page30-muted">Check-in {row.check_in_at}</p>
+          {!manager && (
+            <div className="space-y-3">
+              <p className="page30-muted">Practice and usefulness are saved on this device.</p>
+              <div className="page30-home-actions">
+                <span>{practice.practiced ? "Practice recorded" : "Practice unconfirmed"}</span>
+                <button
+                  className="figma-button"
+                  type="button"
+                  onClick={() => record({ practiced: !practice.practiced })}
+                >
+                  {practice.practiced ? "Undo practice" : "I tried this"}
+                </button>
+                {practice.useful != null ? (
+                  <button
+                    className="figma-button"
+                    type="button"
+                    onClick={() => record({ useful: null })}
+                  >
+                    Undo feedback
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>Was this useful?</span>
+                    <button
+                      className="figma-button"
+                      type="button"
+                      onClick={() => record({ useful: true })}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      className="figma-button"
+                      type="button"
+                      onClick={() => record({ useful: false })}
+                    >
+                      No
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      {tab === "Evidence" && row.call_id && (
         <Link
           className="text-xs underline"
           to="/app/crm/calls"
@@ -179,51 +291,83 @@ function AssignmentCard({
           Open source call
         </Link>
       )}
-      {manager ? (
-        <>
-          <label className="figma-field">
-            Check-in notes
-            <textarea
-              value={note}
-              maxLength={10000}
-              rows={2}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button className="figma-button" disabled={busy} onClick={() => void save(row.status)}>
-              Save check-in
-            </button>
-            {row.status !== "completed" && (
-              <button
-                className="figma-button"
-                disabled={busy}
-                onClick={() => void save("completed")}
-              >
-                Complete
-              </button>
-            )}
-            {row.status === "completed" && (
-              <button className="figma-button" disabled={busy} onClick={() => void save("active")}>
-                Reopen
-              </button>
-            )}
-            {row.status === "active" && (
-              <button
-                className="figma-button"
-                disabled={busy}
-                onClick={() => void save("cancelled")}
-              >
-                Cancel assignment
-              </button>
-            )}
-          </div>
-        </>
-      ) : (
-        row.check_in_note && (
-          <p className="whitespace-pre-wrap text-sm">Check-in: {row.check_in_note}</p>
-        )
+      {tab === "Evidence" && !row.call_id && <p>No source call is attached to this focus.</p>}
+      {tab === "Progress" && (
+        <section className="page30-status-card">
+          <h2>Coaching progress</h2>
+          {!manager && (
+            <p>
+              {practice.practiced
+                ? "Practice recorded on this device."
+                : "Practice has not been recorded on this device."}
+            </p>
+          )}
+          <p className="page30-muted">
+            Compare retained observations across calls when enough comparable evidence is available.
+          </p>
+          <Link
+            className="figma-button"
+            to="/app/coaching"
+            search={{ view: "progress", assignment: row.id }}
+          >
+            Open progress
+          </Link>
+        </section>
       )}
+      {tab === "Check-in" &&
+        (manager ? (
+          <>
+            <label className="figma-field">
+              Check-in notes
+              <textarea
+                value={note}
+                maxLength={10000}
+                rows={2}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="figma-button"
+                disabled={busy}
+                onClick={() => void save(row.status)}
+              >
+                Save check-in
+              </button>
+              {row.status !== "completed" && (
+                <button
+                  className="figma-button"
+                  disabled={busy}
+                  onClick={() => void save("completed")}
+                >
+                  Mark as coached
+                </button>
+              )}
+              {row.status === "completed" && (
+                <button
+                  className="figma-button"
+                  disabled={busy}
+                  onClick={() => void save("active")}
+                >
+                  Undo completion
+                </button>
+              )}
+              {row.status === "active" && (
+                <button
+                  className="figma-button"
+                  disabled={busy}
+                  onClick={() => void save("cancelled")}
+                >
+                  Cancel assignment
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="whitespace-pre-wrap text-sm">
+            {row.check_in_note || "No manager check-in is saved yet."}
+          </p>
+        ))}
       {error && (
         <p role="alert" className="text-red-700 text-sm">
           {error}
@@ -234,28 +378,113 @@ function AssignmentCard({
 }
 export function CoachingAssignments({
   initialFilter = "active",
+  assignmentId,
+  progress = false,
 }: {
   initialFilter?: "active" | "follow_up" | "completed";
+  assignmentId?: string;
+  progress?: boolean;
 }) {
-  const { currentOrgId, user } = useAuth(),
+  const { currentOrgId } = useAuth(),
     org = currentOrgId ?? "";
+  const access = useCoachingWorkspaceAccess();
+  const navigate = useNavigate();
   const q = useQuery(coachingAssignmentsQuery(org)),
-    reps = useQuery(repsQuery(org)),
-    permission = useQuery(coachingManagerPermissionQuery(org, user?.id ?? ""));
+    reps = useQuery(repsQuery(org));
   const [filter, setFilter] = useState(initialFilter),
     [form, setForm] = useState(false);
   const names = new Map(reps.data?.map((r) => [r.id, r.name]));
   const today = new Date().toLocaleDateString("en-CA");
-  const rows = (q.data ?? []).filter((r) =>
+  const scoped = (q.data ?? []).filter((row) => access.manager || row.rep_id === access.rep?.id);
+  const selected = scoped.find((row) => row.id === assignmentId);
+  const rows = scoped.filter((r) =>
     filter === "completed"
       ? r.status === "completed"
       : r.status === "active" && (filter !== "follow_up" || r.check_in_at <= today),
   );
+  if (access.pending)
+    return (
+      <p role="status" className="page30-pending">
+        Checking coaching access…
+      </p>
+    );
+  if (access.error)
+    return (
+      <p role="alert">
+        Coaching access could not load.{" "}
+        <button className="underline" onClick={() => void access.retry()}>
+          Retry
+        </button>
+      </p>
+    );
+  const targetRep = selected?.rep_id ?? access.rep?.id;
+  if (progress)
+    return (
+      <section
+        className="page30-glass page30-setup-panel space-y-4"
+        data-design-screen="coaching-progress"
+      >
+        <header className="page30-section-header">
+          <div>
+            <p className="page30-label">Coaching / Progress</p>
+            <h1>{access.manager ? "Rep coaching progress" : "My coaching progress"}</h1>
+          </div>
+          <Link className="figma-button" to="/app/coaching" search={{ assignment: selected?.id }}>
+            Back to coaching
+          </Link>
+        </header>
+        {selected && (
+          <p>
+            {selected.focus} · {selected.status}
+          </p>
+        )}
+        {targetRep ? (
+          <BehaviorManagerBrief
+            repId={targetRep}
+            initialTab="Trends"
+            onOpenCall={(callId, at) =>
+              void navigate({
+                to: "/app/crm/calls",
+                search: { callId, repId: targetRep, at: at ?? undefined },
+              })
+            }
+            onOpenSource={(source) =>
+              navigate({ to: "/app/crm/calls", search: callsSearchFromSource(source) })
+            }
+          />
+        ) : (
+          <p>Select a coaching focus with a linked rep to review progress.</p>
+        )}
+      </section>
+    );
+  if (assignmentId && !q.isPending && !q.error)
+    return (
+      <section className="space-y-4" data-design-screen="coaching-detail">
+        <Link className="figma-button" to="/app/coaching">
+          Back to coaching
+        </Link>
+        {selected ? (
+          <AssignmentCard
+            key={selected.id + selected.updated_at}
+            row={selected}
+            name={names.get(selected.rep_id) ?? "Rep"}
+            manager={access.manager}
+            detailed
+            onChange={() => q.refetch()}
+          />
+        ) : (
+          <p role="alert">This coaching focus is unavailable.</p>
+        )}
+      </section>
+    );
   return (
-    <section className="figma-panel space-y-5">
+    <section
+      className="page30-glass page30-setup-panel space-y-5"
+      data-design-screen="coaching-list"
+    >
       <div className="flex justify-between gap-3">
-        <h1>Coaching</h1>
-        {permission.data && (
+        <h1>{access.manager ? "Coaching follow-up" : "My coaching"}</h1>
+        {access.manager && (
           <button className="figma-button" onClick={() => setForm((v) => !v)}>
             Assign coaching
           </button>
@@ -264,7 +493,20 @@ export function CoachingAssignments({
       <p className="text-xs text-by-text-secondary">
         Saved focus, source calls and manager check-ins.
       </p>
-      {form && <AssignmentForm onSaved={() => setForm(false)} />}
+      <Dialog open={form} onOpenChange={setForm}>
+        <DialogContent
+          className="page30-dialog max-h-[85dvh] overflow-auto"
+          aria-describedby={undefined}
+        >
+          <DialogTitle className="sr-only">Assign coaching</DialogTitle>
+          <AssignmentForm onSaved={() => setForm(false)} />
+        </DialogContent>
+      </Dialog>
+      {!access.manager && access.rep && (
+        <Link className="figma-button" to="/app/coaching" search={{ view: "progress" }}>
+          My coaching progress
+        </Link>
+      )}
       <nav className="figma-tabs" aria-label="Coaching status">
         {(["active", "follow_up", "completed"] as const).map((t) => (
           <button key={t} aria-pressed={filter === t} onClick={() => setFilter(t)}>
@@ -287,7 +529,7 @@ export function CoachingAssignments({
             key={`${row.id}:${row.updated_at}`}
             row={row}
             name={names.get(row.rep_id) ?? "Rep"}
-            manager={!!permission.data}
+            manager={access.manager}
             onChange={() => q.refetch()}
           />
         ))

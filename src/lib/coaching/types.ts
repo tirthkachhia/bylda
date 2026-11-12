@@ -183,6 +183,7 @@ export type UploadStatus =
 export type UploadItem = {
   file: File;
   status: UploadStatus;
+  progress?: number;
   callId?: string;
   message?: string;
 };

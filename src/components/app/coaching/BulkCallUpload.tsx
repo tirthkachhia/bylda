@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { importRecording, validateImportFile, type ImportDeps } from "@/lib/coaching/import-one";
@@ -22,12 +23,14 @@ export function BulkCallUpload({
   repId,
   repName,
   onImported,
+  personal = false,
 }: {
   organizationId: string;
   userId: string;
   repId: string;
   repName: string;
   onImported: () => void;
+  personal?: boolean;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -63,7 +66,15 @@ export function BulkCallUpload({
       updateItem(i, { status: "uploading" });
       try {
         const result = await importRecording(
-          { file: items[i].file, organizationId, userId, repId },
+          {
+            file: items[i].file,
+            organizationId,
+            userId,
+            repId,
+            onProgress: (uploaded, total) => {
+              if (total > 0) updateItem(i, { progress: Math.min(1, uploaded / total) });
+            },
+          },
           deps,
         );
         updateItem(i, {
@@ -85,9 +96,9 @@ export function BulkCallUpload({
   const canStart = consent && queued > 0 && !running;
 
   return (
-    <section className="rounded-by-card border border-neutral-200 bg-white p-5 text-neutral-900">
+    <section className="page30-glass page30-setup-panel">
       <div>
-        <h2 className="font-semibold">Upload recordings for {repName}</h2>
+        <h2>{personal ? "Add a recording" : `Upload recordings for ${repName}`}</h2>
         <p className="mt-1 text-xs text-neutral-500">
           Add as many recordings as you like (up to 100 MB each), then start. Each file is
           transcribed and reviewed in turn; keep this tab open until all rows finish.
@@ -127,6 +138,18 @@ export function BulkCallUpload({
       <div className="mt-4">
         <UploadRows items={items} />
       </div>
+      {items.some((item) => item.callId) && (
+        <div role="status" className="page30-status-card">
+          <strong>
+            {items.some((item) => item.status === "queued_transcription")
+              ? "Recording queued"
+              : "Recording saved"}
+          </strong>
+          <Link className="figma-button" to="/app/crm/calls" search={{ view: "status" }}>
+            View recording status
+          </Link>
+        </div>
+      )}
       <label className="my-4 flex items-start gap-2 text-xs">
         <input
           type="checkbox"
@@ -141,7 +164,7 @@ export function BulkCallUpload({
           type="button"
           disabled={!canStart}
           onClick={() => void start()}
-          className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
+          className="figma-button page30-primary"
         >
           <Upload className="h-4 w-4" />
           {running

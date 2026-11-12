@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -9,7 +10,36 @@ import { coachingAssignmentsQuery } from "@/lib/coaching/collaboration";
 import { csvText, downloadFile } from "@/lib/download";
 import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
 import { repCallCountsQuery, initials } from "@/lib/coaching/calls";
-export const Route = createFileRoute("/app/people")({ component: People });
+export const Route = createFileRoute("/app/people")({ component: PeoplePage });
+function PeoplePage() {
+  const access = useCoachingWorkspaceAccess();
+  if (access.pending)
+    return (
+      <p role="status" className="page30-pending">
+        Checking team access…
+      </p>
+    );
+  if (access.error)
+    return (
+      <p role="alert">
+        Team access could not load.{" "}
+        <button className="underline" onClick={() => void access.retry()}>
+          Retry
+        </button>
+      </p>
+    );
+  return access.manager ? (
+    <People />
+  ) : (
+    <section className="page30-glass page30-setup-panel">
+      <h1>My workspace</h1>
+      <p>Team management is available to workspace managers.</p>
+      <Link to="/app" className="figma-button mt-3">
+        Back to Intelligence
+      </Link>
+    </section>
+  );
+}
 function People() {
   const { currentOrgId } = useAuth();
   const [since] = useState(() => new Date(Date.now() - 30 * 86400_000).toISOString());
@@ -72,7 +102,10 @@ function People() {
       data-design-screen="people"
     >
       <div className="flex flex-wrap justify-between gap-4">
-        <h1>People</h1>
+        <div>
+          <p className="page30-label">Manager workspace</p>
+          <h1>Team</h1>
+        </div>
         <Link className="figma-button" to="/app/settings" search={{ tab: "users" }}>
           Manage users
         </Link>

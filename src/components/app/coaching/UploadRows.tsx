@@ -17,10 +17,7 @@ function formatSize(bytes: number) {
 export function UploadRows({ items }: { items: UploadItem[] }) {
   if (!items.length) return null;
   return (
-    <ul
-      aria-live="polite"
-      className="divide-y divide-by-border-engraved rounded-lg border border-by-border-engraved text-sm"
-    >
+    <ul className="divide-y divide-by-border-engraved rounded-lg border border-by-border-engraved text-sm">
       {items.map((item, index) => (
         <li
           key={`${item.file.name}-${index}`}
@@ -32,8 +29,22 @@ export function UploadRows({ items }: { items: UploadItem[] }) {
             role="status"
             className={`col-span-2 break-words text-xs ${item.status === "failed" ? "text-red-600" : "text-neutral-700"}`}
           >
-            {item.status === "failed" && item.message ? item.message : LABEL[item.status]}
+            {item.status === "failed" && item.message
+              ? item.message
+              : item.status === "uploading" && item.progress !== undefined && item.progress < 1
+                ? "Uploading recording"
+                : LABEL[item.status]}
           </span>
+          {item.status === "uploading" && item.progress !== undefined && item.progress < 1 && (
+            <div
+              className="page30-upload-progress col-span-2"
+              role="progressbar"
+              aria-label={`Uploading ${item.file.name}`}
+              aria-valuenow={Math.round(item.progress * 100)}
+            >
+              <span style={{ transform: `scaleX(${item.progress})` }} />
+            </div>
+          )}
         </li>
       ))}
     </ul>

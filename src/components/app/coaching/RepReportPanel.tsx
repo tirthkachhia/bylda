@@ -1,6 +1,3 @@
-import type { ComponentProps } from "react";
-import { useWorkspaceView } from "@/lib/workspace-view";
-import { AgentRepReportPanel } from "./AgentRepReportPanel";
 /**
  * RepReportPanel — the one-page coaching note for a rep. Generate for a period,
  * read the latest note, browse past ones. Every cited moment links back to the
@@ -53,7 +50,7 @@ function formatDate(value: string) {
   );
 }
 
-function ManagerRepReportPanel({
+export function RepReportPanel({
   repId,
   repName,
   onOpenCall,
@@ -109,7 +106,13 @@ function ManagerRepReportPanel({
   };
 
   return (
-    <div className="page30-report-layout" data-design-screen="rep-reports">
+    <div
+      className="page30-report-layout"
+      data-design-screen="rep-reports"
+      style={
+        view === "reports" && initialReportId ? { viewTransitionName: "bylda-report" } : undefined
+      }
+    >
       <header className="page30-glass flex flex-wrap items-center gap-4 p-5 lg:col-span-2">
         <span className="flex size-12 items-center justify-center rounded-full bg-by-avatar-metal text-sm">
           {initials(repName)}
@@ -622,13 +625,5 @@ function CallStrip({
         </table>
       </div>
     </section>
-  );
-}
-
-export function RepReportPanel(props: ComponentProps<typeof ManagerRepReportPanel>) {
-  return useWorkspaceView() === "manager" ? (
-    <ManagerRepReportPanel {...props} />
-  ) : (
-    <AgentRepReportPanel {...props} />
   );
 }
