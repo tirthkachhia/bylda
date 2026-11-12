@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { startAgentOAuth } from "@/lib/workspace-view-session";
 export function OAuthSignIn({
   provider,
   redirect = "/app",
@@ -18,6 +19,13 @@ export function OAuthSignIn({
         onClick={() => {
           setBusy(true);
           setError("");
+          try {
+            startAgentOAuth();
+          } catch {
+            setError("Browser storage is required to select your agent workspace.");
+            setBusy(false);
+            return;
+          }
           const path =
             /^\/app(?:\/|\?|$)/.test(redirect) || redirect === "/onboarding" ? redirect : "/app";
           void supabase.auth

@@ -2,6 +2,7 @@ import { act, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
+  view: "manager" as "manager" | "agent",
   permission: { data: true, isPending: false, isError: false },
   invite: vi.fn(),
   invalidate: vi.fn(),
@@ -10,6 +11,7 @@ const state = vi.hoisted(() => ({
   configure: vi.fn(),
   brief: vi.fn(),
 }));
+vi.mock("@/lib/workspace-view", () => ({ useWorkspaceView: () => state.view }));
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({ options }),
   useRouterState: () => undefined,
@@ -45,6 +47,7 @@ document.body.append(host);
 let root = createRoot(host);
 beforeEach(() => {
   vi.clearAllMocks();
+  state.view = "manager";
   state.permission = { data: true, isPending: false, isError: false };
   state.invite.mockResolvedValue({ status: "invited" });
 });
@@ -124,6 +127,12 @@ it("does not render manager data while access is pending or denied", () => {
 it("opens the existing team dashboard for verified managers", () => {
   act(() => root.render(<ManagerHome />));
   expect(host.textContent).toContain("Team intelligence");
+});
+it("requires manager sign-in even when an agent-login account holds a manager role", () => {
+  state.view = "agent";
+  act(() => root.render(<ManagerHome />));
+  expect(host.textContent).toContain("Use manager sign in");
+  expect(state.brief).not.toHaveBeenCalled();
 });
 it("checks the authenticated account's manager membership before redirecting", async () => {
   state.signIn.mockResolvedValue({ data: { user: { id: "agent" } }, error: null });

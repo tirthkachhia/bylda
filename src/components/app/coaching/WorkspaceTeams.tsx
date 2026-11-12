@@ -10,7 +10,9 @@ import {
 } from "@/lib/queries";
 import { teamsQuery, saveTeam, type Team } from "@/lib/coaching/workspace";
 import { ManagerAgents } from "./ManagerAgents";
+import { useWorkspaceView } from "@/lib/workspace-view";
 export function WorkspaceTeams() {
+  const managerView = useWorkspaceView() === "manager";
   const { currentOrgId, user } = useAuth(),
     org = currentOrgId ?? "";
   const q = useQuery(teamsQuery(org)),
@@ -69,7 +71,7 @@ export function WorkspaceTeams() {
           </button>
         )}
       </div>
-      {permission.data && !q.isPending && !q.error && (
+      {managerView && permission.data && !q.isPending && !q.error && (
         <ManagerAgents key={org} organizationId={org} teams={q.data ?? []} />
       )}
       {form && (

@@ -1,3 +1,6 @@
+import type { ComponentProps } from "react";
+import { useWorkspaceView } from "@/lib/workspace-view";
+import { AgentFigmaCallTimeline } from "./AgentFigmaCallTimeline";
 import { useMemo } from "react";
 import type { BehaviorAnalysis, Evidence } from "@/lib/coaching/types";
 import type { ParsedTurn } from "../../../../supabase/functions/_shared/coaching/transcript-parse";
@@ -19,7 +22,7 @@ const empty: Record<TimelineTrack, string> = {
   Control: "No timed question-and-response pairs identified.",
   Sentiment: "No retained tone annotations for this transcript.",
 };
-export function FigmaCallTimeline({
+function ManagerFigmaCallTimeline({
   analysis,
   duration,
   turns = noTurns,
@@ -120,5 +123,13 @@ export function FigmaCallTimeline({
         </p>
       )}
     </section>
+  );
+}
+
+export function FigmaCallTimeline(props: ComponentProps<typeof ManagerFigmaCallTimeline>) {
+  return useWorkspaceView() === "manager" ? (
+    <ManagerFigmaCallTimeline {...props} />
+  ) : (
+    <AgentFigmaCallTimeline {...props} />
   );
 }

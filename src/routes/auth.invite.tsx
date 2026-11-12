@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AuthShell } from "./auth.sign-in";
+import { setWorkspaceView } from "@/lib/workspace-view-session";
 
 export const Route = createFileRoute("/auth/invite")({
   component: InvitePage,
@@ -124,6 +125,7 @@ function InvitePage() {
         data: { user },
       } = await supabase.auth.getUser();
       const workspace = workspaceHint ?? user?.user_metadata?.invited_workspace_id;
+      if (user) setWorkspaceView(user.id, "agent");
       if (workspace && user) {
         const { data: member, error: memberError } = await supabase
           .from("organization_members")

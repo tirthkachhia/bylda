@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { configureLoginWorkspace } from "@/lib/manager-access";
+import { setWorkspaceView } from "@/lib/workspace-view-session";
 
 export const Route = createFileRoute("/auth/sign-in")({
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput) => ({
@@ -44,9 +45,16 @@ export function SignIn({ manager = false }: { manager?: boolean }) {
       if (error) throw error;
       if (!data.user) throw new Error("Sign-in could not be verified.");
       await configureLoginWorkspace(data.user.id, manager);
+      setWorkspaceView(data.user.id, manager ? "manager" : "agent");
       // Reload so AuthProvider reads the verified workspace preference, including
       // when an existing agent already has a personal workspace.
-      window.location.replace(redirect ?? (manager ? "/app/manager" : "/app"));
+      window.location.replace(
+        manager
+          ? (redirect ?? "/app/manager")
+          : redirect?.startsWith("/app/manager")
+            ? "/app"
+            : (redirect ?? "/app"),
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not sign in");
     } finally {

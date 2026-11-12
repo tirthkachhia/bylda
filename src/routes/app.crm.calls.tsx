@@ -35,6 +35,7 @@ import { CallDetail } from "@/components/app/coaching/CallDetail";
 import { PlaybooksPanel } from "@/components/app/coaching/PlaybooksPanel";
 import { RepReportPanel } from "@/components/app/coaching/RepReportPanel";
 import { coachingPreferencesQuery } from "@/lib/coaching/preferences";
+import { useWorkspaceView } from "@/lib/workspace-view";
 export const Route = createFileRoute("/app/crm/calls")({
   validateSearch: (input: Record<string, unknown> & SearchSchemaInput) => readCallsSearch(input),
   component: CallsPage,
@@ -48,6 +49,7 @@ function CallsPage() {
   ) : null;
 }
 function CallsWorkspace({ organizationId, userId }: { organizationId: string; userId: string }) {
+  const managerView = useWorkspaceView() === "manager";
   const preferences = useQuery(coachingPreferencesQuery(organizationId));
   const search = Route.useSearch(),
     navigate = Route.useNavigate(),
@@ -290,23 +292,31 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   >
                     <RefreshCw size={15} />
                   </button>
-                  <button
-                    type="button"
-                    aria-pressed={analysisFilter === "processing"}
-                    className="figma-button"
-                    onClick={() =>
-                      setAnalysisFilter((value) => (value === "processing" ? "all" : "processing"))
-                    }
-                  >
-                    Recording status
-                  </button>
+                  {managerView && (
+                    <button
+                      type="button"
+                      aria-pressed={analysisFilter === "processing"}
+                      className="figma-button"
+                      onClick={() =>
+                        setAnalysisFilter((value) =>
+                          value === "processing" ? "all" : "processing",
+                        )
+                      }
+                    >
+                      Recording status
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setShowUpload(!(showUpload || search.upload));
                       update({ upload: undefined });
                     }}
-                    className="figma-button page30-primary"
+                    className={
+                      managerView
+                        ? "figma-button page30-primary"
+                        : "flex items-center gap-2 rounded-md border border-by-border-control bg-white px-3 py-2 text-xs"
+                    }
                   >
                     <Upload size={14} />
                     {showUpload || search.upload ? "Hide upload" : "Upload calls"}
@@ -515,7 +525,13 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
             </>
           ) : (
             <>
-              <section className="page30-glass space-y-4 p-4">
+              <section
+                className={
+                  managerView
+                    ? "page30-glass space-y-4 p-4"
+                    : "space-y-4 rounded-xl border border-by-border-engraved bg-gradient-to-br from-by-surface-sidebar via-white to-by-surface-hover p-4"
+                }
+              >
                 <div className="flex flex-wrap items-end gap-5">
                   <div>
                     <label className="mb-2 block text-xs font-medium">Whose calls</label>
@@ -544,7 +560,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                       <option value="all">All loaded calls</option>
                       <option value="analyzed">Analyzed</option>
                       <option value="pending">Awaiting analysis</option>
-                      <option value="processing">Processing recordings</option>
+                      {managerView && <option value="processing">Processing recordings</option>}
                     </select>
                   </div>
                   <div>
@@ -650,7 +666,13 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   Loading calls…
                 </p>
               ) : !calls.length && !list.error && !days && !search.repId ? (
-                <section className="page30-glass p-8">
+                <section
+                  className={
+                    managerView
+                      ? "page30-glass p-8"
+                      : "rounded-xl border border-by-border-engraved bg-white p-8"
+                  }
+                >
                   <h2 className="text-xl">No calls yet</h2>
                   <p className="mt-3 text-sm leading-6 text-by-text-secondary">
                     Connect your recorder or upload a recording. Each analyzed conversation gets a
@@ -659,7 +681,11 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   <button
                     type="button"
                     onClick={() => setShowUpload(true)}
-                    className="figma-button page30-primary mt-5"
+                    className={
+                      managerView
+                        ? "figma-button page30-primary mt-5"
+                        : "mt-5 rounded-md bg-by-surface-control-dark px-4 py-2.5 text-sm text-white"
+                    }
                   >
                     Upload a recording
                   </button>

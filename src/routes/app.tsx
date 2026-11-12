@@ -6,6 +6,7 @@ import { LiveWorkspaceShell } from "@/components/app/LiveWorkspaceShell";
 
 import { useAuth } from "@/lib/auth";
 import { saveLastAppPath } from "@/lib/session-restore";
+import { WorkspaceViewProvider } from "@/lib/workspace-view";
 
 export const Route = createFileRoute("/app")({
   component: ProtectedAppLayout,
@@ -66,7 +67,9 @@ function ProtectedAppLayout() {
 
   return (
     <AuthenticatorGate>
-      <AppLayout />
+      <WorkspaceViewProvider>
+        <AppLayout />
+      </WorkspaceViewProvider>
     </AuthenticatorGate>
   );
 }

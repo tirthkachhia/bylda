@@ -1,3 +1,6 @@
+import type { ComponentProps } from "react";
+import { useWorkspaceView } from "@/lib/workspace-view";
+import { AgentTodayBrief } from "./AgentTodayBrief";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, RefreshCw } from "lucide-react";
@@ -7,7 +10,7 @@ import { managerHomeQuery, repsQuery } from "@/lib/queries";
 import { formatWhen, initials } from "@/lib/coaching/calls";
 import { coachingAssignmentsQuery } from "@/lib/coaching/collaboration";
 
-export function TodayBrief({ personal = false }: { personal?: boolean }) {
+function ManagerTodayBrief({ personal = false }: { personal?: boolean }) {
   const { currentOrgId, currentOrg, user } = useAuth();
   const { isGuest } = useGuest();
   const reps = useQuery({ ...repsQuery(currentOrgId ?? ""), enabled: !!currentOrgId && !isGuest });
@@ -362,4 +365,8 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
       </div>
     </section>
   );
+}
+
+export function TodayBrief(props: ComponentProps<typeof ManagerTodayBrief>) {
+  return useWorkspaceView() === "manager" ? <ManagerTodayBrief {...props} /> : <AgentTodayBrief />;
 }

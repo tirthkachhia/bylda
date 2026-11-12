@@ -1,3 +1,6 @@
+import type { ComponentProps } from "react";
+import { useWorkspaceView } from "@/lib/workspace-view";
+import { AgentFigmaNotifications } from "./AgentFigmaNotifications";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { formatWhen } from "@/lib/coaching/calls";
 import { Link } from "@tanstack/react-router";
-export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "drawer" }) {
+function ManagerFigmaNotifications({ variant = "page" }: { variant?: "page" | "drawer" }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "unread" | "reports">("all");
@@ -131,5 +134,13 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
         are shown when the corresponding saved events exist.
       </p>
     </section>
+  );
+}
+
+export function FigmaNotifications(props: ComponentProps<typeof ManagerFigmaNotifications>) {
+  return useWorkspaceView() === "manager" ? (
+    <ManagerFigmaNotifications {...props} />
+  ) : (
+    <AgentFigmaNotifications />
   );
 }

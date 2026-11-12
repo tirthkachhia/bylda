@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("@/lib/workspace-view", () => ({ useWorkspaceView: () => "manager" }));
 const state = vi.hoisted(() => ({
   history: { runs: [], events: [] } as unknown,
   reviews: [] as unknown[],
