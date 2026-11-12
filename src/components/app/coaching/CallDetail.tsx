@@ -1,5 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import { FigmaCallTimeline } from "./FigmaCallTimeline";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDuration, formatWhen, segmentLines, type CoachingCall } from "@/lib/coaching/calls";
@@ -22,6 +24,7 @@ export function CallDetail({
   onTab,
   onReanalyze,
   onDelete,
+  canAssign = true,
   seekSeconds = null,
   seekRequest = 0,
   sourceTurns = null,
@@ -38,6 +41,7 @@ export function CallDetail({
   onTab: (tab: DetailTab) => void;
   onReanalyze?: (id: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  canAssign?: boolean;
   seekSeconds?: number | null;
   seekRequest?: number;
   sourceTurns?: Evidence[] | null;
@@ -50,8 +54,17 @@ export function CallDetail({
   confidenceFloor?: "medium" | "high";
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const dialogTrigger = useRef<HTMLButtonElement>(null);
+  const restoreFocus = (event: Event) => {
+    event.preventDefault();
+    (dialogTrigger.current?.isConnected ? dialogTrigger.current : root.current)?.focus({
+      preventScroll: true,
+    });
+  };
   const [assigning, setAssigning] = useState(false);
   const [shareLink, setShareLink] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [playbackPosition, setPlaybackPosition] = useState<number | null>(null);
   const [localSeek, setLocalSeek] = useState(seekSeconds),
     [request, setRequest] = useState(seekRequest),
     [highlight, setHighlight] = useState<number | null>(highlightedTurnId),
@@ -88,6 +101,18 @@ export function CallDetail({
           seconds: secondsFromCitation(line.time),
         }))
       : [];
+  const playingLine =
+    playbackPosition === null
+      ? undefined
+      : lines.reduce<(typeof lines)[number] | undefined>(
+          (active, line) =>
+            line.seconds !== null &&
+            line.seconds <= playbackPosition &&
+            (!active || line.seconds >= (active.seconds ?? 0))
+              ? line
+              : active,
+          undefined,
+        );
   const visible = lines.filter((line) =>
     `${line.speaker} ${line.text}`.toLowerCase().includes(transcriptSearch.toLowerCase()),
   );
@@ -106,7 +131,12 @@ export function CallDetail({
           : [...scope.querySelectorAll<HTMLElement>("[data-call-time]")]
               .filter((e) => Number(e.dataset.callTime) <= localSeek)
               .at(-1);
-      (exact ?? timed)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      (exact ?? timed)?.scrollIntoView?.({
+        block: "nearest",
+        behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
     });
     return () => cancelAnimationFrame(id);
   }, [tab, highlight, localSeek, request, sourceRunId]);
@@ -135,15 +165,11 @@ export function CallDetail({
     }
   }
   async function remove() {
-    if (
-      !onDelete ||
-      deleting ||
-      !window.confirm("Delete this call, recording and retained analysis history?")
-    )
-      return;
+    if (!onDelete || deleting) return;
     setDeleting(true);
     try {
       await onDelete(call.id);
+      setDeleteOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Delete failed");
     } finally {
@@ -174,9 +200,14 @@ export function CallDetail({
         {visible.map((line) => (
           <div
             key={line.key}
+            aria-current={
+              playingLine?.key === line.key || (highlight !== null && highlight === line.turnId)
+                ? true
+                : undefined
+            }
             data-source-turn={line.turnId ?? undefined}
             data-call-time={line.seconds ?? undefined}
-            className={`grid grid-cols-[75px_minmax(0,1fr)] gap-3 border-b border-by-border-engraved p-4 text-[13px] ${highlight !== null && highlight === line.turnId ? "bg-amber-100" : "bg-white"}`}
+            className="page30-transcript-line grid grid-cols-[75px_minmax(0,1fr)] gap-3 border-b border-by-border-engraved p-4 text-[13px]"
           >
             <div>
               <button
@@ -215,7 +246,12 @@ export function CallDetail({
   const legacyItems = Array.isArray(vertical.playbook_adherence) ? vertical.playbook_adherence : [];
   const items = execution?.items ?? legacyItems;
   return (
-    <div ref={root} className="page30-glass space-y-4 p-4 sm:p-6" data-design-screen="call-review">
+    <div
+      ref={root}
+      tabIndex={-1}
+      className="page30-glass space-y-4 p-4 sm:p-6"
+      data-design-screen="call-review"
+    >
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -236,7 +272,8 @@ export function CallDetail({
             <button
               type="button"
               className="figma-button"
-              onClick={() => {
+              onClick={(event) => {
+                dialogTrigger.current = event.currentTarget;
                 const url = new URL("/app/crm/calls", window.location.origin);
                 url.searchParams.set("callId", call.id);
                 if (sourceRunId) url.searchParams.set("runId", sourceRunId);
@@ -250,9 +287,18 @@ export function CallDetail({
             <button type="button" className="figma-button" onClick={() => onTab("notes")}>
               Add note
             </button>
-            <button type="button" className="figma-button" onClick={() => setAssigning((v) => !v)}>
-              Assign coaching
-            </button>
+            {canAssign && call.rep_id && (
+              <button
+                type="button"
+                className="figma-button"
+                onClick={(event) => {
+                  dialogTrigger.current = event.currentTarget;
+                  setAssigning(true);
+                }}
+              >
+                Assign coaching
+              </button>
+            )}
             {onReanalyze && call.transcript && (
               <button
                 type="button"
@@ -269,7 +315,10 @@ export function CallDetail({
                 type="button"
                 disabled={deleting}
                 aria-label="Delete call"
-                onClick={() => void remove()}
+                onClick={(event) => {
+                  dialogTrigger.current = event.currentTarget;
+                  setDeleteOpen(true);
+                }}
                 className="rounded-md border border-by-border-control p-2 text-red-700 disabled:opacity-40"
               >
                 <Trash2 size={14} />
@@ -278,22 +327,26 @@ export function CallDetail({
           </div>
         </div>
       </header>
-      {shareLink && (
-        <section
-          className="rounded-lg border border-by-border-engraved p-4 text-xs"
-          aria-label="Share call"
-        >
-          <p>Only signed-in members of this workspace can open this call.</p>
+      <Dialog
+        open={Boolean(shareLink)}
+        onOpenChange={(open) => {
+          if (!open) setShareLink("");
+        }}
+      >
+        <DialogContent className="page30-dialog" onCloseAutoFocus={restoreFocus}>
+          <DialogTitle>Share call</DialogTitle>
+          <DialogDescription>
+            Only signed-in members with access to this call can open the link.
+          </DialogDescription>
           <input
             aria-label="Call share link"
             readOnly
             value={shareLink}
-            onFocus={(e) => e.target.select()}
-            className="my-2 w-full rounded border p-2"
+            onFocus={(event) => event.target.select()}
           />
           <button
             type="button"
-            className="figma-button"
+            className="figma-button page30-primary"
             onClick={() =>
               void navigator.clipboard.writeText(shareLink).then(
                 () => toast.success("Link copied"),
@@ -303,19 +356,57 @@ export function CallDetail({
           >
             Copy link
           </button>
-          <button type="button" className="figma-button ml-2" onClick={() => setShareLink("")}>
-            Close
-          </button>
-        </section>
-      )}
-      {assigning && (
-        <AssignmentForm
-          presetRepId={call.rep_id ?? undefined}
-          callId={call.id}
-          runId={sourceRunId}
-          onSaved={() => setAssigning(false)}
-        />
-      )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={assigning} onOpenChange={setAssigning}>
+        <DialogContent
+          className="page30-dialog max-h-[85dvh] overflow-auto"
+          onCloseAutoFocus={restoreFocus}
+          aria-describedby={undefined}
+        >
+          <DialogTitle className="sr-only">Assign coaching</DialogTitle>
+          <AssignmentForm
+            presetRepId={call.rep_id ?? undefined}
+            callId={call.id}
+            runId={sourceRunId}
+            onSaved={() => {
+              setAssigning(false);
+              toast.success("Coaching focus assigned");
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!deleting) setDeleteOpen(open);
+        }}
+      >
+        <DialogContent className="page30-dialog" onCloseAutoFocus={restoreFocus}>
+          <DialogTitle>Delete call?</DialogTitle>
+          <DialogDescription>
+            This removes the call, recording and retained analysis history.
+          </DialogDescription>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className="figma-button"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="figma-button text-red-700"
+              onClick={() => void remove()}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete call"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {processing && (
         <p
           role="status"
@@ -331,6 +422,15 @@ export function CallDetail({
         <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs">
           {call.coaching_error ||
             "Latest processing did not complete. Previous retained results are preserved; re-analyze to retry."}
+          {!call.transcript && (
+            <Link
+              className="figma-button ml-2"
+              to="/app/crm/calls"
+              search={{ upload: true, repId: call.rep_id ?? undefined }}
+            >
+              Upload recording again
+            </Link>
+          )}
         </p>
       )}
       {analysis && (
@@ -397,12 +497,15 @@ export function CallDetail({
         recordingUrl={call.recording_url}
         seekSeconds={localSeek}
         seekRequest={request}
+        onPositionChange={setPlaybackPosition}
       />
       <FigmaCallTimeline
         analysis={analysis ?? null}
         duration={call.duration}
         turns={sourceTurns ?? []}
         structuredTurns={sourceStructuredTurns}
+        position={playbackPosition ?? localSeek}
+        activeMoment={moment}
         onSelect={(e, key) => {
           if (key) setMoment(key);
           selectEvidence(e, "summary");

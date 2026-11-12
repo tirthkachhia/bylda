@@ -250,7 +250,7 @@ export function BehaviorInsights({
       >
         <summary className="cursor-pointer text-sm font-medium">Six independent judgments</summary>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {Object.entries(analysis.dimensions).map(([key, f]) => (
+          {Object.entries(analysis.dimensions ?? {}).map(([key, f]) => (
             <article key={key} className="rounded-xl border border-by-border-engraved p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-medium">

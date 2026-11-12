@@ -797,3 +797,680 @@
   font-size: 1.25rem;
   line-height: 1.2;
 }
+
+:root {
+  --page30-motion: 340ms;
+  --page30-press: 125ms;
+  --page30-spring: linear(0, 0.21 11%, 0.48 23%, 0.71 37%, 0.87 52%, 0.96 69%, 1);
+}
+
+.page30-entry {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  grid-template-rows: auto 1fr;
+  gap: 32px clamp(26px, 8vw, 130px);
+  align-items: center;
+  padding: clamp(22px, 4.5vw, 68px) clamp(24px, 6vw, 104px);
+  background: var(--by-page30-glow), var(--by-page30-canvas);
+  color: var(--by-page30-ink);
+  font:
+    14px / 1.5 Geist,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.page30-wordmark {
+  width: fit-content;
+  grid-column: 1 / -1;
+  border: 1px solid var(--by-page30-rim);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.page30-entry-message p {
+  max-width: 21ch;
+  margin-block-end: 14dvh;
+  font-size: clamp(1.7rem, 3.3vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.13;
+  text-wrap: balance;
+}
+
+.page30-entry-panel,
+.page30-setup-panel {
+  padding: clamp(16px, 3vw, 36px);
+}
+
+.page30-entry h1 {
+  font-size: clamp(1.65rem, 3vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.16;
+  margin-block-end: 10px;
+}
+
+.page30-entry .figma-button {
+  border-radius: 999px;
+  border-color: var(--by-page30-rule);
+  color: var(--by-page30-ink);
+  background: var(--by-page30-fill);
+  min-height: 36px;
+}
+
+.page30-entry .page30-primary,
+.page30-entry .figma-button-primary,
+.page30-entry [aria-pressed="true"] {
+  border-color: var(--by-page30-lime);
+  background: var(--by-page30-lime);
+  color: var(--by-page30-ink);
+  font-weight: 600;
+}
+
+.page30-entry :is(input:not([type="checkbox"], [type="radio"], [type="file"]), textarea, select) {
+  background: var(--by-page30-fill);
+  border-color: var(--by-page30-rule);
+}
+
+.page30-entry :focus-visible {
+  outline: 2px solid var(--by-page30-green);
+  outline-offset: 3px;
+}
+
+.page30-auth-divider {
+  margin-block: 16px;
+  color: var(--by-page30-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.page30-setup {
+  grid-template-columns: minmax(150px, 230px) minmax(0, 1040px);
+  align-items: start;
+  align-content: start;
+  gap: 18px clamp(16px, 3vw, 34px);
+}
+
+.page30-setup-nav {
+  padding: 16px;
+}
+
+.page30-setup-nav h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-block-end: 14px;
+}
+
+.page30-setup-nav ol {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.page30-setup-nav li :is(a, span) {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--by-page30-rim);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.page30-setup-nav li [aria-current="step"] {
+  background: var(--by-page30-lime);
+  color: var(--by-page30-ink);
+  font-weight: 650;
+}
+
+.page30-setup-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(175px, 0.36fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.page30-setup-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-block: 18px;
+}
+
+.page30-setup-options legend {
+  padding-bottom: 8px;
+  font-weight: 600;
+}
+
+.page30-setup-options label {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px;
+  border: 1px solid var(--by-page30-rule);
+  border-radius: 8px;
+}
+
+.page30-status-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: clamp(12px, 2vw, 20px);
+  border: 1px solid var(--by-page30-rule);
+  border-radius: 14px;
+}
+
+.page30-status-card h2 {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 1.125rem;
+  font-weight: 650;
+}
+
+.page30-status-card > a {
+  justify-self: start;
+}
+
+.page30-pending::before {
+  content: "";
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-inline-end: 0.55em;
+  border: 1.5px solid var(--by-page30-rule);
+  border-top-color: var(--by-page30-green);
+  border-radius: 100%;
+  vertical-align: -0.07em;
+  animation: page30-spinner 780ms linear infinite;
+}
+
+@keyframes page30-spinner {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.page30-disclosure {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--by-page30-rule);
+  border-radius: 12px;
+}
+
+.page30-disclosure > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.page30-workspace
+  :is(.figma-button, .page30-dock-tabs a, .page30-composer, .page30-call-tabs button),
+.page30-entry :is(button, a) {
+  transition:
+    scale var(--page30-press) ease-out,
+    background-color var(--page30-press) ease-out,
+    box-shadow var(--page30-press) ease-out;
+}
+
+.page30-workspace
+  :is(.figma-button, .page30-composer, .page30-call-tabs button):hover:not(:disabled),
+.page30-entry :is(button, a):hover:not(:disabled) {
+  box-shadow: var(--by-page30-shadow);
+}
+
+.page30-workspace :is(button, .page30-dock-tabs a):active:not(:disabled),
+.page30-entry :is(button, a):active:not(:disabled) {
+  scale: 0.98;
+}
+
+.page30-dialog[data-state="open"],
+.page30-workspace .page30-view,
+.page30-setup-body > *,
+.page30-evidence-details[open] .page30-inline-call,
+.page30-disclosure[open] > :not(summary) {
+  animation: page30-arrive var(--page30-motion) var(--page30-spring);
+}
+
+.page30-drawer:not([hidden]) {
+  animation: page30-slide-in var(--page30-motion) var(--page30-spring);
+}
+
+@keyframes page30-arrive {
+  from {
+    opacity: 0;
+    translate: 0 7px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes page30-slide-in {
+  from {
+    opacity: 0.4;
+    translate: -18px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (max-width: 850px) {
+  .page30-setup-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .page30-entry,
+  .page30-setup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .page30-entry-message p {
+    margin: 0;
+  }
+  .page30-setup-nav ol {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --page30-motion: 120ms;
+    --page30-press: 0ms;
+    --page30-spring: ease-out;
+  }
+  .page30-dialog[data-state="open"],
+  .page30-workspace .page30-view,
+  .page30-setup-body > *,
+  .page30-evidence-details[open] .page30-inline-call,
+  .page30-disclosure[open] > :not(summary),
+  .page30-drawer:not([hidden]) {
+    animation-name: page30-fade;
+  }
+  .page30-workspace :is(button, a):active,
+  .page30-entry :is(button, a):active {
+    scale: 1;
+  }
+  .page30-pending::before {
+    animation: none;
+  }
+}
+
+@keyframes page30-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .page30-entry {
+    background: var(--by-page30-opaque);
+  }
+}
+
+.page30-dock-tabs {
+  position: relative;
+}
+.page30-dock-tabs a {
+  position: relative;
+  z-index: 1;
+}
+.page30-dock-tabs a[aria-current="page"] {
+  background: transparent;
+}
+.page30-dock-lens {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--dock-lens-width, 0px);
+  height: var(--dock-lens-height, 0px);
+  opacity: var(--dock-lens-opacity, 0);
+  translate: var(--dock-lens-left, 0px) var(--dock-lens-top, 0px);
+  transition:
+    translate var(--page30-motion) var(--page30-spring),
+    width var(--page30-motion) var(--page30-spring),
+    opacity 100ms ease-out;
+  border-radius: 999px;
+  background: var(--by-page30-lime);
+  pointer-events: none;
+}
+
+.page30-composer input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px;
+  background: transparent;
+}
+
+.page30-composer-arrow:disabled {
+  opacity: 0.6;
+}
+.page30-view[hidden] {
+  display: none;
+}
+.page30-role-picker {
+  position: relative;
+  margin-inline-start: auto;
+}
+.page30-role-picker summary {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+.page30-role-menu {
+  position: absolute;
+  z-index: 6;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 230px;
+  border: 1px solid var(--by-page30-rule);
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: var(--by-page30-shadow);
+}
+.page30-role-menu > div {
+  margin: 0;
+}
+.page30-search span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.page30-search-shortcut {
+  color: var(--by-page30-muted);
+}
+.page30-search-results h1,
+.page30-context-answer h1 {
+  font:
+    650 1.6rem / 1.25 Geist,
+    system-ui,
+    sans-serif;
+}
+.page30-context-answer article {
+  margin-top: 16px;
+}
+.page30-context-answer article h2 {
+  font-size: 1.15rem;
+}
+.page30-search-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--by-page30-rule);
+  border-radius: 12px;
+  padding: 5px 7px 5px 12px;
+}
+.page30-search-form input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+}
+.page30-result-link {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .page30-role-picker {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page30-dock-lens {
+    transition: opacity 120ms ease-out;
+  }
+}
+
+.page30-workspace .page30-drawer {
+  overflow: hidden;
+  width: 0;
+  transition: width var(--page30-motion) var(--page30-spring);
+  animation: none;
+}
+
+.page30-workspace .page30-drawer[data-expanded="true"] {
+  width: 248px;
+}
+
+.page30-drawer-body {
+  display: flex;
+  flex-direction: column;
+  width: 248px;
+  height: 100%;
+  overflow: auto;
+  padding: 14px 12px;
+}
+
+.page30-sidebar-scrim {
+  display: none;
+}
+.page30-context-answer:focus {
+  outline: none;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .page30-dock-tabs a:hover {
+    scale: 1.04;
+  }
+  .page30-dock-tabs a:active {
+    scale: 0.98;
+  }
+  .page30-home article:has(a:hover, button:hover) {
+    transform: translateY(-2px);
+    box-shadow: var(--by-page30-shadow);
+  }
+  .page30-home article {
+    transition:
+      transform var(--page30-press),
+      box-shadow var(--page30-press);
+  }
+}
+
+@media (max-width: 780px) {
+  .page30-sidebar-scrim {
+    display: block;
+  }
+  .page30-workspace .page30-drawer {
+    position: fixed;
+    z-index: 40;
+    inset: 0 auto 0 0;
+    width: min(248px, 90vw);
+    translate: -100% 0;
+    transition: translate var(--page30-motion) var(--page30-spring);
+  }
+  .page30-workspace .page30-drawer[data-expanded="true"] {
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page30-workspace .page30-drawer {
+    transition: none;
+  }
+}
+
+.page30-start {
+  display: grid;
+  gap: 12px;
+  max-width: 660px;
+  margin: clamp(28px, 12vh, 140px) auto 40px;
+}
+.page30-start > a {
+  justify-self: start;
+}
+
+::view-transition-group(bylda-report),
+::view-transition-group(bylda-setup) {
+  animation-duration: var(--page30-motion);
+  animation-timing-function: var(--page30-spring);
+}
+
+.page30-setup-body {
+  view-transition-name: bylda-setup;
+  min-width: 0;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms;
+  }
+}
+
+.page30-tool-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  width: fit-content;
+  padding: 6px;
+}
+
+.page30-tool-tabs a {
+  padding: 7px 12px;
+  border-radius: 999px;
+  text-align: center;
+}
+
+.page30-tool-tabs a[aria-current="page"] {
+  background: var(--by-page30-lime);
+  font-weight: 600;
+}
+
+.page30-evidence-details.page30-spring-disclosure,
+.page30-evidence-details.page30-spring-disclosure[open] {
+  grid-column: 1 / -1;
+}
+
+@supports (interpolate-size: allow-keywords) {
+  .page30-spring-disclosure::details-content {
+    interpolate-size: allow-keywords;
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size var(--page30-motion) var(--page30-spring),
+      content-visibility var(--page30-motion) allow-discrete;
+  }
+
+  .page30-spring-disclosure[open]::details-content {
+    block-size: auto;
+  }
+}
+
+.page30-evidence-details[open] .page30-inline-call {
+  animation: none;
+}
+.page30-evidence-details > summary svg {
+  transition: rotate var(--page30-press) ease-out;
+}
+
+.page30-timeline-marker,
+.page30-timeline-events button,
+.page30-transcript > div,
+.page30-transcript-line {
+  transition:
+    scale var(--page30-press) ease-out,
+    background-color var(--page30-press) ease-out,
+    box-shadow var(--page30-press) ease-out;
+}
+
+.page30-timeline-marker[aria-pressed="true"],
+.page30-timeline-events button[aria-pressed="true"],
+.page30-transcript-line[aria-current="true"] {
+  background-color: var(--by-page30-lime);
+  color: var(--by-page30-ink);
+}
+
+.page30-timeline-marker:hover {
+  scale: 1.035;
+  z-index: 1;
+}
+.page30-timeline-position {
+  transition: left 150ms linear;
+}
+.page30-upload-progress {
+  border-radius: 999px;
+  height: 5px;
+  overflow: hidden;
+  background: var(--by-page30-rule);
+}
+.page30-upload-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--by-page30-lime);
+  transform-origin: left center;
+  transition: transform 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page30-spring-disclosure::details-content,
+  .page30-timeline-position,
+  .page30-upload-progress > span {
+    transition: none;
+  }
+  .page30-timeline-marker:hover {
+    scale: 1;
+  }
+}
+
+.page30-dialog[data-state="open"] {
+  animation: page30-modal-enter var(--page30-motion) var(--page30-spring);
+}
+@keyframes page30-modal-enter {
+  from {
+    scale: 0.985;
+    opacity: 0;
+    translate: 0 6px;
+  }
+  to {
+    scale: 1;
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.page30-dialog :is(input, textarea):not([type="checkbox"], [type="radio"]) {
+  border: 1px solid var(--by-page30-rule);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+.page30-dialog .figma-button {
+  border-radius: 999px;
+  color: var(--by-page30-ink);
+  border-color: var(--by-page30-rule);
+  background: var(--by-page30-fill);
+}
+.page30-dialog .page30-primary {
+  border-color: var(--by-page30-lime);
+  background: var(--by-page30-lime);
+}
+@media (prefers-reduced-motion: reduce) {
+  .page30-dialog[data-state="open"] {
+    animation-name: page30-fade;
+  }
+}

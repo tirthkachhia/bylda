@@ -150,3 +150,32 @@ export async function updateCoachingAssignment(
   if (!data) throw new Error("Assignment changed or permission was denied. Refresh and retry.");
   return data as CoachingAssignment;
 }
+
+type AssignmentPractice = { practiced: boolean; useful: boolean | null };
+
+export const assignmentPracticeQuery = (assignmentId: string, userId: string, manager: boolean) =>
+  queryOptions({
+    queryKey: ["coaching-assignment-practice", assignmentId, userId, manager],
+    enabled: Boolean(assignmentId && userId),
+    queryFn: async (): Promise<AssignmentPractice | null> => {
+      let query = db
+        .from("coaching_assignment_practice")
+        .select("practiced,useful")
+        .eq("assignment_id", assignmentId);
+      if (!manager) query = query.eq("user_id", userId);
+      const { data, error } = await query.limit(1).maybeSingle();
+      if (error) throw error;
+      return data ?? null;
+    },
+  });
+
+export async function saveAssignmentPractice(
+  assignmentId: string,
+  patch: Partial<AssignmentPractice>,
+) {
+  const { error } = await db.rpc("record_coaching_assignment_practice", {
+    assignment: assignmentId,
+    patch,
+  });
+  if (error) throw error;
+}

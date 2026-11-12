@@ -1,24 +1,28 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ArrowUpRight, RefreshCw } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useGuest } from "@/lib/guest";
 import { managerHomeQuery, repsQuery } from "@/lib/queries";
-import { formatWhen, initials } from "@/lib/coaching/calls";
+import { coachingCallQuery, formatWhen, initials, segmentLines } from "@/lib/coaching/calls";
 import { coachingAssignmentsQuery } from "@/lib/coaching/collaboration";
 
-export function TodayBrief({ personal = false }: { personal?: boolean }) {
+export function TodayBrief({
+  personal = false,
+  briefOnly = false,
+}: {
+  personal?: boolean;
+  briefOnly?: boolean;
+}) {
   const { currentOrgId, currentOrg, user } = useAuth();
+  const [attentionOpen, setAttentionOpen] = useState(false);
   const { isGuest } = useGuest();
   const reps = useQuery({ ...repsQuery(currentOrgId ?? ""), enabled: !!currentOrgId && !isGuest });
   const assignments = useQuery(coachingAssignmentsQuery(currentOrgId ?? ""));
   const repNames = new Map((reps.data ?? []).map((rep) => [rep.id, rep.name]));
-  const email = user?.email?.toLowerCase();
-  const ownRep =
-    reps.data?.find((rep) => rep.user_id === user?.id) ??
-    (email
-      ? reps.data?.find((rep) => !rep.user_id && rep.email?.toLowerCase() === email)
-      : undefined);
+  const ownRep = user?.id ? reps.data?.find((rep) => rep.user_id === user.id) : undefined;
   const brief = useQuery(
     managerHomeQuery(currentOrgId ?? "", personal ? (ownRep?.id ?? null) : undefined),
   );
@@ -55,11 +59,16 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
                   : "first-use";
 
   return (
-    <section className="page30-home" data-design-screen={personal ? "rep-home" : "manager-home"}>
+    <section
+      className="page30-home"
+      data-design-screen={briefOnly ? "manager-brief" : personal ? "rep-home" : "manager-home"}
+    >
       <header className="page30-section-header">
         <div>
           <p className="page30-label">{personal ? "Personal workspace" : "Manager workspace"}</p>
-          <h1>{personal ? "My intelligence" : "Team intelligence"}</h1>
+          <h1>
+            {briefOnly ? "Daily manager brief" : personal ? "My intelligence" : "Team intelligence"}
+          </h1>
           {currentOrg?.name && <p className="page30-muted">{currentOrg.name}</p>}
           {!personal && (
             <Link className="figma-button mt-3" to="/app/settings" search={{ tab: "teams" }}>
@@ -113,8 +122,12 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
                 <Link className="figma-button" to="/app/integrations">
                   Connect calls
                 </Link>
-                <Link className="figma-button" to="/app/crm/calls">
-                  Open Calls
+                <Link
+                  className="figma-button"
+                  to="/app/crm/calls"
+                  search={{ view: state === "processing" ? "status" : "calls" }}
+                >
+                  {state === "processing" ? "Recording status" : "Open Calls"}
                 </Link>
               </div>
             </section>
@@ -164,6 +177,7 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
                   <Link
                     className="figma-button page30-primary"
                     to={assignment ? "/app/coaching" : "/app/crm/calls"}
+                    search={assignment ? { assignment: assignment.id } : undefined}
                   >
                     {assignment ? "Open coaching focus" : "Open calls library"}
                   </Link>
@@ -186,6 +200,14 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
                       <p className="page30-label">{formatWhen(insight.created_at)}</p>
                       <h3>{call?.contactName ?? "Call evidence"}</h3>
                       <p>{insight.summary || "Review the retained call analysis."}</p>
+                      {currentOrgId && (
+                        <IntelligenceEvidence
+                          organizationId={currentOrgId}
+                          callId={insight.call_id}
+                          repId={personal ? ownRep?.id : undefined}
+                        />
+                      )}
+
                       <Link
                         className="page30-source-link"
                         to="/app/crm/calls"
@@ -203,9 +225,77 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
           <section className="page30-attention">
             <header className="page30-section-header">
               <h2>{personal ? "Coaching progress" : "Needs your attention"}</h2>
-              <Link className="figma-button" to="/app/coaching">
-                {personal ? "My coaching" : "View queue"}
-              </Link>
+              {personal ? (
+                <Link className="figma-button" to="/app/coaching" search={{ view: "progress" }}>
+                  My coaching progress
+                </Link>
+              ) : (
+                <Dialog open={attentionOpen} onOpenChange={setAttentionOpen}>
+                  <DialogTrigger asChild>
+                    <button className="figma-button" type="button">
+                      View queue
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent
+                    className="page30-dialog max-h-[85dvh] max-w-3xl overflow-auto"
+                    aria-describedby={undefined}
+                  >
+                    <DialogTitle>Needs your attention</DialogTitle>
+                    <ul className="page30-home-list">
+                      {active.map((item) => (
+                        <li key={item.id}>
+                          <Link
+                            to="/app/coaching"
+                            search={{ assignment: item.id }}
+                            onClick={() => setAttentionOpen(false)}
+                          >
+                            {item.focus}
+                          </Link>
+                          <span className="page30-chip">Follow-up</span>
+                        </li>
+                      ))}
+                      {reports.map((report) => (
+                        <li key={report.id}>
+                          <Link
+                            to="/app/crm/calls"
+                            search={{ view: "report", repId: report.rep_id, reportId: report.id }}
+                            onClick={() => setAttentionOpen(false)}
+                          >
+                            {report.report?.headline || "Coaching report"}
+                          </Link>
+                          <span className="page30-chip">{report.status}</span>
+                        </li>
+                      ))}
+                      {insights.map((insight) => (
+                        <li key={insight.id}>
+                          <Link
+                            to="/app/crm/calls"
+                            search={{ callId: insight.call_id }}
+                            onClick={() => setAttentionOpen(false)}
+                          >
+                            {calls.get(insight.call_id)?.contactName ?? "Call review"}
+                          </Link>
+                          <span className="page30-chip">Review call</span>
+                        </li>
+                      ))}
+                      {processing && (
+                        <li>
+                          <Link
+                            to="/app/crm/calls"
+                            search={{ view: "status" }}
+                            onClick={() => setAttentionOpen(false)}
+                          >
+                            Recordings processing
+                          </Link>
+                        </li>
+                      )}
+                    </ul>
+                    {!active.length && !reports.length && !insights.length && !processing && (
+                      <p className="page30-muted">No coaching items are in the queue yet.</p>
+                    )}
+                  </DialogContent>
+                </Dialog>
+              )}
             </header>
             {assignments.error ? (
               <p role="alert">
@@ -220,7 +310,7 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
               <ul className="page30-home-list">
                 {active.slice(0, 4).map((item) => (
                   <li key={item.id}>
-                    <Link to="/app/coaching">
+                    <Link to="/app/coaching" search={{ assignment: item.id }}>
                       {repNames.get(item.rep_id) ?? "Rep"} · {item.focus}
                     </Link>
                     <span className="page30-muted">Check-in {formatWhen(item.check_in_at)}</span>
@@ -291,6 +381,11 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
           )}
           <section>
             <h2>Saved coaching reports</h2>
+            {!personal && !briefOnly && (
+              <Link className="page30-source-link block" to="/app" search={{ view: "brief" }}>
+                Daily manager brief <ArrowUpRight size={13} />
+              </Link>
+            )}
             <Link className="page30-source-link" to="/app/reports">
               Browse reports <ArrowUpRight size={13} />
             </Link>
@@ -327,7 +422,9 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
               <ul className="page30-home-list">
                 {activity.slice(0, 5).map((item) => (
                   <li key={item.id}>
-                    <Link to="/app/coaching">{item.focus}</Link>
+                    <Link to="/app/coaching" search={{ assignment: item.id }}>
+                      {item.focus}
+                    </Link>
                     <span className="page30-muted">
                       {item.status} · {formatWhen(item.updated_at)}
                     </span>
@@ -361,5 +458,57 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
         </aside>
       </div>
     </section>
+  );
+}
+
+function IntelligenceEvidence({
+  organizationId,
+  callId,
+  repId,
+}: {
+  organizationId: string;
+  callId: string;
+  repId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const q = useQuery(coachingCallQuery(organizationId, open ? callId : null, repId));
+  const excerpt = q.data
+    ? segmentLines(q.data)
+        .filter((line) => line.speaker !== "Call")
+        .slice(0, 2)
+    : [];
+  return (
+    <details
+      className="page30-disclosure page30-spring-disclosure"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>Preview call evidence</summary>
+      {open &&
+        (q.isLoading ? (
+          <p role="status" className="page30-pending">
+            Loading evidence…
+          </p>
+        ) : q.error ? (
+          <p role="alert">
+            Call evidence could not load.{" "}
+            <button className="underline" onClick={() => void q.refetch()}>
+              Retry
+            </button>
+          </p>
+        ) : excerpt.length ? (
+          <dl className="page30-quote">
+            {excerpt.map((line) => (
+              <div key={line.key}>
+                <dt>{line.time}</dt>
+                <dd>
+                  <strong>{line.speaker}</strong> · {line.text}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="page30-muted">A timed transcript excerpt is unavailable.</p>
+        ))}
+    </details>
   );
 }

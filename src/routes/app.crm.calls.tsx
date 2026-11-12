@@ -1,4 +1,4 @@
-import { type SearchSchemaInput, createFileRoute } from "@tanstack/react-router";
+import { type SearchSchemaInput, createFileRoute, Link } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, RefreshCw, Upload } from "lucide-react";
@@ -30,8 +30,11 @@ import {
 } from "@/lib/coaching/calls-search";
 import { RepPicker } from "@/components/app/coaching/RepPicker";
 import { BulkCallUpload } from "@/components/app/coaching/BulkCallUpload";
+import { RecordingStatus } from "@/components/app/coaching/RecordingStatus";
+import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
 import { CallList } from "@/components/app/coaching/CallList";
 import { CallDetail } from "@/components/app/coaching/CallDetail";
+import { WorkspaceToolsNav } from "@/components/app/WorkspaceToolsNav";
 import { PlaybooksPanel } from "@/components/app/coaching/PlaybooksPanel";
 import { RepReportPanel } from "@/components/app/coaching/RepReportPanel";
 import { coachingPreferencesQuery } from "@/lib/coaching/preferences";
@@ -43,12 +46,16 @@ const inFlight = (stage: string | null) =>
   ["queued", "transcribing", "scoring", "analyzing"].includes(stage ?? "");
 function CallsPage() {
   const { currentOrgId, user } = useAuth();
+  const search = Route.useSearch();
+  if (currentOrgId && search.view === "status")
+    return <RecordingStatus organizationId={currentOrgId} />;
   return currentOrgId && user ? (
     <CallsWorkspace key={currentOrgId} organizationId={currentOrgId} userId={user.id} />
   ) : null;
 }
 function CallsWorkspace({ organizationId, userId }: { organizationId: string; userId: string }) {
   const preferences = useQuery(coachingPreferencesQuery(organizationId));
+  const access = useCoachingWorkspaceAccess();
   const search = Route.useSearch(),
     navigate = Route.useNavigate(),
     qc = useQueryClient();
@@ -83,22 +90,23 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
     });
   const reps = useQuery(repsQuery(organizationId)),
     playbooks = useQuery(playbooksQuery(organizationId));
-  const historicalRep = useQuery(repByIdQuery(organizationId, search.repId ?? null));
-  const rep = reps.data?.find((r) => r.id === search.repId) ?? historicalRep.data ?? null;
+  const repId = access.manager ? (search.repId ?? null) : (access.rep?.id ?? null);
+  const historicalRep = useQuery(repByIdQuery(organizationId, access.manager ? repId : null));
+  const rep = access.rep ?? reps.data?.find((r) => r.id === repId) ?? historicalRep.data ?? null;
   const scope = useMemo(
     () => ({
       organizationId,
-      repId: search.repId ?? null,
+      repId,
       since: days ? new Date(now - days * 86400_000).toISOString() : null,
     }),
-    [organizationId, search.repId, days, now],
+    [organizationId, repId, days, now],
   );
   const list = useInfiniteQuery({
     queryKey: ["coaching-calls", scope],
     initialPageParam: 0,
     queryFn: ({ pageParam }) => loadCoachingCallsPage(scope, pageParam),
     getNextPageParam: (page) => page.nextOffset ?? undefined,
-    enabled: search.view === "calls",
+    enabled: search.view === "calls" && Boolean(access.manager || access.rep),
     refetchInterval: (query) =>
       query.state.data?.pages.some((page) => page.calls.some((c) => inFlight(c.coaching_stage)))
         ? 10_000
@@ -110,11 +118,16 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
     ).values(),
   ];
   const selected = useQuery({
-    ...coachingCallQuery(organizationId, search.sourceError ? null : (search.callId ?? null)),
+    ...coachingCallQuery(
+      organizationId,
+      search.sourceError || !(access.manager || access.rep) ? null : (search.callId ?? null),
+      access.rep?.id,
+    ),
     refetchInterval: (query) =>
       inFlight(query.state.data?.coaching_stage ?? null) ? 10_000 : false,
   });
-  const call = selected.data ?? null;
+  const call =
+    access.manager || selected.data?.rep_id === access.rep?.id ? (selected.data ?? null) : null;
   const previousStage = useRef<string | null>(null);
   useEffect(() => {
     if (
@@ -134,7 +147,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
     call && runId
       ? {
           organizationId,
-          repId: search.repId ?? call.rep_id,
+          repId: repId ?? call.rep_id,
           callId: call.id,
           startSeconds: search.at ?? null,
           source: {
@@ -198,7 +211,9 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
     let target = parseCallSourceTarget(input);
     if (target.organizationId !== scopeRef.current)
       throw new Error("Source belongs to another workspace.");
-    const found = await qc.fetchQuery(coachingCallQuery(organizationId, target.callId));
+    const found = await qc.fetchQuery(
+      coachingCallQuery(organizationId, target.callId, access.rep?.id),
+    );
     if (!found || found.rep_id !== target.repId)
       throw new Error("The cited call is unavailable for this rep. No other call was opened.");
     if (target.source.kind === "behavior") {
@@ -252,6 +267,35 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
       toast.error(error instanceof Error ? error.message : "Could not assign playbook");
     }
   }
+  if (access.pending)
+    return (
+      <p role="status" className="page30-pending">
+        Checking workspace access…
+      </p>
+    );
+  if (access.error)
+    return (
+      <p role="alert">
+        Workspace access could not load.{" "}
+        <button className="underline" onClick={() => void access.retry()}>
+          Retry
+        </button>
+      </p>
+    );
+  if (
+    !access.manager &&
+    (!access.rep || search.view === "playbooks" || (search.repId && search.repId !== access.rep.id))
+  )
+    return (
+      <SourceUnavailable
+        message={
+          access.rep
+            ? "This view is available in the manager workspace."
+            : "Ask your manager to link your account to a rep profile."
+        }
+        onBack={() => void navigate({ search: { view: "calls" } })}
+      />
+    );
   const title =
     search.view === "playbooks"
       ? "Methodology"
@@ -261,7 +305,9 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
           ? "People"
           : search.view === "insights"
             ? "Behavioral insights"
-            : "Calls";
+            : access.manager
+              ? "Calls"
+              : "My calls";
   return (
     <div className="space-y-5" data-design-screen="calls-workspace">
       {search.view !== "playbooks" &&
@@ -290,16 +336,9 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   >
                     <RefreshCw size={15} />
                   </button>
-                  <button
-                    type="button"
-                    aria-pressed={analysisFilter === "processing"}
-                    className="figma-button"
-                    onClick={() =>
-                      setAnalysisFilter((value) => (value === "processing" ? "all" : "processing"))
-                    }
-                  >
+                  <Link to="/app/crm/calls" search={{ view: "status" }} className="figma-button">
                     Recording status
-                  </button>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => {
@@ -318,21 +357,36 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
         )}
 
       {search.view === "playbooks" ? (
-        <section className="rounded-xl border border-by-border-engraved bg-white p-5 sm:p-8">
-          <PlaybooksPanel key={organizationId} />
-        </section>
+        <div className="space-y-4" data-design-screen="playbook-library">
+          <WorkspaceToolsNav active="playbooks" />
+          <section className="page30-glass p-5 sm:p-8">
+            <PlaybooksPanel key={organizationId} />
+          </section>
+        </div>
       ) : search.view !== "calls" ? (
         <>
-          <div className="max-w-sm">
-            <RepPicker
-              organizationId={organizationId}
-              userId={userId}
-              value={rep?.id ?? null}
-              onChange={(id) => update({ repId: id ?? undefined, reportId: undefined })}
-            />
-          </div>
+          {access.manager && (
+            <div className="max-w-sm">
+              <RepPicker
+                organizationId={organizationId}
+                userId={userId}
+                value={rep?.id ?? null}
+                onChange={(id) => update({ repId: id ?? undefined, reportId: undefined })}
+              />
+            </div>
+          )}
           {rep?.status !== "active" && rep && (
             <p className="text-xs text-by-text-secondary">Viewing archived rep history.</p>
+          )}
+          {search.view === "report" && (
+            <Link
+              className="figma-button"
+              to="/app/reports"
+              search={{ focus: search.reportId }}
+              viewTransition
+            >
+              Back to reports
+            </Link>
           )}
           {rep ? (
             <RepReportPanel
@@ -384,16 +438,18 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
       ) : (
         <>
           {(showUpload || search.upload) && (
-            <section className="space-y-4 rounded-xl border border-by-border-engraved bg-white p-5">
-              <div className="max-w-sm">
-                <label className="mb-2 block text-xs font-medium">Rep for these recordings</label>
-                <RepPicker
-                  organizationId={organizationId}
-                  userId={userId}
-                  value={uploadRep ?? rep?.id ?? null}
-                  onChange={setUploadRep}
-                />
-              </div>
+            <section className="page30-glass space-y-4 p-5">
+              {access.manager && (
+                <div className="max-w-sm">
+                  <label className="mb-2 block text-xs font-medium">Rep for these recordings</label>
+                  <RepPicker
+                    organizationId={organizationId}
+                    userId={userId}
+                    value={uploadRep ?? rep?.id ?? null}
+                    onChange={setUploadRep}
+                  />
+                </div>
+              )}
               {uploadRep || rep?.id ? (
                 <BulkCallUpload
                   key={uploadRep ?? rep?.id}
@@ -401,8 +457,11 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   userId={userId}
                   repId={(uploadRep ?? rep?.id)!}
                   repName={
-                    reps.data?.find((r) => r.id === (uploadRep ?? rep?.id))?.name ?? "selected rep"
+                    reps.data?.find((r) => r.id === (uploadRep ?? rep?.id))?.name ??
+                    rep?.name ??
+                    "selected rep"
                   }
+                  personal={!access.manager}
                   onImported={() => void refresh()}
                 />
               ) : (
@@ -424,7 +483,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                 >
                   <ArrowLeft size={14} /> Back to calls
                 </button>
-                {rep?.status === "active" && (
+                {access.manager && rep?.status === "active" && (
                   <label className="flex flex-wrap items-center gap-2 text-xs">
                     Rep playbook
                     <select
@@ -498,18 +557,25 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                       : null
                   }
                   focusedOccurrenceKey={requestedEvent?.assessment.occurrence_key ?? null}
+                  canAssign={access.manager}
                   onReanalyze={async (id) => {
                     await rescoreCall(id);
                     await refresh();
                   }}
-                  onDelete={async (id) => {
-                    const result = await deleteCall(id, call.audio_path);
-                    if (call.audio_path && !result.audioRemoved)
-                      toast.warning("Call deleted; its audio could not be removed from storage.");
-                    else toast.success("Call deleted");
-                    clearSource();
-                    await refresh();
-                  }}
+                  onDelete={
+                    access.manager
+                      ? async (id) => {
+                          const result = await deleteCall(id, call.audio_path);
+                          if (call.audio_path && !result.audioRemoved)
+                            toast.warning(
+                              "Call deleted; its audio could not be removed from storage.",
+                            );
+                          else toast.success("Call deleted");
+                          clearSource();
+                          await refresh();
+                        }
+                      : undefined
+                  }
                 />
               )}
             </>
@@ -517,22 +583,24 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
             <>
               <section className="page30-glass space-y-4 p-4">
                 <div className="flex flex-wrap items-end gap-5">
-                  <div>
-                    <label className="mb-2 block text-xs font-medium">Whose calls</label>
-                    <select
-                      aria-label="Whose calls"
-                      value={search.repId ?? ""}
-                      onChange={(event) => update({ repId: event.target.value || undefined })}
-                      className="rounded-md border border-by-border-control bg-white px-3 py-2 text-[13px]"
-                    >
-                      <option value="">Everyone</option>
-                      {reps.data?.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {access.manager && (
+                    <div>
+                      <label className="mb-2 block text-xs font-medium">Whose calls</label>
+                      <select
+                        aria-label="Whose calls"
+                        value={search.repId ?? ""}
+                        onChange={(event) => update({ repId: event.target.value || undefined })}
+                        className="rounded-md border border-by-border-control bg-white px-3 py-2 text-[13px]"
+                      >
+                        <option value="">Everyone</option>
+                        {reps.data?.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="mb-2 block text-xs font-medium">Which calls</label>
                     <select
@@ -581,7 +649,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   {list.data?.pages[0]?.total !== null && list.data?.pages[0]?.total !== undefined
                     ? ` of ${list.data.pages[0].total}`
                     : ""}{" "}
-                  · {rep?.name ?? "Everyone"}
+                  · {access.manager ? (rep?.name ?? "Everyone") : "My recordings"}
                   {list.hasNextPage ? " · more available" : ""}
                 </p>
                 {showFilters && (

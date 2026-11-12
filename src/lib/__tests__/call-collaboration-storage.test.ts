@@ -17,7 +17,7 @@ beforeAll(async () => {
   await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;
 create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
 create type public.org_role as enum ('owner','admin','member');create table auth.users(id uuid primary key);create table organizations(id uuid primary key);create table organization_members(organization_id uuid,user_id uuid,role public.org_role);
-create function public.is_org_member(o uuid,u uuid) returns boolean language sql stable security definer as $$select exists(select 1 from organization_members where organization_id=o and user_id=u)$$;
+create function public.is_org_member(o uuid,u uuid) returns boolean language sql stable security definer set search_path=public as $$select exists(select 1 from public.organization_members where organization_id=o and user_id=u)$$;
 create table calls(id uuid primary key,organization_id uuid,rep_id uuid);create table reps(id uuid primary key,organization_id uuid);create table coaching_analysis_runs(id uuid primary key,organization_id uuid,call_id uuid,rep_id uuid);
 create table coaching_playbooks(id uuid primary key,organization_id uuid);create table coaching_reports(id uuid primary key,organization_id uuid,status text default 'completed');create table notifications(id uuid default gen_random_uuid(),user_id uuid,type text,message text);
 create schema storage;create table storage.objects(bucket_id text,name text,metadata jsonb);
@@ -38,6 +38,13 @@ insert into organizations values('${org}'),('${other}');insert into auth.users v
     "20261103000008_report_delivery.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${name}`, "utf8"));
+  await db.exec(`
+    alter table public.reps add column user_id uuid references auth.users, add column status text default 'active';
+    update public.reps set user_id = '${member}' where id = '${rep}';
+  `);
+  await db.exec(
+    readFileSync("supabase/migrations/20261111000003_coaching_assignment_practice.sql", "utf8"),
+  );
 }, 30000);
 afterAll(async () => {
   await db?.close();
@@ -46,6 +53,37 @@ async function as(user: string) {
   await db.exec(`reset role;set role authenticated;set request.jwt.claim.sub='${user}'`);
 }
 describe.sequential("call collaboration authorization", () => {
+  it("lets only the linked rep record practice and preserves independent feedback edits", async () => {
+    await as(owner);
+    const assignment = (
+      await db.query<{ id: string }>(
+        "insert into coaching_assignments(organization_id,rep_id,focus,check_in_at) values($1,$2,'Clarify objections','2026-11-20') returning id",
+        [org, rep],
+      )
+    ).rows[0].id;
+    const record = (patch: Record<string, boolean | null>) =>
+      db.query("select record_coaching_assignment_practice($1,$2::jsonb)", [
+        assignment,
+        JSON.stringify(patch),
+      ]);
+
+    await expect(record({ practiced: true })).rejects.toThrow();
+    await as(member);
+    await record({ practiced: true });
+    await record({ useful: false });
+    await record({ useful: null });
+    expect(
+      (await db.query("select practiced,useful from coaching_assignment_practice")).rows,
+    ).toEqual([{ practiced: true, useful: null }]);
+    await as(owner);
+    expect((await db.query("select practiced from coaching_assignment_practice")).rows).toEqual([
+      { practiced: true },
+    ]);
+    await as(outsider);
+    expect((await db.query("select * from coaching_assignment_practice")).rows).toHaveLength(0);
+    await expect(record({ practiced: false })).rejects.toThrow();
+  });
+
   it("imports attributed outcomes atomically and deduplicates identical CSV rows", async () => {
     await as(owner);
     const rows = [

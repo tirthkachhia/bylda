@@ -44,16 +44,16 @@ function formatWhen(value: string) {
   }).format(new Date(value));
 }
 
-export function PlaybooksPanel() {
+export function PlaybooksPanel({ draft }: { draft?: { name: string; content: string } } = {}) {
   const { currentOrgId, user } = useAuth();
   const qc = useQueryClient();
   const playbooksQ = useQuery({ ...playbooksQuery(currentOrgId ?? ""), enabled: !!currentOrgId });
   const playbooks = playbooksQ.data ?? [];
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [content, setContent] = useState("");
+  const [creating, setCreating] = useState(Boolean(draft));
+  const [name, setName] = useState(draft?.name ?? "");
+  const [content, setContent] = useState(draft?.content ?? "");
   const [changeNote, setChangeNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"Playbook" | "Guidelines" | "Versions">("Playbook");

@@ -157,7 +157,7 @@ describe("snapshot call review", () => {
     );
     expect(unknown?.disabled).toBe(false);
     act(() => unknown?.click());
-    expect(host.querySelector('[data-source-turn="1"]')?.className).toContain("bg-amber-100");
+    expect(host.querySelector('[data-source-turn="1"]')?.getAttribute("aria-current")).toBe("true");
   });
   it("opens the matching reasoning chain when a retained timeline event is selected", () => {
     const second = {
@@ -185,6 +185,6 @@ describe("snapshot call review", () => {
     )!;
     act(() => event.click());
     expect(host.textContent).toContain("Clarified the training objection");
-    expect(host.querySelector('[data-source-turn="0"]')?.className).toContain("bg-amber-100");
+    expect(host.querySelector('[data-source-turn="0"]')?.getAttribute("aria-current")).toBe("true");
   });
 });

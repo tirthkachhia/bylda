@@ -4,11 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { formatWhen } from "@/lib/coaching/calls";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Link } from "@tanstack/react-router";
 export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "drawer" }) {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<"all" | "unread" | "reports">("all");
+  const [filter, setFilter] = useState<"all" | "unread" | "reports" | "calls">("all");
+  const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const q = useQuery({
     queryKey: ["figma-notifications", user?.id],
@@ -40,9 +42,17 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
       setBusy(false);
     }
   }
+  const callNotice = (type: string | null) => type === "call_feedback" || type === "call_analysis";
   const rows = (q.data ?? []).filter((row) =>
-    filter === "unread" ? !row.read : filter === "reports" ? row.type === "coaching_report" : true,
+    filter === "unread"
+      ? !row.read
+      : filter === "reports"
+        ? row.type === "coaching_report"
+        : filter === "calls"
+          ? callNotice(row.type)
+          : true,
   );
+  const selected = q.data?.find((row) => row.id === openId);
   return (
     <section
       className={`figma-surface ${variant === "drawer" ? "figma-notification-drawer-content" : "figma-panel min-h-[calc(100dvh-72px)]"}`}
@@ -68,6 +78,9 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
         <button role="tab" aria-selected={filter === "unread"} onClick={() => setFilter("unread")}>
           Unread
         </button>
+        <button role="tab" aria-selected={filter === "calls"} onClick={() => setFilter("calls")}>
+          Calls
+        </button>
         <button
           role="tab"
           aria-selected={filter === "reports"}
@@ -76,6 +89,47 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
           Reports
         </button>
       </div>
+      <Dialog
+        open={Boolean(selected)}
+        onOpenChange={(open) => {
+          if (!open) setOpenId(null);
+        }}
+      >
+        <DialogContent className="page30-dialog">
+          <DialogTitle>
+            {selected?.type === "coaching_report"
+              ? "Saved coaching report"
+              : callNotice(selected?.type ?? null)
+                ? "Call feedback"
+                : "Workspace update"}
+          </DialogTitle>
+          <DialogDescription>{selected ? formatWhen(selected.created_at) : ""}</DialogDescription>
+          <p>{selected?.message ?? "Workspace notification"}</p>
+          {selected?.type === "coaching_report" && (
+            <Link
+              className="figma-button page30-primary"
+              to="/app/reports"
+              onClick={() => setOpenId(null)}
+            >
+              Open reports
+            </Link>
+          )}
+          {callNotice(selected?.type ?? null) && (
+            <Link
+              className="figma-button page30-primary"
+              to="/app/crm/calls"
+              onClick={() => setOpenId(null)}
+            >
+              Open calls
+            </Link>
+          )}
+          {selected && !selected.read && (
+            <button className="figma-button" disabled={busy} onClick={() => void mark(selected.id)}>
+              Mark read
+            </button>
+          )}
+        </DialogContent>
+      </Dialog>
       {q.isPending ? (
         <p role="status">Loading notifications…</p>
       ) : q.error ? (
@@ -96,7 +150,13 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
                 className={`mt-2 size-2 rounded-full ${r.read ? "bg-transparent" : "bg-by-surface-control-dark"}`}
               />
               <div className="min-w-0 flex-1">
-                <p>{r.message ?? "Workspace notification"}</p>
+                <button
+                  type="button"
+                  className="page30-source-link text-left"
+                  onClick={() => setOpenId(r.id)}
+                >
+                  {r.message ?? "Workspace notification"}
+                </button>
                 <p className="mt-2 text-xs text-by-text-secondary">{formatWhen(r.created_at)}</p>
                 {r.type === "coaching_report" && (
                   <Link className="page30-source-link mt-2" to="/app/reports">
@@ -118,7 +178,9 @@ export function FigmaNotifications({ variant = "page" }: { variant?: "page" | "d
             ? "No report notifications."
             : filter === "unread"
               ? "No unread notifications."
-              : "No notifications."}
+              : filter === "calls"
+                ? "No call notifications."
+                : "No notifications."}
         </p>
       )}
       <div className="mt-6">

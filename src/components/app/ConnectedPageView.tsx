@@ -10,6 +10,12 @@ import { ReportsIndex } from "./coaching/ReportsIndex";
 import { TodayBrief } from "./TodayBrief";
 import { FigmaNotifications } from "./FigmaNotifications";
 export function ConnectedPageView({ page }: { page: FigmaEmptyPage }) {
+  if (page.key === "daily-manager-brief")
+    return <LiveDestination to="/app" search={{ view: "brief" }} />;
+  if (page.key === "rep-home") return <LiveDestination to="/app" search={{}} />;
+  if (page.key === "my-progress")
+    return <LiveDestination to="/app/coaching" search={{ view: "progress" }} />;
+  if (page.key === "rep-coaching") return <LiveDestination to="/app/coaching" search={{}} />;
   if (page.group === "insights")
     return (
       <WorkspaceInsights

@@ -22,6 +22,8 @@ export function CallBreakdown({
   events: BehaviorEvent[];
   onSelect?: (e: Evidence) => void;
 }) {
+  const effectiveness = analysis.dimensions?.sales_effectiveness;
+  const behavior = analysis.dimensions?.rep_behavior;
   const priorities = [...events]
     .sort((a, b) => (a.coaching_priority ?? 3) - (b.coaching_priority ?? 3))
     .filter(
@@ -34,15 +36,12 @@ export function CallBreakdown({
     (e) => e.result === "strength" && ["high", "medium"].includes(e.confidence),
   );
   return (
-    <section
-      aria-label="Individual call breakdown"
-      className="space-y-4 rounded-xl border border-by-border-engraved p-4"
-    >
+    <section aria-label="Individual call breakdown" className="page30-glass space-y-4 p-4">
       <h2 className="text-base">Individual call breakdown</h2>
       <p className="text-sm leading-6">
         <strong>Overall: </strong>
-        {analysis.dimensions.sales_effectiveness.evidence.length
-          ? analysis.dimensions.sales_effectiveness.explanation
+        {effectiveness?.evidence.length
+          ? effectiveness.explanation
           : "The retained evidence is too limited for an overall effectiveness judgment."}
       </p>
       <h3 className="text-sm font-medium">How the call went</h3>
@@ -58,8 +57,8 @@ export function CallBreakdown({
             <tr>
               <td>Rapport & communication</td>
               <td>
-                {analysis.dimensions.rep_behavior.evidence.length
-                  ? analysis.dimensions.rep_behavior.explanation
+                {behavior?.evidence.length
+                  ? behavior.explanation
                   : "Not enough retained evidence to judge."}
               </td>
             </tr>
@@ -111,7 +110,7 @@ export function CallBreakdown({
               Also consider: {e.alternative_explanation}
             </p>
           )}
-          <details>
+          <details className="page30-spring-disclosure">
             <summary className="cursor-pointer text-xs underline">Source evidence</summary>
             <EvidenceLinks
               evidence={[...e.rep_evidence, ...e.buyer_evidence]}

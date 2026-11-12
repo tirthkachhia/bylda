@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Inactive, FigmaRow } from "@/components/app/FigmaPrimitives";
 import { RecorderSetup } from "@/components/app/coaching/RecorderSetup";
 import { OutcomeImport } from "@/components/app/coaching/OutcomeImport";
+import { WorkspaceToolsNav } from "@/components/app/WorkspaceToolsNav";
 import { DeliveryChannels } from "@/components/app/coaching/DeliveryChannels";
 import { StatusPill } from "@/components/app/StatusPill";
 import { Button } from "@/components/ui/button";
@@ -788,6 +789,9 @@ function IntegrationsPage() {
       className="figma-surface grid gap-2 xl:grid-cols-[minmax(0,1fr)_344px]"
       data-design-screen="integrations"
     >
+      <div className="xl:col-span-2">
+        <WorkspaceToolsNav active={tab === "delivery" ? "delivery" : "sources"} />
+      </div>
       <section className="figma-panel min-h-[calc(100dvh-72px)]">
         <h1>Integrations</h1>
         <p className="mt-2 text-xs text-by-text-secondary">

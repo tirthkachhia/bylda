@@ -7,7 +7,7 @@ export type CallReviewTab =
   | "scores"
   | "notes";
 export type CallsSearch = {
-  view: "calls" | "report" | "playbooks" | "people" | "insights";
+  view: "calls" | "status" | "report" | "playbooks" | "people" | "insights";
   repId?: string;
   callId?: string;
   runId?: string;
@@ -23,7 +23,9 @@ export type CallsSearch = {
 const text = (value: unknown) =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
 export function readCallsSearch(input: Record<string, unknown>): CallsSearch {
-  const view = ["calls", "report", "playbooks", "people", "insights"].includes(String(input.view))
+  const view = ["calls", "status", "report", "playbooks", "people", "insights"].includes(
+    String(input.view),
+  )
     ? (input.view as CallsSearch["view"])
     : "calls";
   const result: CallsSearch = { view };

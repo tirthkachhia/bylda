@@ -7,6 +7,7 @@ export type ImportDeps = {
     path: string,
     file: File,
     contentType: string,
+    onProgress?: (uploaded: number, total: number) => void,
   ) => Promise<{ error: { message: string } | null }>;
   invoke: (name: string, body: Record<string, unknown>) => Promise<InvokeResponse>;
 };
@@ -16,6 +17,7 @@ export type ImportInput = {
   organizationId: string;
   userId: string;
   repId: string;
+  onProgress?: (uploaded: number, total: number) => void;
 };
 
 export type ImportResult = {
@@ -50,7 +52,9 @@ export async function importRecording(input: ImportInput, deps: ImportDeps): Pro
     body.transcript = transcript;
   } else {
     const path = `${input.organizationId}/${input.userId}/${importId}.${type.extension}`;
-    const { error: uploadError } = await deps.upload(path, input.file, type.contentType);
+    const { error: uploadError } = input.onProgress
+      ? await deps.upload(path, input.file, type.contentType, input.onProgress)
+      : await deps.upload(path, input.file, type.contentType);
     if (uploadError && !uploadError.message.toLowerCase().includes("already exists"))
       throw new Error(uploadError.message);
     body.audio_path = path;

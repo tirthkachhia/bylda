@@ -61,11 +61,11 @@ export function formatDuration(seconds: number | null) {
 
 export function formatWhen(value: string | null) {
   if (!value || !Number.isFinite(Date.parse(value))) return "Unknown time";
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+    ...(dateOnly ? { timeZone: "UTC" } : { hour: "numeric", minute: "2-digit" }),
   }).format(new Date(value));
 }
 
@@ -231,18 +231,21 @@ export async function loadCoachingCallsPage(
   };
 }
 
-export const coachingCallQuery = (organizationId: string, callId: string | null) =>
+export const coachingCallQuery = (organizationId: string, callId: string | null, repId?: string) =>
   queryOptions({
-    queryKey: ["coaching-call", organizationId, callId],
+    queryKey: repId
+      ? ["coaching-call", organizationId, callId, repId]
+      : ["coaching-call", organizationId, callId],
     enabled: !!organizationId && !!callId && !isGuest(),
     queryFn: async (): Promise<CoachingCall | null> => {
       if (!organizationId || !callId) throw new Error("A workspace and source call are required.");
-      const { data, error } = await db
+      let query = db
         .from("calls")
         .select(CALL_SELECT)
         .eq("organization_id", organizationId)
-        .eq("id", callId)
-        .maybeSingle();
+        .eq("id", callId);
+      if (repId) query = query.eq("rep_id", repId);
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       if (!data) return null;
       return (await hydrateCalls(organizationId, [data]))[0] ?? null;

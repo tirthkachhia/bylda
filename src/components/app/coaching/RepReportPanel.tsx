@@ -106,7 +106,13 @@ export function RepReportPanel({
   };
 
   return (
-    <div className="page30-report-layout" data-design-screen="rep-reports">
+    <div
+      className="page30-report-layout"
+      data-design-screen="rep-reports"
+      style={
+        view === "reports" && initialReportId ? { viewTransitionName: "bylda-report" } : undefined
+      }
+    >
       <header className="page30-glass flex flex-wrap items-center gap-4 p-5 lg:col-span-2">
         <span className="flex size-12 items-center justify-center rounded-full bg-by-avatar-metal text-sm">
           {initials(repName)}

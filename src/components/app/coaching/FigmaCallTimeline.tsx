@@ -26,12 +26,14 @@ export function FigmaCallTimeline({
   structuredTurns = null,
   onSelect,
   position = null,
+  activeMoment = null,
 }: {
   analysis: BehaviorAnalysis | null;
   duration: number | null;
   turns?: Evidence[];
   structuredTurns?: ParsedTurn[] | null;
   position?: number | null;
+  activeMoment?: string | null;
   onSelect: (e: Evidence, key: string | null) => void;
 }) {
   const timeline = useMemo(
@@ -61,6 +63,7 @@ export function FigmaCallTimeline({
                   title={`${m.label} · ${timeLabel(m.start)} — ${timeLabel(m.end)}\n${m.detail}`}
                   aria-label={`${label}: ${m.label} at ${timeLabel(m.start)}`}
                   className={`page30-timeline-marker ${colors[m.color]}`}
+                  aria-pressed={m.occurrence !== null ? activeMoment === m.occurrence : undefined}
                   style={{
                     left: `${Math.min(99, (m.start / timeline.duration!) * 100)}%`,
                     width: `${Math.max(0.5, Math.min(100 - (m.start / timeline.duration!) * 100, ((m.end - m.start) / timeline.duration!) * 100))}%`,
@@ -101,7 +104,11 @@ export function FigmaCallTimeline({
             .sort((a, b) => a.start - b.start)
             .map((item) => (
               <li key={item.key}>
-                <button type="button" onClick={() => onSelect(item.evidence, item.occurrence)}>
+                <button
+                  type="button"
+                  aria-pressed={activeMoment === item.occurrence}
+                  onClick={() => onSelect(item.evidence, item.occurrence)}
+                >
                   <time className="font-mono">{timeLabel(item.start)}</time> {item.label}
                 </button>
               </li>
