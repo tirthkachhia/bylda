@@ -39,6 +39,7 @@ import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
 import { Route as AppLaunchControlRouteImport } from './routes/app.launch-control'
 import { Route as AppLaunchpadPathRouteImport } from './routes/app.launchpad-path'
 import { Route as AppLeadsRouteImport } from './routes/app.leads'
+import { Route as AppManagerRouteImport } from './routes/app.manager'
 import { Route as AppMemoryRouteImport } from './routes/app.memory'
 import { Route as AppMentorRouteImport } from './routes/app.mentor'
 import { Route as AppMissionBriefingRouteImport } from './routes/app.mission-briefing'
@@ -59,6 +60,7 @@ import { Route as AppTutorialsRouteImport } from './routes/app.tutorials'
 import { Route as AppWorkflowTemplatesRouteImport } from './routes/app.workflow-templates'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
 import { Route as AuthInviteRouteImport } from './routes/auth.invite'
+import { Route as AuthManagerSignInRouteImport } from './routes/auth.manager-sign-in'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as AuthSignInRouteImport } from './routes/auth.sign-in'
 import { Route as AuthSignUpRouteImport } from './routes/auth.sign-up'
@@ -254,6 +256,11 @@ const AppLeadsRoute = AppLeadsRouteImport.update({
   path: '/leads',
   getParentRoute: () => AppRoute,
 } as any)
+const AppManagerRoute = AppManagerRouteImport.update({
+  id: '/manager',
+  path: '/manager',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppMemoryRoute = AppMemoryRouteImport.update({
   id: '/memory',
   path: '/memory',
@@ -352,6 +359,11 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
 const AuthInviteRoute = AuthInviteRouteImport.update({
   id: '/auth/invite',
   path: '/auth/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthManagerSignInRoute = AuthManagerSignInRouteImport.update({
+  id: '/auth/manager-sign-in',
+  path: '/auth/manager-sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
@@ -606,6 +618,7 @@ export interface FileRoutesByFullPath {
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
   '/app/leads': typeof AppLeadsRoute
+  '/app/manager': typeof AppManagerRoute
   '/app/memory': typeof AppMemoryRoute
   '/app/mentor': typeof AppMentorRoute
   '/app/mission-briefing': typeof AppMissionBriefingRoute
@@ -626,6 +639,7 @@ export interface FileRoutesByFullPath {
   '/app/workflow-templates': typeof AppWorkflowTemplatesRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/invite': typeof AuthInviteRoute
+  '/auth/manager-sign-in': typeof AuthManagerSignInRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
@@ -701,6 +715,7 @@ export interface FileRoutesByTo {
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
   '/app/leads': typeof AppLeadsRoute
+  '/app/manager': typeof AppManagerRoute
   '/app/memory': typeof AppMemoryRoute
   '/app/mentor': typeof AppMentorRoute
   '/app/mission-briefing': typeof AppMissionBriefingRoute
@@ -721,6 +736,7 @@ export interface FileRoutesByTo {
   '/app/workflow-templates': typeof AppWorkflowTemplatesRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/invite': typeof AuthInviteRoute
+  '/auth/manager-sign-in': typeof AuthManagerSignInRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
@@ -798,6 +814,7 @@ export interface FileRoutesById {
   '/app/launch-control': typeof AppLaunchControlRoute
   '/app/launchpad-path': typeof AppLaunchpadPathRoute
   '/app/leads': typeof AppLeadsRoute
+  '/app/manager': typeof AppManagerRoute
   '/app/memory': typeof AppMemoryRoute
   '/app/mentor': typeof AppMentorRoute
   '/app/mission-briefing': typeof AppMissionBriefingRoute
@@ -818,6 +835,7 @@ export interface FileRoutesById {
   '/app/workflow-templates': typeof AppWorkflowTemplatesRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/invite': typeof AuthInviteRoute
+  '/auth/manager-sign-in': typeof AuthManagerSignInRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-in': typeof AuthSignInRoute
   '/auth/sign-up': typeof AuthSignUpRoute
@@ -896,6 +914,7 @@ export interface FileRouteTypes {
     | '/app/launch-control'
     | '/app/launchpad-path'
     | '/app/leads'
+    | '/app/manager'
     | '/app/memory'
     | '/app/mentor'
     | '/app/mission-briefing'
@@ -916,6 +935,7 @@ export interface FileRouteTypes {
     | '/app/workflow-templates'
     | '/auth/forgot-password'
     | '/auth/invite'
+    | '/auth/manager-sign-in'
     | '/auth/reset-password'
     | '/auth/sign-in'
     | '/auth/sign-up'
@@ -991,6 +1011,7 @@ export interface FileRouteTypes {
     | '/app/launch-control'
     | '/app/launchpad-path'
     | '/app/leads'
+    | '/app/manager'
     | '/app/memory'
     | '/app/mentor'
     | '/app/mission-briefing'
@@ -1011,6 +1032,7 @@ export interface FileRouteTypes {
     | '/app/workflow-templates'
     | '/auth/forgot-password'
     | '/auth/invite'
+    | '/auth/manager-sign-in'
     | '/auth/reset-password'
     | '/auth/sign-in'
     | '/auth/sign-up'
@@ -1087,6 +1109,7 @@ export interface FileRouteTypes {
     | '/app/launch-control'
     | '/app/launchpad-path'
     | '/app/leads'
+    | '/app/manager'
     | '/app/memory'
     | '/app/mentor'
     | '/app/mission-briefing'
@@ -1107,6 +1130,7 @@ export interface FileRouteTypes {
     | '/app/workflow-templates'
     | '/auth/forgot-password'
     | '/auth/invite'
+    | '/auth/manager-sign-in'
     | '/auth/reset-password'
     | '/auth/sign-in'
     | '/auth/sign-up'
@@ -1164,6 +1188,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthInviteRoute: typeof AuthInviteRoute
+  AuthManagerSignInRoute: typeof AuthManagerSignInRoute
   AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
@@ -1385,6 +1410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLeadsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/manager': {
+      id: '/app/manager'
+      path: '/manager'
+      fullPath: '/app/manager'
+      preLoaderRoute: typeof AppManagerRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/memory': {
       id: '/app/memory'
       path: '/memory'
@@ -1523,6 +1555,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/invite'
       fullPath: '/auth/invite'
       preLoaderRoute: typeof AuthInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/manager-sign-in': {
+      id: '/auth/manager-sign-in'
+      path: '/auth/manager-sign-in'
+      fullPath: '/auth/manager-sign-in'
+      preLoaderRoute: typeof AuthManagerSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/reset-password': {
@@ -1915,6 +1954,7 @@ interface AppRouteChildren {
   AppLaunchControlRoute: typeof AppLaunchControlRoute
   AppLaunchpadPathRoute: typeof AppLaunchpadPathRoute
   AppLeadsRoute: typeof AppLeadsRoute
+  AppManagerRoute: typeof AppManagerRoute
   AppMemoryRoute: typeof AppMemoryRoute
   AppMentorRoute: typeof AppMentorRoute
   AppMissionBriefingRoute: typeof AppMissionBriefingRoute
@@ -1988,6 +2028,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppLaunchControlRoute: AppLaunchControlRoute,
   AppLaunchpadPathRoute: AppLaunchpadPathRoute,
   AppLeadsRoute: AppLeadsRoute,
+  AppManagerRoute: AppManagerRoute,
   AppMemoryRoute: AppMemoryRoute,
   AppMentorRoute: AppMentorRoute,
   AppMissionBriefingRoute: AppMissionBriefingRoute,
@@ -2050,6 +2091,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthInviteRoute: AuthInviteRoute,
+  AuthManagerSignInRoute: AuthManagerSignInRoute,
   AuthResetPasswordRoute: AuthResetPasswordRoute,
   AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,

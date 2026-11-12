@@ -9,6 +9,7 @@ import {
   coachingManagerPermissionQuery,
 } from "@/lib/queries";
 import { teamsQuery, saveTeam, type Team } from "@/lib/coaching/workspace";
+import { ManagerAgents } from "./ManagerAgents";
 export function WorkspaceTeams() {
   const { currentOrgId, user } = useAuth(),
     org = currentOrgId ?? "";
@@ -58,7 +59,7 @@ export function WorkspaceTeams() {
             onClick={() => {
               setEditing(undefined);
               setName("");
-              setManager("");
+              setManager(user?.id ?? "");
               setRepIds([]);
               setPlaybook("");
               setForm(true);
@@ -68,6 +69,9 @@ export function WorkspaceTeams() {
           </button>
         )}
       </div>
+      {permission.data && !q.isPending && !q.error && (
+        <ManagerAgents key={org} organizationId={org} teams={q.data ?? []} />
+      )}
       {form && (
         <section className="rounded-xl border p-4 space-y-3">
           <label className="figma-field">
@@ -76,13 +80,23 @@ export function WorkspaceTeams() {
           </label>
           <label className="figma-field">
             Manager
-            <select value={manager} onChange={(e) => setManager(e.target.value)}>
+            <select
+              value={manager}
+              disabled={
+                !members.data?.some(
+                  (m) => m.user_id === user?.id && ["owner", "admin"].includes(m.role),
+                )
+              }
+              onChange={(e) => setManager(e.target.value)}
+            >
               <option value="">Unassigned</option>
-              {members.data?.map((m) => (
-                <option key={m.user_id} value={m.user_id}>
-                  {m.full_name ?? m.email ?? m.user_id}
-                </option>
-              ))}
+              {members.data
+                ?.filter((m) => ["owner", "admin", "manager"].includes(m.role))
+                .map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.full_name ?? m.email ?? m.user_id}
+                  </option>
+                ))}
             </select>
           </label>
           <fieldset>
@@ -157,6 +171,9 @@ export function WorkspaceTeams() {
                   search={{ view: "people", repId: id }}
                 >
                   {reps.data?.find((r) => r.id === id)?.name ?? "Archived rep"}
+                  {reps.data?.find((r) => r.id === id)?.user_id
+                    ? " · Login linked"
+                    : " · No login yet"}
                 </Link>
               ))}
             </div>

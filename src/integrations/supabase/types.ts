@@ -5431,7 +5431,7 @@ export type Database = {
       business_stage: "Idea" | "Validate" | "Launch" | "Operate" | "Scale";
       lead_stage: "New" | "Contacted" | "Qualified" | "Proposal" | "Won" | "Lost";
       mission_status: "active" | "completed" | "skipped" | "paused";
-      org_role: "owner" | "admin" | "member";
+      org_role: "owner" | "admin" | "manager" | "member";
       plan_tier: "starter" | "launch" | "operate" | "scale";
       sop_status: "draft" | "published" | "archived";
       step_status: "pending" | "in_progress" | "completed" | "skipped";
@@ -5580,7 +5580,7 @@ export const Constants = {
       business_stage: ["Idea", "Validate", "Launch", "Operate", "Scale"],
       lead_stage: ["New", "Contacted", "Qualified", "Proposal", "Won", "Lost"],
       mission_status: ["active", "completed", "skipped", "paused"],
-      org_role: ["owner", "admin", "member"],
+      org_role: ["owner", "admin", "manager", "member"],
       plan_tier: ["starter", "launch", "operate", "scale"],
       sop_status: ["draft", "published", "archived"],
       step_status: ["pending", "in_progress", "completed", "skipped"],

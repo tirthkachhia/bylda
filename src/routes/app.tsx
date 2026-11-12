@@ -31,7 +31,7 @@ function ProtectedAppLayout() {
     if (loading || user || !/^\/app(?:\/|$)/.test(location.pathname)) return;
     const redirectTo = `${location.pathname}${location.searchStr}${location.hash}`;
     void navigate({
-      to: "/auth/sign-in",
+      to: location.pathname === "/app/manager" ? "/auth/manager-sign-in" : "/auth/sign-in",
       search: { redirect: redirectTo } as never,
       replace: true,
     });

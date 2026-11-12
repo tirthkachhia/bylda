@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
   if (!rep) return json({ error: "Rep not found" }, 404);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
-  if (internal) {
+  {
     const { data: member } = await admin
       .from("organization_members")
       .select("role")
@@ -90,7 +90,24 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id)
       .maybeSingle();
     if (!member || !["owner", "admin", "manager"].includes(member.role))
-      return json({ error: "Schedule creator no longer has manager access" }, 403);
+      return json({ error: "Manager access is required to generate reports" }, 403);
+    if (member.role === "manager") {
+      const { data: agent } = await admin
+        .from("reps")
+        .select("created_by")
+        .eq("id", repId)
+        .maybeSingle();
+      const { data: teams, error: teamError } = await admin
+        .from("coaching_teams")
+        .select("id,manager_id")
+        .eq("organization_id", rep.organization_id)
+        .contains("rep_ids", [repId]);
+      const ownsTeam = teams?.some((team) => team.manager_id === user.id);
+      const unassignedCreator =
+        agent?.created_by === user.id && !teams?.some((team) => team.manager_id);
+      if (teamError || (!ownsTeam && !unassignedCreator))
+        return json({ error: "Agent is outside your team" }, 403);
+    }
   }
   const requestKey =
     internal && typeof body?.request_key === "string" ? body.request_key.slice(0, 250) : null;

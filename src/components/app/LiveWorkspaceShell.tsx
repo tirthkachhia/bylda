@@ -250,6 +250,16 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           </button>
         </div>
         <WorkspacePicker />
+        {permission.data && (
+          <div className="my-3 grid gap-2 text-xs">
+            <Link to="/app/manager" onClick={() => setOpen(false)}>
+              Manager home
+            </Link>
+            <Link to="/app/settings" search={{ tab: "teams" }} onClick={() => setOpen(false)}>
+              My team · Add agents
+            </Link>
+          </div>
+        )}
         <p className="mb-3 text-[10px] text-by-text-secondary">{sourceLabel}</p>
         <FigmaPageBrowser />
         <nav aria-label="Workspace" className="space-y-1">

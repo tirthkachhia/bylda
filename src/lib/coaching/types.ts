@@ -64,6 +64,7 @@ export type BehaviorFeedback = {
 export type RepBehaviorHistory = { runs: BehaviorRun[]; events: BehaviorRow[] };
 
 export type Rep = {
+  user_id?: string | null;
   id: string;
   organization_id: string;
   created_by: string | null;

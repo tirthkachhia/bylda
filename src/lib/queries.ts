@@ -66,7 +66,7 @@ export const organizationQuery = (orgId: string) =>
     },
   });
 
-export type OrgRole = "owner" | "admin" | "member";
+export type OrgRole = "owner" | "admin" | "manager" | "member";
 
 export interface OrgMember {
   user_id: string;

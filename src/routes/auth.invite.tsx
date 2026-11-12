@@ -23,6 +23,7 @@ function InvitePage() {
     token: searchParams.get("token") ?? undefined,
     type: searchParams.get("type") ?? undefined,
   };
+  const workspaceHint = searchParams.get("workspace");
 
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +45,27 @@ function InvitePage() {
 
       const isInviteHash = hashType === "invite" && !!hashToken;
       const isInviteQuery = search.type === "invite" && !!search.token;
+
+      // The Supabase client may already have consumed and removed the hash.
+      // Verify the authenticated user's invited membership in that case.
+      if (!isInviteHash && !isInviteQuery) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const workspace = workspaceHint ?? user?.user_metadata?.invited_workspace_id;
+        if (user && typeof workspace === "string") {
+          const { data: member, error } = await supabase
+            .from("organization_members")
+            .select("organization_id")
+            .eq("organization_id", workspace)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          setTokenValid(!error && !!member);
+          if (user.user_metadata?.full_name) setFullName(String(user.user_metadata.full_name));
+        }
+        setVerifying(false);
+        return;
+      }
 
       if (!isInviteHash && !isInviteQuery) {
         setTokenValid(false);
@@ -78,7 +100,7 @@ function InvitePage() {
     };
 
     verifyInvite();
-  }, [search.token, search.type]);
+  }, [search.token, search.type, workspaceHint]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -98,9 +120,28 @@ function InvitePage() {
         data: { full_name: fullName },
       });
       if (error) throw error;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const workspace = workspaceHint ?? user?.user_metadata?.invited_workspace_id;
+      if (workspace && user) {
+        const { data: member, error: memberError } = await supabase
+          .from("organization_members")
+          .select("organization_id")
+          .eq("organization_id", workspace)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (memberError || !member)
+          throw new Error("Your workspace invitation is not ready. Ask your manager to retry it.");
+        try {
+          sessionStorage.setItem(`bylda-workspace:${user.id}`, workspace);
+        } catch {
+          /* Membership remains server verified. */
+        }
+      }
       toast.success("Welcome to Bylda! Your account is ready.");
       // /app resolves the mode-aware product home (Launchpad vs Bylda).
-      navigate({ to: "/app" });
+      window.location.replace("/app");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to accept invite");
     } finally {

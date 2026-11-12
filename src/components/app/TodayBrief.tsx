@@ -14,7 +14,11 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
   const assignments = useQuery(coachingAssignmentsQuery(currentOrgId ?? ""));
   const repNames = new Map((reps.data ?? []).map((rep) => [rep.id, rep.name]));
   const email = user?.email?.toLowerCase();
-  const ownRep = email ? reps.data?.find((rep) => rep.email?.toLowerCase() === email) : undefined;
+  const ownRep =
+    reps.data?.find((rep) => rep.user_id === user?.id) ??
+    (email
+      ? reps.data?.find((rep) => !rep.user_id && rep.email?.toLowerCase() === email)
+      : undefined);
   const brief = useQuery(
     managerHomeQuery(currentOrgId ?? "", personal ? (ownRep?.id ?? null) : undefined),
   );
@@ -57,6 +61,11 @@ export function TodayBrief({ personal = false }: { personal?: boolean }) {
           <p className="page30-label">{personal ? "Personal workspace" : "Manager workspace"}</p>
           <h1>{personal ? "My intelligence" : "Team intelligence"}</h1>
           {currentOrg?.name && <p className="page30-muted">{currentOrg.name}</p>}
+          {!personal && (
+            <Link className="figma-button mt-3" to="/app/settings" search={{ tab: "teams" }}>
+              Manage my agents
+            </Link>
+          )}
         </div>
         <button
           type="button"
