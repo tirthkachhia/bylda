@@ -4,6 +4,7 @@
 @import "./styles/bylda.css";
 @import "./styles/revenue-workspace.css";
 @import "./styles/figma-mvp.css";
+@import "./styles/page-30.css";
 
 @custom-variant dark (&:not(.light, .light *));
 @custom-variant light (&:is(.light, .light *));

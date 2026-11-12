@@ -27,6 +27,7 @@ export type ReportMoment = {
   exchange_index: number;
   type: "temperature_drop" | "risk_flag" | "weak_move" | "behavior_observation";
   behavior_family?: string;
+  behavior_source?: CitedMoment["behavior_source"];
   valence?: "strength" | "concern" | "mixed" | "unobservable";
   score: number;
   low_confidence: boolean;
@@ -55,6 +56,8 @@ export type CitedMoment = {
   call_id: string;
   exchange_index: number;
   at: string;
+  start_s?: number | null;
+  behavior_source?: { run_id: string; turn_id: number; event_id: string };
   rep_text: string;
   customer_text: string | null;
   why_it_matters: string | null;
@@ -95,7 +98,8 @@ export type ReportInput = {
 export const REPORT_LIMITS = { themes: 4, momentsPerTheme: 2, adherence: 8 } as const;
 
 const mmss = (s: number | null) => {
-  const v = Math.max(0, Math.round(s ?? 0));
+  if (s === null || !Number.isFinite(s) || s < 0) return "Time unknown";
+  const v = Math.floor(s);
   return `${String(Math.floor(v / 60)).padStart(2, "0")}:${String(v % 60).padStart(2, "0")}`;
 };
 
@@ -130,6 +134,8 @@ export function toCitedMoment(m: ReportMoment): CitedMoment {
     call_id: m.call_id,
     exchange_index: m.exchange_index,
     at: mmss(m.start_s),
+    start_s: m.start_s,
+    ...(m.behavior_source ? { behavior_source: m.behavior_source } : {}),
     rep_text: m.rep_text ?? "",
     customer_text: m.customer_text,
     why_it_matters: m.why_it_matters,

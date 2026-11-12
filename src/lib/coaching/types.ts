@@ -64,6 +64,7 @@ export type BehaviorFeedback = {
 export type RepBehaviorHistory = { runs: BehaviorRun[]; events: BehaviorRow[] };
 
 export type Rep = {
+  user_id?: string | null;
   id: string;
   organization_id: string;
   created_by: string | null;
@@ -209,6 +210,9 @@ export type RepReportRow = {
   call_count: number;
   playbook_version_id: string | null;
   report: import("../../../supabase/functions/_shared/coaching/report-contract").RepReport | null;
+  adherence?:
+    | import("../../../supabase/functions/_shared/coaching/report-input").AdherenceTally[]
+    | null;
   drill_guideline_id: string | null;
   previous_report_id: string | null;
   delivered_at: string | null;

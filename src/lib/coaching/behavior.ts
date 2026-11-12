@@ -6,6 +6,7 @@ import type {
   BehaviorRun,
   BehaviorRunSource,
   RepBehaviorHistory,
+  ReportCitation,
 } from "./types";
 import {
   parseCallSourceTarget,
@@ -184,6 +185,11 @@ export function secondsFromCitation(at: string): number | null {
   const parts = at.split(":").map(Number);
   if (parts.slice(1).some((n) => n >= 60)) return null;
   return parts.reduce((n, v) => n * 60 + v, 0);
+}
+
+export function reportCitationSeconds(citation: ReportCitation): number | null {
+  if (citation.start_s === undefined) return secondsFromCitation(citation.at);
+  return validSourceSeconds(citation.start_s) ? citation.start_s : null;
 }
 
 export const BEHAVIOR_LABELS = {

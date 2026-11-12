@@ -8,14 +8,24 @@ import { FigmaPageBrowser, FigmaViewLink } from "@/components/app/FigmaPageViews
 import { figmaPageByKey } from "@/lib/figma-page-catalog";
 import { guestStore } from "@/lib/guest";
 import { supabase } from "@/integrations/supabase/client";
-import { integrationsQuery } from "@/lib/queries";
+import { coachingManagerPermissionQuery, integrationsQuery } from "@/lib/queries";
 import { clearLastAppPath } from "@/lib/session-restore";
 import { initials } from "@/lib/coaching/calls";
 import { behavioralNavigation, workspaceNavigation } from "@/lib/workspace-navigation";
 import { WorkspacePicker } from "./WorkspacePicker";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { WorkspaceSearch } from "./coaching/WorkspaceSearch";
+
+const dock = [
+  { key: "intelligence", label: "Intelligence", to: "/app" },
+  { key: "reports", label: "Reports", to: "/app/reports" },
+  { key: "calls", label: "Calls", to: "/app/crm/calls" },
+  { key: "inbox", label: "Inbox", to: "/app/notifications" },
+  { key: "settings", label: "Settings", to: "/app/settings" },
+] as const;
 
 export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
-  const { user, profile, currentOrg, signOut } = useAuth(),
+  const { user, profile, currentOrg, currentOrgId, signOut } = useAuth(),
     queryClient = useQueryClient(),
     navigate = useNavigate();
   const location = useRouterState({ select: (s) => s.location });
@@ -30,6 +40,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
   const sidebar = useRef<HTMLElement>(null),
     menuButton = useRef<HTMLButtonElement>(null);
   const connections = useQuery({ ...integrationsQuery(user?.id ?? ""), enabled: !!user });
+  const permission = useQuery(coachingManagerPermissionQuery(currentOrgId ?? "", user?.id ?? ""));
   const unread = useQuery({
     queryKey: ["figma-notifications", user?.id, "unread-count"],
     enabled: !!user,
@@ -62,14 +73,18 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           ? view
           : "calls"
         : (workspaceNavigation.find((item) => item.to === path)?.key ?? null);
-  const current =
-    path === "/app/crm/calls" && view === "report"
-      ? "Reports"
-      : path === "/app/crm/calls" && view === "playbooks"
-        ? "Methodology"
-        : (behavioralNavigation.find((item) => item.key === active)?.label ??
-          workspaceNavigation.find((item) => item.to === path)?.label ??
-          "Workspace");
+  const dockActive =
+    active === "home" || active === "insights"
+      ? "intelligence"
+      : active === "report" || active === "reports"
+        ? "reports"
+        : active === "notifications"
+          ? "inbox"
+          : active === "calls"
+            ? "calls"
+            : active === "settings" || active === "integrations" || active === "playbooks"
+              ? "settings"
+              : null;
   useEffect(() => setOpen(false), [path, view]);
   useEffect(() => {
     const command = (event: KeyboardEvent) => {
@@ -129,7 +144,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
       ? "Checking sources…"
       : `${connections.data?.filter((i) => i.is_connected && ["readymode", "close_io", "hubspot", "salesforce", "gohighlevel", "google_calendar", "zoom", "gong", "aircall", "googlemeet"].includes(i.integration_key)).length ?? 0} sources connected`;
   return (
-    <div className="bylda light revenue-workspace v1-workspace figma-surface flex h-dvh overflow-hidden bg-by-surface-canvas text-by-text-primary">
+    <div className="bylda light revenue-workspace v1-workspace page30-workspace figma-surface flex h-dvh overflow-hidden bg-by-surface-canvas text-by-text-primary">
       <a
         href="#workspace-content"
         className="sr-only focus:not-sr-only focus:fixed focus:z-50 focus:bg-white focus:p-4"
@@ -138,7 +153,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
       </a>
       <nav
         aria-label="Workspace rail"
-        className="workspace-rail flex w-16 shrink-0 flex-col items-center gap-3 bg-by-surface-rail py-4"
+        className="page30-rail page30-glass flex shrink-0 flex-col items-center gap-3 py-3"
       >
         <Link
           to="/app"
@@ -153,17 +168,6 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
             className="rounded-[10px] object-contain"
           />
         </Link>
-        <button
-          ref={menuButton}
-          type="button"
-          aria-label="Open navigation"
-          aria-expanded={open}
-          aria-controls="workspace-navigation"
-          onClick={() => setOpen((v) => !v)}
-          className="rounded-lg p-2 min-[1025px]:hidden"
-        >
-          <Menu size={19} />
-        </button>
         <Link
           to="/app"
           aria-label="Home"
@@ -200,18 +204,21 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         >
           <img src="/figma/rail-settings.svg" alt="" />
         </Link>
-        <span
+        <Link
+          to="/app/settings"
+          search={{ tab: "profile" }}
+          aria-label="My profile"
           title={profile?.full_name ?? user?.email ?? "My account"}
-          className="flex size-[34px] items-center justify-center rounded-full border border-by-text-primary bg-by-avatar-metal text-[11px]"
+          className="page30-chip flex size-[34px] items-center justify-center"
         >
           {initials(profile?.full_name ?? user?.email ?? "B")}
-        </span>
+        </Link>
       </nav>
       {open && (
         <button
           type="button"
           aria-label="Dismiss navigation"
-          className="fixed inset-0 z-30 bg-by-surface-scrim min-[1025px]:hidden"
+          className="fixed inset-0 z-30 bg-by-surface-scrim"
           onClick={() => {
             setOpen(false);
             menuButton.current?.focus();
@@ -224,7 +231,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         aria-label="Workspace navigation"
         role={open ? "dialog" : undefined}
         aria-modal={open ? true : undefined}
-        className={`${open ? "fixed inset-y-0 left-16 z-40 flex" : "hidden"} min-h-0 overflow-y-auto w-[248px] shrink-0 flex-col bg-by-surface-sidebar px-3 py-4 min-[1025px]:relative min-[1025px]:left-auto min-[1025px]:flex`}
+        className={`${open ? "fixed inset-y-0 left-0 z-40 flex" : "hidden"} page30-drawer min-h-0 w-[248px] shrink-0 flex-col overflow-y-auto px-3 py-4`}
       >
         <div className="mb-3 flex items-center justify-between px-2">
           <Link to="/app" className="text-[15px] tracking-[-.15px]">
@@ -237,12 +244,22 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
               setOpen(false);
               menuButton.current?.focus();
             }}
-            className="p-1 min-[1025px]:hidden"
+            className="p-1"
           >
             <X size={17} />
           </button>
         </div>
         <WorkspacePicker />
+        {permission.data && (
+          <div className="my-3 grid gap-2 text-xs">
+            <Link to="/app/manager" onClick={() => setOpen(false)}>
+              Manager home
+            </Link>
+            <Link to="/app/settings" search={{ tab: "teams" }} onClick={() => setOpen(false)}>
+              My team · Add agents
+            </Link>
+          </div>
+        )}
         <p className="mb-3 text-[10px] text-by-text-secondary">{sourceLabel}</p>
         <FigmaPageBrowser />
         <nav aria-label="Workspace" className="space-y-1">
@@ -313,19 +330,33 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           </button>
         </nav>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 px-4 text-xs sm:px-6">
-          <span className="hidden truncate text-by-text-secondary sm:block">
-            {viewPage ? `${viewPage.title}` : current}
-            {path === "/app/crm/calls" && (location.search as Record<string, unknown>).callId
-              ? " / Call review"
-              : ""}
-          </span>
+      <div className="page30-content flex min-w-0 flex-1 flex-col">
+        <header className="page30-toolbar">
+          <button
+            ref={menuButton}
+            type="button"
+            aria-label="Open navigation"
+            aria-expanded={open}
+            aria-controls="workspace-navigation"
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-lg p-2"
+          >
+            <Menu size={19} />
+          </button>
+          <Link to="/app" className="page30-toolbar-brand">
+            BYLDA
+          </Link>
+          {currentOrg?.name && <span className="page30-workspace-name">{currentOrg.name}</span>}
+          {permission.data !== undefined && (
+            <span className="page30-chip page30-role">
+              {permission.data ? "Manager view" : "Rep view"}
+            </span>
+          )}
           <form
-            className="ml-auto flex min-w-0 items-center gap-2 rounded-md border border-by-border-engraved bg-white/70 px-2.5 py-2"
+            className="page30-glass page30-search"
             onSubmit={(event) => {
               event.preventDefault();
-              void navigate({ to: "/app/crm/calls", search: { view: "calls", q: query } as never });
+              void navigate({ to: "/app/crm/calls", search: { view: "calls", q: query } });
             }}
           >
             <img src="/figma/search.svg" alt="" />
@@ -334,26 +365,60 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
               aria-label="Search workspace calls"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search calls, accounts…"
-              className="w-32 bg-transparent text-xs outline-none lg:w-52"
+              placeholder="Search calls…"
             />
-            <kbd className="hidden text-[10px] text-by-text-tertiary lg:block">↵</kbd>
+            <FigmaViewLink
+              screen="command-search"
+              className="page30-search-shortcut"
+              aria-label="Open workspace search"
+            >
+              <kbd>⌘K</kbd>
+            </FigmaViewLink>
           </form>
           <Link
             to="/app/crm/calls"
-            search={{ view: "calls", upload: true } as never}
-            className="shrink-0 rounded-md bg-by-surface-control-dark px-3 py-2 text-xs text-white"
+            search={{ view: "calls", upload: true }}
+            className="figma-button page30-upload"
           >
             + Upload
           </Link>
-          <FigmaViewLink screen="notification-drawer" className="figma-button !p-2">
-            <img src="/figma/bell.svg" alt="" />
-            <span className="sr-only">Notifications</span>
-          </FigmaViewLink>
         </header>
-        <main id="workspace-content" className="min-h-0 flex-1 overflow-y-auto p-2 pt-0">
+        <main id="workspace-content" className="min-h-0 flex-1 overflow-y-auto">
           {children}
         </main>
+        <footer className="page30-dock">
+          <nav aria-label="Intelligence workspace" className="page30-glass page30-dock-tabs">
+            {dock.map(({ key, label, to }) => (
+              <Link key={key} to={to} aria-current={dockActive === key ? "page" : undefined}>
+                <img src={`/figma/page30-${key}.svg`} alt="" />
+                <span>
+                  {label}
+                  {key === "inbox" && unread.data ? ` (${unread.data})` : ""}
+                </span>
+              </Link>
+            ))}
+          </nav>
+          <Dialog>
+            <DialogTrigger asChild>
+              <button type="button" className="page30-glass page30-composer">
+                <span className="page30-chip">
+                  <img src="/figma/page30-scope.svg" alt="" /> Workspace
+                </span>
+                <span>Ask about this workspace…</span>
+                <span className="page30-composer-arrow">
+                  <img src="/figma/page30-arrow.svg" alt="" />
+                </span>
+              </button>
+            </DialogTrigger>
+            <DialogContent
+              className="page30-dialog max-h-[85dvh] max-w-2xl overflow-y-auto"
+              aria-describedby={undefined}
+            >
+              <DialogTitle className="sr-only">Ask Bylda</DialogTitle>
+              <WorkspaceSearch ask />
+            </DialogContent>
+          </Dialog>
+        </footer>
       </div>
     </div>
   );

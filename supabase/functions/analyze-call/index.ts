@@ -122,6 +122,11 @@ Deno.serve(async (req: Request) => {
       .eq("organization_id", call.organization_id)
       .maybeSingle();
     if (!member) return json({ error: "Forbidden" }, 403);
+    const { data: canView, error: accessError } = await supabase.rpc("coaching_can_view_call", {
+      org: call.organization_id,
+      target: call.id,
+    });
+    if (accessError || !canView) return json({ error: "Call is outside your team" }, 403);
   }
   const behaviorAttemptId = crypto.randomUUID();
   const updateAnalysisJob = async (status: "failed" | "superseded", errorMessage: string) => {

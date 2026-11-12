@@ -1,10 +1,16 @@
-import { type SearchSchemaInput, createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  type SearchSchemaInput,
+  createFileRoute,
+  Link,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useState } from "react";
 import { OAuthSignIn } from "@/components/app/OAuthSignIn";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { configureLoginWorkspace } from "@/lib/manager-access";
 
 export const Route = createFileRoute("/auth/sign-in")({
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput) => ({
@@ -13,34 +19,54 @@ export const Route = createFileRoute("/auth/sign-in")({
         ? s.redirect
         : undefined,
   }),
-  component: SignIn,
+  component: () => <SignIn />,
 });
 
-function SignIn() {
-  const navigate = useNavigate();
-  const { redirect } = Route.useSearch();
+export function SignIn({ manager = false }: { manager?: boolean }) {
+  const rawRedirect = useRouterState({
+    select: (state) => (state.location.search as { redirect?: string }).redirect,
+  });
+  const redirect =
+    typeof rawRedirect === "string" && /^\/app(?:\/|\?|$)/.test(rawRedirect)
+      ? rawRedirect
+      : undefined;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+      if (!data.user) throw new Error("Sign-in could not be verified.");
+      await configureLoginWorkspace(data.user.id, manager);
+      // Reload so AuthProvider reads the verified workspace preference, including
+      // when an existing agent already has a personal workspace.
+      window.location.replace(redirect ?? (manager ? "/app/manager" : "/app"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not sign in");
+    } finally {
+      setLoading(false);
     }
-    if (redirect) window.location.replace(redirect);
-    else void navigate({ to: "/app" });
   };
   return (
-    <AuthShell title="Sign in" subtitle="Welcome back.">
-      <div className="grid gap-2">
-        <OAuthSignIn provider="google" redirect={redirect} />
-        <OAuthSignIn provider="azure" redirect={redirect} />
-      </div>
-      <p className="my-5 text-center text-[11px] text-by-text-secondary">OR</p>
+    <AuthShell
+      title={manager ? "Manager sign in" : "Sign in"}
+      subtitle={manager ? "Review your agents, calls and coaching." : "Welcome back."}
+    >
+      {!manager && (
+        <>
+          <div className="grid gap-2">
+            <OAuthSignIn provider="google" redirect={redirect} />
+            <OAuthSignIn provider="azure" redirect={redirect} />
+          </div>
+          <p className="my-5 text-center text-[11px] text-by-text-secondary">OR</p>
+        </>
+      )}
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field label="Work email">
           <Input
@@ -78,6 +104,12 @@ function SignIn() {
           Create a workspace →
         </Link>
       </div>
+      <Link
+        className="mt-5 block text-center text-xs underline"
+        to={manager ? "/auth/sign-in" : "/auth/manager-sign-in"}
+      >
+        {manager ? "Agent sign in" : "Manager sign in"}
+      </Link>
     </AuthShell>
   );
 }

@@ -173,7 +173,12 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
         .toLowerCase()
         .includes(text.toLowerCase()) &&
       (stage === "all" || c.dealStage === stage) &&
-      (analysisFilter === "all" || (analysisFilter === "analyzed" ? !!c.insight : !c.insight)) &&
+      (analysisFilter === "all" ||
+        (analysisFilter === "processing"
+          ? inFlight(c.coaching_stage)
+          : analysisFilter === "analyzed"
+            ? !!c.insight
+            : !c.insight)) &&
       (family === "all" ||
         c.insight?.vertical_insights?.behavior_analysis?.events?.some(
           (e: { family: string }) => e.family === family,
@@ -287,11 +292,21 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   </button>
                   <button
                     type="button"
+                    aria-pressed={analysisFilter === "processing"}
+                    className="figma-button"
+                    onClick={() =>
+                      setAnalysisFilter((value) => (value === "processing" ? "all" : "processing"))
+                    }
+                  >
+                    Recording status
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       setShowUpload(!(showUpload || search.upload));
                       update({ upload: undefined });
                     }}
-                    className="flex items-center gap-2 rounded-md border border-by-border-control bg-white px-3 py-2 text-xs"
+                    className="figma-button page30-primary"
                   >
                     <Upload size={14} />
                     {showUpload || search.upload ? "Hide upload" : "Upload calls"}
@@ -500,7 +515,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
             </>
           ) : (
             <>
-              <section className="space-y-4 rounded-xl border border-by-border-engraved bg-gradient-to-br from-by-surface-sidebar via-white to-by-surface-hover p-4">
+              <section className="page30-glass space-y-4 p-4">
                 <div className="flex flex-wrap items-end gap-5">
                   <div>
                     <label className="mb-2 block text-xs font-medium">Whose calls</label>
@@ -529,6 +544,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                       <option value="all">All loaded calls</option>
                       <option value="analyzed">Analyzed</option>
                       <option value="pending">Awaiting analysis</option>
+                      <option value="processing">Processing recordings</option>
                     </select>
                   </div>
                   <div>
@@ -633,8 +649,8 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                 <p role="status" className="rounded-xl bg-white p-8 text-sm">
                   Loading calls…
                 </p>
-              ) : !calls.length && !list.error ? (
-                <section className="rounded-xl border border-by-border-engraved bg-white p-8">
+              ) : !calls.length && !list.error && !days && !search.repId ? (
+                <section className="page30-glass p-8">
                   <h2 className="text-xl">No calls yet</h2>
                   <p className="mt-3 text-sm leading-6 text-by-text-secondary">
                     Connect your recorder or upload a recording. Each analyzed conversation gets a
@@ -643,7 +659,7 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   <button
                     type="button"
                     onClick={() => setShowUpload(true)}
-                    className="mt-5 rounded-md bg-by-surface-control-dark px-4 py-2.5 text-sm text-white"
+                    className="figma-button page30-primary mt-5"
                   >
                     Upload a recording
                   </button>
@@ -664,6 +680,19 @@ function CallsWorkspace({ organizationId, userId }: { organizationId: string; us
                   }
                   search={text}
                   onSearch={setText}
+                  emptyMessage={
+                    analysisFilter === "processing"
+                      ? "No loaded recordings are processing."
+                      : undefined
+                  }
+                  onClearFilters={() => {
+                    setText("");
+                    setDays(0);
+                    setFamily("all");
+                    setStage("all");
+                    setAnalysisFilter("all");
+                    update({ repId: undefined, q: undefined });
+                  }}
                 />
               )}
               {list.hasNextPage && (

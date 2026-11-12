@@ -320,7 +320,7 @@ function Users({ rolesOnly }: { rolesOnly: boolean }) {
   const mine = members.find((m) => m.user_id === user?.id);
   const manage = ["owner", "admin"].includes(mine?.role ?? "");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"member" | "admin">("member");
+  const [role, setRole] = useState<"member" | "admin" | "manager">("member");
   const [busy, setBusy] = useState(false);
   const refresh = () => qc.invalidateQueries({ queryKey: ["org-members", currentOrgId] });
   async function invite() {
@@ -405,6 +405,7 @@ function Users({ rolesOnly }: { rolesOnly: boolean }) {
           <FigmaField label="Role">
             <select value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
               <option value="member">Member</option>
+              <option value="manager">Manager</option>
               <option value="admin">Admin</option>
             </select>
           </FigmaField>
@@ -450,6 +451,7 @@ function Users({ rolesOnly }: { rolesOnly: boolean }) {
                         onChange={(e) => void change(m, e.target.value as OrgRole)}
                       >
                         <option value="member">Member</option>
+                        <option value="manager">Manager</option>
                         <option value="admin">Admin</option>
                       </select>
                     ) : (
@@ -685,10 +687,10 @@ function RolePermissions() {
       <div className="rounded-lg border p-4 text-sm leading-6">
         <h2>Workspace access</h2>
         <p>
-          Owner and admin are the account's manager roles. Workspace members can review shared
-          calls, evidence and notes. Notes can be edited or deleted only by their author. Coaching
-          assignments, approved guidance, team configuration and audit history require manager
-          access. Private rooms are limited to their creator and invited members.
+          Owners and admins manage workspace access. Managers review the agents assigned to their
+          teams and invite agents through Teams. Agents see their own calls, evidence, reports and
+          coaching. Notes can be edited or deleted only by their author. Private rooms are limited
+          to their creator and invited members.
         </p>
         <Link className="figma-button mt-3" to="/app/settings" search={{ tab: "users" }}>
           Manage user access

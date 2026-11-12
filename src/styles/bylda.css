@@ -15,6 +15,10 @@
                                               secondary, border-by-border-engraved…
    ───────────────────────────────────────────────────────────────────────────── */
 
+@import "@fontsource/geist/latin-400.css";
+@import "@fontsource/geist/latin-500.css";
+@import "@fontsource/geist/latin-600.css";
+@import "@fontsource/geist/latin-700.css";
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
@@ -36,6 +40,24 @@
   --by-graphite-800: #2a2a2e;
   --by-graphite-900: #1b1b1e;
   --by-ink: #0b0b0c;
+
+  /* Page 30 pearl, lime and Regular Glass surfaces. */
+  --by-page30-ink: #19181e;
+  --by-page30-muted: #574f63;
+  --by-page30-canvas: #f3eef0;
+  --by-page30-opaque: #f8f5f4;
+  --by-page30-lime: #a6f83b;
+  --by-page30-green: #23511a;
+  --by-page30-rule: #d7cdd8;
+  --by-page30-rim: rgb(255 252 249 / 0.88);
+  --by-page30-fill: linear-gradient(135deg, rgb(255 252 249 / 0.44), rgb(246 241 246 / 0.28));
+  --by-page30-shadow: 0 4px 14px rgb(117 103 117 / 0.08);
+  --by-page30-glow:
+    radial-gradient(ellipse at 19% 22%, rgb(219 213 230 / 0.64), transparent 57%),
+    radial-gradient(ellipse at 89% 13%, rgb(225 212 194 / 0.46), transparent 45%),
+    radial-gradient(ellipse at 86% 97%, rgb(215 207 224 / 0.60), transparent 43%),
+    linear-gradient(30deg, #faf7f1, #f7f2ee 28%, transparent 44%, #f6f3f0 61%, transparent 78%);
+
 
   /* Behavioral signal — direction only, never decoration */
   --by-improve: #2f7d5b;
