@@ -8,6 +8,7 @@ import { behaviorFeedbackQuery, BEHAVIOR_LABELS } from "@/lib/coaching/behavior"
 import { coachingPreferencesQuery } from "@/lib/coaching/preferences";
 import { workspaceDateStamp, workspaceWeekStart } from "@/lib/coaching/calendar";
 import { RecordedOutcomes } from "./RecordedOutcomes";
+import { Markdown } from "@/components/app/Markdown";
 const tabs = [
   "Overview",
   "Emerging patterns",
@@ -219,7 +220,7 @@ export function WorkspaceInsights({ initialTab = "Overview" }: { initialTab?: st
                                 {names.get(event.rep_id ?? "") ?? "Rep"} ·{" "}
                                 {event.assessment.rep_behavior}
                               </Link>
-                              <p className="mt-1">{event.assessment.buyer_reaction}</p>
+                              <Markdown className="mt-1" text={event.assessment.buyer_reaction} />
                             </li>
                           ))}
                         </ul>

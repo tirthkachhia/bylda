@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Markdown } from "@/components/app/Markdown";
 import { useState } from "react";
 import { useWorkspaceView } from "@/lib/workspace-view";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -201,7 +202,7 @@ export function TodayBrief({
                     <article key={insight.id} className="page30-glass page30-report-card">
                       <p className="page30-label">{formatWhen(insight.created_at)}</p>
                       <h3>{call?.contactName ?? "Call evidence"}</h3>
-                      <p>{insight.summary || "Review the retained call analysis."}</p>
+                      <Markdown text={insight.summary || "Review the retained call analysis."} />
                       {currentOrgId && (
                         <IntelligenceEvidence
                           organizationId={currentOrgId}

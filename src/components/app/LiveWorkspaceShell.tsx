@@ -23,6 +23,7 @@ import { WorkspacePicker } from "./WorkspacePicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { WorkspaceSearch } from "./coaching/WorkspaceSearch";
 import { askWorkspace, type QuestionScope } from "@/lib/coaching/ask-workspace";
+import { Markdown } from "@/components/app/Markdown";
 import { animatePage30Panel } from "@/lib/coaching/page30-motion";
 import { useWorkspaceView } from "@/lib/workspace-view";
 import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
@@ -558,7 +559,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
                     aria-busy={currentChat.streaming}
                     aria-live={currentChat.streaming ? "off" : "polite"}
                   >
-                    <p className="whitespace-pre-wrap">{currentChat.answer}</p>
+                    <Markdown text={currentChat.answer} />
                     {!!currentChat.count && (
                       <p className="page30-muted mt-3">
                         {currentChat.count} saved {currentChat.count === 1 ? "source" : "sources"}{" "}

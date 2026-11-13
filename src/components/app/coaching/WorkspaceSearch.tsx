@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
 import { askWorkspace } from "@/lib/coaching/ask-workspace";
+import { Markdown } from "@/components/app/Markdown";
 
 type SearchResult =
   | { kind: "call" | "note"; id: string; callId: string; title: string }
@@ -191,9 +192,9 @@ export function WorkspaceSearch({
           </p>
         ) : (
           answer && (
-            <p aria-busy={busy} aria-live={busy ? "off" : "polite"} className="whitespace-pre-wrap">
-              {answer}
-            </p>
+            <div aria-busy={busy} aria-live={busy ? "off" : "polite"}>
+              <Markdown text={answer} />
+            </div>
           )
         )
       ) : q.isFetching ? (
