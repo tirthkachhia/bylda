@@ -1,0 +1,69 @@
+.screen-motion {
+  display: contents;
+}
+.page30-history {
+  flex-shrink: 0;
+  border: 1px solid var(--by-page30-rule);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+#workspace-content {
+  view-transition-name: workspace-screen;
+}
+::view-transition-group(root),
+::view-transition-group(workspace-screen) {
+  animation-duration: 440ms;
+}
+::view-transition-old(root) {
+  animation: screen-fade-out 130ms ease-out both;
+}
+::view-transition-new(root) {
+  animation: screen-fade-in 240ms ease-out both;
+}
+::view-transition-old(workspace-screen) {
+  animation: screen-leave 140ms ease-in both;
+}
+::view-transition-new(workspace-screen) {
+  animation: screen-reveal 440ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+::view-transition-old(workspace-screen),
+::view-transition-new(workspace-screen) {
+  mix-blend-mode: normal;
+}
+@keyframes screen-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes screen-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    clip-path: inset(0 0 10% 0 round 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: inset(0 round 0px);
+  }
+}
+@keyframes screen-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes screen-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+}

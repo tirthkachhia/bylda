@@ -126,7 +126,7 @@ describe("source-grounded behavioral intelligence", () => {
     expect(() => chunkEvidence([{ ...source[0], text: "x".repeat(400_001) }])).toThrow(/budget/);
   });
   it("does not invent actor identity or timestamps for legacy plain text", () => {
-    expect(sourceTurns(null, "Rep: hello")[0]).toMatchObject({ speaker: "unknown", start_s: null });
+    expect(sourceTurns(null, "Rep: hello")[0]).toMatchObject({ speaker: "rep", start_s: null });
   });
   it("keeps conflicting chunk judgments separate from a single positive verdict", () => {
     const a = normalizeBehavior(output(), source),
@@ -137,12 +137,27 @@ describe("source-grounded behavioral intelligence", () => {
   it("does not send playbook instructions or prior analyzer opinions into independent evaluation", async () => {
     let input = "";
     const result = await analyzeBehavior(source, async (options) => {
+      if (options.tool.name === "review_behavior_evidence") {
+        const { claims } = JSON.parse(options.userPrompt);
+        return {
+          model: "fixture",
+          tokensIn: 2,
+          tokensOut: 3,
+          toolResult: {
+            reviews: claims.map((claim: { claim_id: string }) => ({
+              claim_id: claim.claim_id,
+              verdict: "supported",
+              quotes: [{ turn_id: 1, quote: source[1].text }],
+            })),
+          },
+        };
+      }
       input = options.userPrompt;
       return { model: "fixture", tokensIn: 10, tokensOut: 20, toolResult: output() };
     });
     expect(input).not.toContain("Gold");
     expect(result.analysis.coverage.ending_analyzed).toBe(true);
-    expect(result.tokensIn).toBe(10);
+    expect(result.tokensIn).toBe(12);
     expect(BEHAVIOR_SYSTEM_PROMPT).toContain("independently of any script");
   });
   it("a model failure cannot be persisted as a complete behavioral run", async () => {

@@ -17,6 +17,7 @@ export interface QueueLike<T> {
 }
 
 export interface QueueMessageLike<T> {
+  id?: string;
   body: T;
   attempts: number;
   ack(): void;

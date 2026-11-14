@@ -120,7 +120,9 @@ export async function resolveCtx(
     organizationId: call.organization_id,
     userId: call.user_id,
     repId: call.rep_id,
-    durationSeconds: call.duration ?? (Number.isFinite(lastEnd) ? Math.round(lastEnd) : null),
+    durationSeconds:
+      call.duration ??
+      (typeof lastEnd === "number" && Number.isFinite(lastEnd) ? Math.round(lastEnd) : null),
     playbook: await resolvePlaybook(env, call.organization_id, call.rep_id, fetchImpl),
   };
 }

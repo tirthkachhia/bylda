@@ -37,6 +37,8 @@ beforeAll(async () => {
   await db.exec(`
     create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth; create schema storage;
+    create table auth.mfa_factors(user_id uuid,status text);
+    create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('aal',coalesce(nullif(current_setting('request.jwt.claim.aal',true),''),'aal1'))$$;
     create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     create type public.org_role as enum ('owner','admin','member');
     create table auth.users(id uuid primary key);
@@ -56,9 +58,9 @@ beforeAll(async () => {
     insert into organization_members values('${org}','${owner}','owner'),('${org}','${agent}','member'),('${org}','${otherAgent}','member'),('${otherOrg}','${outsider}','owner');
     insert into profiles values('${agent}','agent@example.com'),('${otherAgent}','other@example.com');
     insert into reps(id,organization_id,created_by,name,email) values('${rep}','${org}','${manager}','Agent','agent@example.com'),('${otherRep}','${org}','${otherManager}','Other','other@example.com');
-    insert into calls values('${call}','${org}','${rep}','${agent}','{"audio_path":"a.mp3"}'),('${otherCall}','${org}','${otherRep}','${otherAgent}','{"audio_path":"b.mp3"}');
+    insert into calls values('${call}','${org}','${rep}','${agent}','{"audio_path":"${org}/${agent}/${call}.mp3"}'),('${otherCall}','${org}','${otherRep}','${otherAgent}','{"audio_path":"${org}/${otherAgent}/${otherCall}.mp3"}');
     insert into coaching_teams(id,organization_id,manager_id,name,rep_ids) values('${team}','${org}','${manager}','A',array['${rep}'::uuid]),('${otherTeam}','${org}','${otherManager}','B',array['${otherRep}'::uuid]);
-    insert into storage.objects values('call-audio','a.mp3'),('call-audio','b.mp3');
+    insert into storage.objects values('call-audio','${org}/${agent}/${call}.mp3'),('call-audio','${org}/${otherAgent}/${otherCall}.mp3');
     grant usage on schema public,auth,storage to authenticated,service_role;
     grant select on organizations to authenticated;
     grant insert on auth.users to service_role;
@@ -91,6 +93,51 @@ beforeAll(async () => {
     `insert into organization_members values('${org}','${manager}','manager'),('${org}','${otherManager}','manager');`,
   );
   await db.exec(readFileSync("supabase/migrations/20261111000002_manager_access.sql", "utf8"));
+  await db.exec(`
+    create table memory_artifacts(id uuid primary key default gen_random_uuid(),org_id uuid,metadata jsonb,content text);
+    create table context_memory_chunks(id uuid primary key default gen_random_uuid(),organization_id uuid,call_id uuid,transcript_id uuid,content text);
+    create table coaching_delivery_channels(id uuid primary key,organization_id uuid,enabled boolean);
+    create table coaching_report_deliveries(id uuid primary key default gen_random_uuid(),organization_id uuid,report_id uuid,channel_id uuid,unique(report_id,channel_id));
+    alter table coaching_reports add column status text;
+    create function queue_coaching_report_delivery(uuid) returns void language sql as $$
+      insert into coaching_report_deliveries(organization_id,report_id,channel_id)
+      select r.organization_id,r.id,c.id from coaching_reports r join coaching_delivery_channels c on c.organization_id=r.organization_id and c.enabled where r.id=$1 and r.status='completed' on conflict do nothing
+    $$;
+    insert into memory_artifacts(org_id,metadata,content) values('${org}','{"call_id":"${call}"}','My transcript'),('${org}','{"call_id":"${otherCall}"}','Private transcript');
+    insert into context_memory_chunks(organization_id,call_id,content) values('${org}','${call}','My source'),('${org}','${otherCall}','Private source');
+  `);
+  for (const table of ["memory_artifacts", "context_memory_chunks", "coaching_report_deliveries"]) {
+    await db.exec(
+      `alter table ${table} enable row level security;create policy baseline on ${table} for all to authenticated using(true) with check(true);grant all on ${table} to authenticated,service_role;`,
+    );
+  }
+  await db.exec(
+    readFileSync("supabase/migrations/20261114000001_recording_evidence_access.sql", "utf8"),
+  );
+  await db.exec(
+    readFileSync("supabase/migrations/20261114000002_transcription_claims.sql", "utf8"),
+  );
+  await db.exec(readFileSync("supabase/migrations/20261114000003_session_assurance.sql", "utf8"));
+  await db.exec(readFileSync("supabase/migrations/20261114000004_ask_history.sql", "utf8"));
+  // Operators may need to replay a partially applied release: additive recovery
+  // migrations preserve bindings and policies when run again.
+  for (const migration of [
+    "recording_evidence_access",
+    "transcription_claims",
+    "session_assurance",
+    "ask_history",
+  ]) {
+    const number =
+      [
+        "recording_evidence_access",
+        "transcription_claims",
+        "session_assurance",
+        "ask_history",
+      ].indexOf(migration) + 1;
+    await db.exec(
+      readFileSync(`supabase/migrations/2026111400000${number}_${migration}.sql`, "utf8"),
+    );
+  }
   await db.exec(
     "create trigger coaching_team_valid before insert or update on public.coaching_teams for each row execute function public.validate_coaching_team()",
   );
@@ -231,6 +278,172 @@ describe.sequential("manager and agent database boundaries", () => {
       result.rows[0].rep,
     ]);
     expect((await db.query("select * from calls")).rows).toHaveLength(0);
+  });
+  it("signs an owned upload before insertion, then binds it immutably", async () => {
+    const fresh = id(60),
+      path = `${org}/${agent}/${fresh}.mp3`;
+    await as(agent, "service_role");
+    await db.query("insert into storage.objects values('call-audio',$1)", [path]);
+    await as(agent);
+    expect(
+      (await db.query("select * from storage.objects where name=$1", [path])).rows,
+    ).toHaveLength(1);
+    await db.query(
+      "insert into calls(id,organization_id,rep_id,user_id,metadata) values($1,$2,$3,$4,$5)",
+      [fresh, org, rep, agent, JSON.stringify({ audio_path: path })],
+    );
+    expect(
+      (await db.query("select * from storage.objects where name=$1", [path])).rows,
+    ).toHaveLength(1);
+    await expect(
+      db.query("update calls set metadata=jsonb_build_object('audio_path',$1::text) where id=$2", [
+        `${org}/${otherAgent}/${otherCall}.mp3`,
+        fresh,
+      ]),
+    ).rejects.toThrow("immutable");
+    await expect(
+      db.query(
+        "insert into calls(id,organization_id,rep_id,user_id,metadata) values($1,$2,$3,$4,$5)",
+        [
+          id(61),
+          org,
+          rep,
+          agent,
+          JSON.stringify({ audio_path: `${org}/${otherAgent}/${otherCall}.mp3` }),
+        ],
+      ),
+    ).rejects.toThrow("Invalid recording");
+    expect(
+      (
+        await db.query("select * from storage.objects where name=$1", [
+          `${org}/${otherAgent}/${otherCall}.mp3`,
+        ])
+      ).rows,
+    ).toHaveLength(0);
+    await db.query("delete from calls where id=$1", [fresh]);
+    await as(agent, "service_role");
+    await db.query("delete from storage.objects where name=$1", [path]);
+  });
+  it("scopes derived transcript copies and rejects invalid source identities", async () => {
+    await as(agent);
+    expect((await db.query("select * from memory_artifacts")).rows).toHaveLength(1);
+    expect((await db.query("select * from context_memory_chunks")).rows).toHaveLength(1);
+    await expect(
+      db.query("insert into memory_artifacts(org_id,metadata,content) values($1,$2,'forged')", [
+        org,
+        '{"call_id":"invalid"}',
+      ]),
+    ).rejects.toThrow("row-level security");
+  });
+  it("reserves one transcription while allowing the original queue delivery to retry", async () => {
+    const fresh = id(65),
+      path = `${org}/${agent}/${fresh}.mp3`;
+    await as(agent, "service_role");
+    await db.query("insert into storage.objects values('call-audio',$1)", [path]);
+    await db.query(
+      "insert into calls(id,organization_id,rep_id,user_id,metadata) values($1,$2,$3,$4,$5)",
+      [fresh, org, rep, agent, JSON.stringify({ audio_path: path })],
+    );
+    const claim = async (delivery: string) =>
+      (
+        await db.query<{ state: string }>(
+          "select claim_coaching_transcription($1,$2,$3,$4,$5) as state",
+          [fresh, org, agent, path, delivery],
+        )
+      ).rows[0].state;
+    expect(await claim("delivery-a")).toBe("claimed");
+    expect(await claim("delivery-b")).toBe("busy");
+    expect(await claim("delivery-a")).toBe("claimed");
+    await db.query("insert into call_transcripts(organization_id,call_id) values($1,$2)", [
+      org,
+      fresh,
+    ]);
+    expect(await claim("delivery-b")).toBe("saved");
+    await expect(
+      db.query("select claim_coaching_transcription($1,$2,$3,$4,'bad')", [
+        fresh,
+        otherOrg,
+        agent,
+        path,
+      ]),
+    ).rejects.toThrow("Invalid transcription source");
+    await db.query("delete from call_transcripts where call_id=$1", [fresh]);
+    await db.query("delete from calls where id=$1", [fresh]);
+    await db.query("delete from storage.objects where name=$1", [path]);
+  });
+  it("makes report completion and delivery queuing one transaction", async () => {
+    await db.exec("reset role");
+    const report = id(70),
+      channel = id(71);
+    await db.query(
+      "insert into coaching_reports(id,organization_id,rep_id,status) values($1,$2,$3,'running')",
+      [report, org, rep],
+    );
+    await db.query("insert into coaching_delivery_channels values($1,$2,true)", [channel, org]);
+    await db.exec(`create function fail_test_delivery() returns trigger language plpgsql as $$begin raise exception 'Queue unavailable';end$$;
+      create trigger fail_test_delivery before insert on coaching_report_deliveries for each row execute function fail_test_delivery();`);
+    await expect(
+      db.query("update coaching_reports set status='completed' where id=$1", [report]),
+    ).rejects.toThrow("Queue unavailable");
+    expect(
+      (
+        await db.query<{ status: string }>("select status from coaching_reports where id=$1", [
+          report,
+        ])
+      ).rows[0].status,
+    ).toBe("running");
+    await db.exec("drop trigger fail_test_delivery on coaching_report_deliveries");
+    await db.query("update coaching_reports set status='completed' where id=$1", [report]);
+    await db.query("update coaching_reports set status='completed' where id=$1", [report]);
+    expect(
+      (await db.query("select * from coaching_report_deliveries where report_id=$1", [report]))
+        .rows,
+    ).toHaveLength(1);
+    await db.query("delete from coaching_report_deliveries where report_id=$1", [report]);
+    await db.query("delete from coaching_reports where id=$1", [report]);
+    await db.query("delete from coaching_delivery_channels where id=$1", [channel]);
+  });
+  it("enforces enrolled MFA on direct data and recording APIs", async () => {
+    await db.exec("reset role");
+    await db.query("insert into auth.mfa_factors values($1,'verified')", [agent]);
+    await as(agent);
+    expect((await db.query("select * from calls")).rows).toHaveLength(0);
+    expect((await db.query("select * from storage.objects")).rows).toHaveLength(0);
+    expect((await db.query("select * from memory_artifacts")).rows).toHaveLength(0);
+    expect(
+      (
+        await db.query<{ allowed: boolean }>("select coaching_can_view_call($1,$2) as allowed", [
+          org,
+          call,
+        ])
+      ).rows[0].allowed,
+    ).toBe(false);
+    await db.exec("set request.jwt.claim.aal='aal2'");
+    expect((await db.query("select * from calls")).rows).toHaveLength(1);
+    expect((await db.query("select * from storage.objects")).rows).toHaveLength(1);
+    await db.exec("reset role;set request.jwt.claim.aal='aal1'");
+    await db.query("delete from auth.mfa_factors where user_id=$1", [agent]);
+  });
+  it("keeps saved Ask answers private and applies source-call visibility", async () => {
+    await db.exec("reset role");
+    for (const [viewer, source] of [
+      [agent, call],
+      [agent, otherCall],
+      [manager, call],
+    ]) {
+      await db.query(
+        "insert into coaching_ask_history(organization_id,user_id,scope_key,question,answer,citations,call_ids) values($1,$2,'calls::','What happened?','Answer','[]',array[$3::uuid])",
+        [org, viewer, source],
+      );
+    }
+    await as(agent);
+    expect((await db.query("select * from coaching_ask_history")).rows).toHaveLength(1);
+    await as(manager);
+    expect((await db.query("select * from coaching_ask_history")).rows).toHaveLength(1);
+    await as(otherAgent);
+    expect((await db.query("select * from coaching_ask_history")).rows).toHaveLength(0);
+    await as(owner);
+    expect((await db.query("select * from coaching_ask_history")).rows).toHaveLength(0);
   });
   it("revokes the original creator's access when an owner transfers the agent", async () => {
     await as(owner);

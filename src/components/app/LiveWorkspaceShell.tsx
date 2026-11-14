@@ -22,7 +22,12 @@ import { behavioralNavigation, workspaceNavigation } from "@/lib/workspace-navig
 import { WorkspacePicker } from "./WorkspacePicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { WorkspaceSearch } from "./coaching/WorkspaceSearch";
-import { askWorkspace, type QuestionScope } from "@/lib/coaching/ask-workspace";
+import {
+  askWorkspace,
+  askHistoryQuery,
+  type QuestionScope,
+  type AskSource,
+} from "@/lib/coaching/ask-workspace";
 import { animatePage30Panel } from "@/lib/coaching/page30-motion";
 import { useWorkspaceView } from "@/lib/workspace-view";
 import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
@@ -57,12 +62,14 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false),
     [leaving, setLeaving] = useState(false),
     [searchOpen, setSearchOpen] = useState(false),
+    [historyOpen, setHistoryOpen] = useState(false),
     [draft, setDraft] = useState(""),
     [chat, setChat] = useState<{
       key: string;
       question: string;
       answer?: string;
       count?: number;
+      citations?: AskSource[];
       error?: string;
       streaming?: boolean;
     } | null>(null);
@@ -137,6 +144,14 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
             ? { kind: "calls" }
             : { kind: access.manager ? "workspace" : "personal" };
   const scopeName = dock.find((item) => item.key === dockActive)?.label ?? "Workspace";
+  const history = useQuery(
+    askHistoryQuery(
+      currentOrgId ?? "",
+      user?.id ?? "",
+      questionScope,
+      access.manager ? undefined : access.rep?.id,
+    ),
+  );
   const chatKey = `${currentOrgId}:${path}:${location.searchStr}`;
   const currentChat = chat?.key === chatKey ? chat : null;
   useEffect(() => {
@@ -171,11 +186,6 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
     observer?.observe(tabs);
     return () => observer?.disconnect();
   }, [dockActive, unread.data]);
-  useEffect(() => {
-    const content = main.current?.querySelector<HTMLElement>(".page30-view");
-    const animation = content ? animatePage30Panel(content) : undefined;
-    return () => animation?.cancel();
-  }, [path, view]);
   const activeQuestion = currentChat?.question;
   useEffect(() => {
     if (!activeQuestion || !answerPanel.current) return;
@@ -208,7 +218,11 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           question,
           answer: response.answer,
           count: response.sources_searched,
+          citations: response.citations,
         });
+      await queryClient.invalidateQueries({
+        queryKey: ["coaching-ask-history", currentOrgId, user?.id],
+      });
     } catch (error) {
       if (!controller.signal.aborted)
         setChat({
@@ -559,6 +573,32 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
                     aria-live={currentChat.streaming ? "off" : "polite"}
                   >
                     <p className="whitespace-pre-wrap">{currentChat.answer}</p>
+                    {!!currentChat.citations?.length && (
+                      <ul className="mt-4 space-y-3" aria-label="Answer evidence">
+                        {currentChat.citations.map((source) => (
+                          <li key={source.id} className="rounded-lg border p-3 text-sm">
+                            <Link
+                              to="/app/crm/calls"
+                              search={{
+                                view: "calls",
+                                callId: source.call_id,
+                                runId: source.run_id,
+                                turnId: source.turn_id,
+                                tab: "transcript",
+                                ...(source.start_s !== null ? { at: source.start_s } : {}),
+                              }}
+                              className="underline"
+                              onClick={() => setChat(null)}
+                            >
+                              [{source.id}] Open exact {source.speaker} turn
+                            </Link>
+                            <blockquote className="mt-1 text-by-text-secondary">
+                              {source.text}
+                            </blockquote>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     {!!currentChat.count && (
                       <p className="page30-muted mt-3">
                         {currentChat.count} saved {currentChat.count === 1 ? "source" : "sources"}{" "}
@@ -646,6 +686,14 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
               }
             />
             <button
+              type="button"
+              className="page30-history"
+              onClick={() => setHistoryOpen(true)}
+              aria-label="Previous questions"
+            >
+              History
+            </button>
+            <button
               type="submit"
               className="page30-composer-arrow"
               aria-label="Ask Bylda"
@@ -657,6 +705,49 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
             </button>
           </form>
         </footer>
+        <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+          <DialogContent
+            className="page30-dialog max-h-[85dvh] max-w-2xl overflow-y-auto"
+            aria-describedby={undefined}
+          >
+            <DialogTitle>Previous questions</DialogTitle>
+            {history.isPending ? (
+              <p role="status">Loading questions…</p>
+            ) : history.error ? (
+              <p role="alert">
+                Questions could not load.{" "}
+                <button className="underline" onClick={() => void history.refetch()}>
+                  Retry
+                </button>
+              </p>
+            ) : !history.data?.length ? (
+              <p>No saved questions in this view yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {history.data.map((entry) => (
+                  <li key={entry.id}>
+                    <button
+                      className="figma-button w-full text-left"
+                      onClick={() => {
+                        askRequest.current?.abort();
+                        setChat({
+                          key: chatKey,
+                          question: entry.question,
+                          answer: entry.answer,
+                          citations: entry.citations,
+                          count: entry.citations.length,
+                        });
+                        setHistoryOpen(false);
+                      }}
+                    >
+                      {entry.question}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </DialogContent>
+        </Dialog>
         <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
           <DialogContent
             className="page30-dialog max-h-[85dvh] max-w-2xl overflow-y-auto"

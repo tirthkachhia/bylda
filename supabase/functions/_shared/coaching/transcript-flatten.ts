@@ -12,8 +12,8 @@ const LABEL: Record<ParsedTurn["speaker"], string> = {
 export type SpeakerSegment = {
   speaker: string;
   /** Seconds from the start of the recording. */
-  start: number;
-  end: number;
+  start: number | null;
+  end: number | null;
   text: string;
   tone: ParsedTurn["tone"];
   overlap: boolean;

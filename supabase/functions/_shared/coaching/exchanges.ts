@@ -10,8 +10,8 @@ export type Block = {
   turnIndexes: number[];
   text: string;
   toneLabels: string[];
-  start_s: number;
-  end_s: number;
+  start_s: number | null;
+  end_s: number | null;
   overlap: boolean;
 };
 
@@ -24,8 +24,8 @@ export type Exchange = {
   index: number;
   rep: Block | null;
   customer: Block | null;
-  start_s: number;
-  end_s: number;
+  start_s: number | null;
+  end_s: number | null;
 };
 
 function newBlock(turn: ParsedTurn, speaker: BlockSpeaker, text: string): Block {
@@ -44,22 +44,21 @@ function appendTurn(block: Block, turn: ParsedTurn, text: string) {
   block.turnIndexes.push(turn.index);
   block.text = `${block.text} ${text}`.trim();
   block.toneLabels.push(turn.tone.label);
-  block.end_s = Math.max(block.end_s, turn.end_s);
+  block.end_s =
+    block.end_s === null || turn.end_s === null ? null : Math.max(block.end_s, turn.end_s);
   block.overlap = block.overlap || turn.overlap;
 }
 
 /**
- * Merge consecutive same-speaker turns. Unattributed ("unknown") speech folds
- * into the preceding block as an [unclear: …] marker so it stays visible without
- * breaking pairing; a leading unknown is treated as the customer.
+ * Merge attributable speech only. Unknown speech remains in the canonical
+ * transcript and the behavioral analysis, never in another speaker's score.
  */
 export function collapseBlocks(turns: ParsedTurn[]): Block[] {
   const blocks: Block[] = [];
   for (const turn of turns) {
     const last = blocks[blocks.length - 1];
     if (turn.speaker === "unknown") {
-      if (last) appendTurn(last, turn, `[unclear: ${turn.text}]`);
-      else blocks.push(newBlock(turn, "customer", turn.text));
+      // Unknown speech cannot become evidence attributed to either participant.
       continue;
     }
     if (last && last.speaker === turn.speaker) appendTurn(last, turn, turn.text);
@@ -78,7 +77,8 @@ export function groupExchanges(turns: ParsedTurn[]): Exchange[] {
       open = { index: 0, rep: block, customer: null, start_s: block.start_s, end_s: block.end_s };
     } else if (open) {
       open.customer = block;
-      open.end_s = Math.max(open.end_s, block.end_s);
+      open.end_s =
+        open.end_s === null || block.end_s === null ? null : Math.max(open.end_s, block.end_s);
       exchanges.push(open);
       open = null;
     } else {

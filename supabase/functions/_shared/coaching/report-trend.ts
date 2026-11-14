@@ -37,6 +37,7 @@ export type GuidelineTrend = {
 };
 
 export type SinceLast = {
+  limitation?: string;
   previous_period: { start: string; end: string } | null;
   calls: { current: number; previous: number };
   /** The guideline the last report asked the rep to practice, and how it went. */
@@ -48,8 +49,8 @@ export type SinceLast = {
 export type StripRow = {
   call_id: string;
   started_at: string | null;
-  quality_score: number;
-  risk_count: number;
+  quality_score: number | null;
+  risk_count: number | null;
   coaching_value_label: ReportCall["coaching_value_label"];
   /** Status of the drilled guideline on this call, or null when none was drilled or judged. */
   drill_status: AdherenceStatus | null;
@@ -137,6 +138,8 @@ const ofCalls = (c: Counts) =>
 
 /** Facts for the prompt. Counts, never percentages: five calls is a small sample. */
 export function renderSinceLast(s: SinceLast): string {
+  if (s.limitation)
+    return `SINCE LAST REPORT: comparison unavailable. ${s.limitation} Do not claim improvement, decline or unchanged behavior.`;
   if (s.calls.previous === 0 && !s.drill)
     return "SINCE LAST REPORT: no earlier period to compare against. Do not claim improvement or decline.";
   const lines = [

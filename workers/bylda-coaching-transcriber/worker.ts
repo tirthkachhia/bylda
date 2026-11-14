@@ -24,6 +24,7 @@ import {
   setCoachingStage,
   triggerAnalysis,
   upsertTranscript,
+  transcriptionClaim,
 } from "./supabase.ts";
 import { scoreChunk, type ScoreChunk } from "./score.ts";
 
@@ -158,8 +159,7 @@ async function processScoreMessage(msg: TranscribeMessage, env: Env): Promise<vo
     await setCoachingStage(env, msg.call_id, "transcribed", { scoring_error: text }).catch(
       () => undefined,
     );
-    const analyzed = await triggerAnalysis(env, msg.call_id);
-    if (!analyzed) console.error("[transcriber] analyze-call did not accept", msg.call_id);
+    await env.SCORE_QUEUE.sendBatch([{ body: { ...msg, kind: "analyze", chunk: undefined } }]);
     return;
   }
   if (outcome.status === "next") {
@@ -180,12 +180,15 @@ async function processScoreMessage(msg: TranscribeMessage, env: Env): Promise<vo
   await setCoachingStage(env, msg.call_id, "transcribed", {
     scoring_error: outcome.status === "skipped" ? outcome.reason : null,
   });
-  const analyzed = await triggerAnalysis(env, msg.call_id);
-  if (!analyzed) console.error("[transcriber] analyze-call did not accept", msg.call_id);
+  await env.SCORE_QUEUE.sendBatch([{ body: { ...msg, kind: "analyze", chunk: undefined } }]);
 }
 
 /** Full pipeline for one message. Throws on transient errors; returns "failed" on permanent ones. */
-export async function processMessage(msg: TranscribeMessage, env: Env): Promise<"done" | "failed"> {
+export async function processMessage(
+  msg: TranscribeMessage,
+  env: Env,
+  deliveryId: string = crypto.randomUUID(),
+): Promise<"done" | "failed"> {
   if (msg.kind === "analyze") {
     if (!(await triggerAnalysis(env, msg.call_id)))
       throw new Error("Saved-transcript analysis did not complete");
@@ -195,6 +198,28 @@ export async function processMessage(msg: TranscribeMessage, env: Env): Promise<
     await processScoreMessage(msg, env);
     return "done";
   }
+  const state = await transcriptionClaim(env, {
+    p_call: msg.call_id,
+    p_org: msg.organization_id,
+    p_user: msg.user_id,
+    p_path: msg.audio_path,
+    p_delivery: deliveryId,
+  });
+  if (state === "busy" || state === "complete") return "done";
+  if (state === "saved") {
+    await enqueueScoring(msg, env);
+    return "done";
+  }
+  try {
+    return await transcribeRecording(msg, env);
+  } finally {
+    await transcriptionClaim(env, { p_call: msg.call_id, p_delivery: deliveryId }, true).catch(
+      (error) => console.error("[transcriber] release reservation", String(error)),
+    );
+  }
+}
+
+async function transcribeRecording(msg: TranscribeMessage, env: Env): Promise<"done" | "failed"> {
   await setCoachingStage(env, msg.call_id, "transcribing", { coaching_error: null });
   const startedAt = Date.now();
 
@@ -262,7 +287,7 @@ export default {
     for (const message of batch.messages) {
       const msg = message.body;
       try {
-        await processMessage(msg, env);
+        await processMessage(msg, env, message.id);
         message.ack();
       } catch (error) {
         const text = error instanceof Error ? error.message : String(error);

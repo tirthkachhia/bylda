@@ -116,7 +116,9 @@ export function FigmaCallTimeline({
         </ul>
       )}
       <p className="mt-3 text-[10px] leading-5 text-by-text-secondary">
-        Talk: rep {Math.round(timeline.repSeconds)}s · buyer {Math.round(timeline.buyerSeconds)}s.
+        {timeline.tracks.Talk.length
+          ? `Talk: rep ${Math.round(timeline.repSeconds)}s · buyer ${Math.round(timeline.buyerSeconds)}s.`
+          : "Talk duration is unavailable because timed speaker turns are missing."}
         Overlapping speakers can count in both totals. Control tracks question-and-response pairs.
         Sentiment uses retained tone estimates. Stage marks show observed spans.
       </p>

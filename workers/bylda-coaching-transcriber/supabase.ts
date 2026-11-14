@@ -8,6 +8,29 @@ const BUCKET = "call-audio";
 
 export type FetchLike = typeof fetch;
 
+export async function transcriptionClaim(
+  env: Env,
+  body: Record<string, unknown>,
+  release = false,
+  fetchImpl: FetchLike = fetch,
+) {
+  const response = await fetchImpl(
+    `${env.SUPABASE_URL}/rest/v1/rpc/${release ? "release" : "claim"}_coaching_transcription`,
+    {
+      method: "POST",
+      headers: jsonHeaders(env),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000),
+    },
+  );
+  if (!response.ok) throw new Error(`Transcription reservation failed (${response.status})`);
+  if (release) return;
+  const result: unknown = await response.json();
+  if (!["complete", "saved", "busy", "claimed"].includes(String(result)))
+    throw new Error("Invalid transcription reservation");
+  return result as "complete" | "saved" | "busy" | "claimed";
+}
+
 /** Stored in calls.metadata.coaching_stage. "Coaching ready" is implied by a call_insights row. */
 export type CoachingStage = "queued" | "transcribing" | "scoring" | "transcribed" | "failed";
 

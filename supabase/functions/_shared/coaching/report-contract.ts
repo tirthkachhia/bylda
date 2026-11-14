@@ -81,6 +81,8 @@ function renderTheme(theme: ReportTheme, index: number): string {
     lines.push(`  - call_id ${m.call_id} exchange_index ${m.exchange_index} (at ${m.at})`);
     lines.push(`    Rep: ${m.rep_text}`);
     if (m.customer_text) lines.push(`    Customer: ${m.customer_text}`);
+    if (m.observation_context)
+      lines.push(`    Qualified context and call ending: ${JSON.stringify(m.observation_context)}`);
     if (m.why_it_matters) lines.push(`    Why it mattered: ${m.why_it_matters}`);
     if (m.what_to_say_instead) lines.push(`    Suggested line: ${m.what_to_say_instead}`);
   }
@@ -99,7 +101,8 @@ export function renderReportInput(
     `PERIOD: ${period.start} to ${period.end}`,
     "",
     "PERIOD STATS",
-    `- Calls scored: ${c.total} (${c.high_value} worth reviewing)`,
+    `- Calls reviewed: ${c.total}`,
+    `- Exchange scoring available: ${c.scored ?? c.total} calls. Legacy high-review flags: ${c.high_value}. Missing scores are unknown, not low value or zero risk.`,
     "- Composite scores are not an effectiveness verdict; use source-linked behavior and buyer responses.",
     `- Average rep move (0 pushed past … 3 advanced and asked): ${fmt(c.avg_rep_move)}`,
     `- Legacy exchange flags (may repeat one incident; not verified violations): ${c.risk_flags}`,
@@ -280,7 +283,7 @@ export function normalizeRepReport(
     const cited = resolveCitations(s.cited, lookup, 1);
     const title = str(s.title, 120);
     const what = str(s.what_happened, L.sentenceChars);
-    if (title && what) strength = { title, what_happened: what, cited };
+    if (title && what && cited.length) strength = { title, what_happened: what, cited };
   }
 
   if (!patterns.length && !strength) return null;

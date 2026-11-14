@@ -90,7 +90,8 @@ export function buildCallTimeline(
       raw.speaker === turn.speaker &&
       raw.start_s === turn.start_s &&
       raw.end_s === turn.end_s &&
-      TONE_LABELS.includes(raw.tone?.label)
+      TONE_LABELS.includes(raw.tone?.label) &&
+      raw.tone.label !== "unknown"
     )
       tracks.Sentiment.push({
         key: `tone-${turn.turn_id}`,

@@ -258,17 +258,12 @@ async function runMemoryQuery(
     console.error("[bylda-ai-api] artifact fetch failed", artifactsResponse.status);
   }
 
-  const artifacts = (artifactsResponse.ok
-    ? ((await artifactsResponse.json()) as MemoryArtifact[])
-    : []
-  ).filter(
-    (artifact) => Boolean(artifact.content?.trim() || artifact.content_preview?.trim()),
-  );
+  const artifacts = (
+    artifactsResponse.ok ? ((await artifactsResponse.json()) as MemoryArtifact[]) : []
+  ).filter((artifact) => Boolean(artifact.content?.trim() || artifact.content_preview?.trim()));
 
   const crmContext = await Promise.all(
-    CRM_CONTEXT_SOURCES.map((source) =>
-      fetchCrmContextSource(source, request.orgId, token, env),
-    ),
+    CRM_CONTEXT_SOURCES.map((source) => fetchCrmContextSource(source, request.orgId, token, env)),
   );
 
   let memoryBudget = 12000;
@@ -471,22 +466,28 @@ async function runTranscription(request: Request, env: Env) {
 
   if (!audioResponse.body) return json({ error: "Recording is empty" }, 400);
   let audioBytes = 0;
-  const audio = audioResponse.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      audioBytes += chunk.byteLength;
-      if (audioBytes > MAX_AUDIO_BYTES) throw new Error("Recording exceeds 100 MB");
-      controller.enqueue(chunk);
-    },
-    flush() {
-      if (!audioBytes) throw new Error("Recording is empty");
-    },
-  }));
+  const audio = audioResponse.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        audioBytes += chunk.byteLength;
+        if (audioBytes > MAX_AUDIO_BYTES) throw new Error("Recording exceeds 100 MB");
+        controller.enqueue(chunk);
+      },
+      flush() {
+        if (!audioBytes) throw new Error("Recording is empty");
+      },
+    }),
+  );
 
   // Encoded audio cannot be split at arbitrary byte offsets: later pieces lose
   // container headers and codec frames. Send the validated file intact.
   let transcript: string;
   try {
-    transcript = await transcribeChunk(audio, audioResponse.headers.get("content-type") || "application/octet-stream", env);
+    transcript = await transcribeChunk(
+      audio,
+      audioResponse.headers.get("content-type") || "application/octet-stream",
+      env,
+    );
   } catch {
     console.error("Transcription model failed", { audioBytes });
     return json({ error: "Transcription service could not process the recording" }, 502);

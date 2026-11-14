@@ -1,7 +1,7 @@
 import type { ParsedTurn } from "./transcript-parse.ts";
 
 export const BEHAVIOR_VERSION = "behavior-v1";
-export const BEHAVIOR_PROMPT_VERSION = "independent-sales-v2";
+export const BEHAVIOR_PROMPT_VERSION = "independent-sales-v3";
 export const FAMILIES = [
   "discovery_recommendation",
   "objection_resolution",
@@ -160,7 +160,22 @@ export function sourceTurns(turns: ParsedTurn[] | null, fallback: string): Evide
     return fallback
       .split(/\n+/)
       .filter(Boolean)
-      .map((text, turn_id) => ({ turn_id, speaker: "unknown", text, start_s: null, end_s: null }));
+      .map((text, turn_id) => {
+        const labelled = /^(rep|agent|customer|buyer|unknown):\s*(.*)$/i.exec(text.trim());
+        const role = labelled?.[1].toLowerCase();
+        return {
+          turn_id,
+          speaker:
+            role === "rep" || role === "agent"
+              ? ("rep" as const)
+              : role === "customer" || role === "buyer"
+                ? ("customer" as const)
+                : ("unknown" as const),
+          text: labelled ? labelled[2] : text,
+          start_s: null,
+          end_s: null,
+        };
+      });
   return turns.map((t, turn_id) => ({
     turn_id,
     speaker: t.speaker === "rep" || t.speaker === "customer" ? t.speaker : "unknown",
@@ -421,6 +436,15 @@ export function normalizeBehavior(
       buyer.length > 0 &&
       buyer.every((b) => /^(yes|yeah|yep|ok|okay|right|sure|no)[.!]?$/i.test(b.text.trim()));
     if (resolution === "resolved" && weakAcknowledgment) resolution = "partial";
+    const explicitRejection = buyer.some((b) =>
+      /\b(?:no[,.! ]|not interested|do not agree|don't agree|did not agree|didn't agree|not agreeing|do not consent|don't consent|not ready|do not want|don't want|no thanks|yeah[,. ]+right|absolutely not)\b/i.test(
+        b.text,
+      ),
+    );
+    if (explicitRejection && (e.result === "strength" || resolution === "resolved")) {
+      rejected++;
+      continue;
+    }
     const key = `${e.family}:${rep
       .map((r) => r.turn_id)
       .sort((a, b) => a - b)

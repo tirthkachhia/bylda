@@ -189,8 +189,13 @@ Deno.serve(async (req: Request) => {
       .eq("organization_id", organizationId)
       .maybeSingle(),
   ]);
-  if (membershipError) return json({ error: "Could not verify workspace access. Please retry." }, 503);
-  if (!member) return json({ error: "You are not a member of this workspace. Select your workspace and retry." }, 403);
+  if (membershipError)
+    return json({ error: "Could not verify workspace access. Please retry." }, 503);
+  if (!member)
+    return json(
+      { error: "You are not a member of this workspace. Select your workspace and retry." },
+      403,
+    );
   if (!["owner", "admin"].includes(String(member.role))) {
     return json({ error: "Only workspace owners and admins can change CRM intelligence" }, 403);
   }
@@ -200,9 +205,14 @@ Deno.serve(async (req: Request) => {
     .select("organization_id")
     .eq("organization_id", organizationId)
     .limit(1);
-  if (profileStoreError) return json({
-    error: "CRM setup storage is unavailable. An administrator must verify the crm_intelligence_profiles migration on the app's Supabase project. Your existing setup was not changed.",
-  }, 503);
+  if (profileStoreError)
+    return json(
+      {
+        error:
+          "CRM setup storage is unavailable. An administrator must verify the crm_intelligence_profiles migration on the app's Supabase project. Your existing setup was not changed.",
+      },
+      503,
+    );
 
   const identity =
     context?.identity && typeof context.identity === "object"
@@ -282,7 +292,10 @@ Deno.serve(async (req: Request) => {
     raw = result.toolResult ?? {};
     generatedBy = result.model;
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "AI setup failed. Please retry." }, 502);
+    return json(
+      { error: error instanceof Error ? error.message : "AI setup failed. Please retry." },
+      502,
+    );
   }
 
   const requestedBase = text(raw.base_profile, 30) as SalesVerticalKey;

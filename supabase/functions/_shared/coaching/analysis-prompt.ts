@@ -40,7 +40,7 @@ export function renderTranscriptForAnalysis(
   const lines = turns?.length
     ? turns.map(
         (turn) =>
-          `[${mmss(turn.start_s)}] ${SPEAKER_LABEL[turn.speaker]} (${turn.tone.label})${
+          `[${turn.start_s === null ? "time unknown" : mmss(turn.start_s)}] ${SPEAKER_LABEL[turn.speaker]}${turn.tone.label === "unknown" ? "" : ` (${turn.tone.label})`}${
             turn.overlap ? " (overlapping)" : ""
           }: ${turn.text}`,
       )
@@ -63,7 +63,12 @@ export function renderTranscriptForAnalysis(
         full.slice(tail >= 0 ? tail + 1 : full.length - half);
     }
   }
-  return { text, usedTone: !!lines, truncated: text.length < full.length, totalChars: full.length };
+  return {
+    text,
+    usedTone: !!turns?.some((turn) => turn.tone.label !== "unknown"),
+    truncated: text.length < full.length,
+    totalChars: full.length,
+  };
 }
 
 export const TONE_RULE = [

@@ -25,9 +25,11 @@ export async function generateWorkerProfile(
     }),
   });
   if (!response.ok) {
-    throw new Error(response.status === 401
-      ? "AI worker rejected your session. Sign in again; check that the worker and app use the same Supabase project."
-      : `Cloudflare AI worker failed (${response.status}). Your existing CRM setup was not changed.`);
+    throw new Error(
+      response.status === 401
+        ? "AI worker rejected your session. Sign in again; check that the worker and app use the same Supabase project."
+        : `Cloudflare AI worker failed (${response.status}). Your existing CRM setup was not changed.`,
+    );
   }
   const payload = await response.json();
   if (payload.provider !== "cloudflare-workers-ai" || typeof payload.answer !== "string") {
@@ -35,26 +37,48 @@ export async function generateWorkerProfile(
   }
   let profile: unknown;
   try {
-    profile = JSON.parse(payload.answer.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+    profile = JSON.parse(
+      payload.answer
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/, ""),
+    );
   } catch {
-    throw new Error("AI returned incomplete setup data. Please retry; your existing setup was preserved.");
+    throw new Error(
+      "AI returned incomplete setup data. Please retry; your existing setup was preserved.",
+    );
   }
   validateProfileSchema(profile, request.tool.parameters);
-  return { toolResult: profile as Record<string, unknown>, model: `cloudflare-workers-ai:${payload.model ?? "unknown"}` };
+  return {
+    toolResult: profile as Record<string, unknown>,
+    model: `cloudflare-workers-ai:${payload.model ?? "unknown"}`,
+  };
 }
 
-export function validateProfileSchema(value: unknown, schema: Record<string, any>, path = "profile"): void {
-  const fail = () => { throw new Error(`AI returned invalid ${path}. CRM setup was not saved; please retry.`); };
+export function validateProfileSchema(
+  value: unknown,
+  schema: Record<string, unknown>,
+  path = "profile",
+): void {
+  const fail = () => {
+    throw new Error(`AI returned invalid ${path}. CRM setup was not saved; please retry.`);
+  };
   if (schema.type === "object") {
     if (!value || typeof value !== "object" || Array.isArray(value)) return fail();
     const obj = value as Record<string, unknown>;
-    for (const key of schema.required ?? []) if (!(key in obj)) fail();
-    for (const [key, child] of Object.entries(schema.properties ?? {})) {
-      if (key in obj) validateProfileSchema(obj[key], child as Record<string, any>, `${path}.${key}`);
+    for (const key of Array.isArray(schema.required) ? schema.required : []) {
+      if (typeof key !== "string" || !(key in obj)) fail();
+    }
+    const properties =
+      schema.properties && typeof schema.properties === "object" ? schema.properties : {};
+    for (const [key, child] of Object.entries(properties)) {
+      if (key in obj)
+        validateProfileSchema(obj[key], child as Record<string, unknown>, `${path}.${key}`);
     }
   } else if (schema.type === "array") {
     if (!Array.isArray(value) || !value.length || value.length > 24) return fail();
-    for (const item of value) validateProfileSchema(item, schema.items, path);
+    for (const item of value)
+      validateProfileSchema(item, schema.items as Record<string, unknown>, path);
   } else if (typeof value !== schema.type || (typeof value === "string" && !value.trim())) fail();
-  if (schema.enum && !schema.enum.includes(value)) fail();
+  if (Array.isArray(schema.enum) && !schema.enum.includes(value)) fail();
 }

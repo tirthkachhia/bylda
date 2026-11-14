@@ -45,7 +45,7 @@ describe("collapseBlocks", () => {
     expect(blocks[1].speaker).toBe("customer");
   });
 
-  it("folds unknown speech into the previous block with an [unclear] marker", () => {
+  it("excludes unknown speech from attributed blocks", () => {
     counter = 0;
     const blocks = collapseBlocks([
       turn("customer", "Yes.", 0),
@@ -53,14 +53,14 @@ describe("collapseBlocks", () => {
       turn("rep", "Great.", 4),
     ]);
     expect(blocks).toHaveLength(2);
-    expect(blocks[0].text).toBe("Yes. [unclear: mumbling]");
-    expect(blocks[0].turnIndexes).toEqual([0, 1]);
+    expect(blocks[0].text).toBe("Yes.");
+    expect(blocks[0].turnIndexes).toEqual([0]);
   });
 
-  it("treats a leading unknown as the customer", () => {
+  it("does not invent a customer from unknown speech", () => {
     counter = 0;
     const blocks = collapseBlocks([turn("unknown", "Hello?", 0), turn("rep", "Hi Verna.", 1)]);
-    expect(blocks[0]).toMatchObject({ speaker: "customer", text: "Hello?" });
+    expect(blocks[0]).toMatchObject({ speaker: "rep", text: "Hi Verna." });
   });
 });
 
@@ -125,7 +125,7 @@ describe("groupExchanges", () => {
     ]);
     // unknown folds into the first rep block, so both rep turns merge into one exchange
     expect(exchanges).toHaveLength(1);
-    expect(exchanges[0].rep?.text).toBe("First point. [unclear: static] Second point.");
+    expect(exchanges[0].rep?.text).toBe("First point. Second point.");
   });
 
   it("produces sequential indices on a long alternating call", () => {

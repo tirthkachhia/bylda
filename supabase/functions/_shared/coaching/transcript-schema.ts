@@ -8,6 +8,7 @@ export const GEMINI_MODEL = "gemini-3.8-flash";
 export const TRANSCRIPT_SCHEMA_VERSION = 1 as const;
 
 export const TONE_LABELS = [
+  "unknown",
   "neutral",
   "warm",
   "enthusiastic",

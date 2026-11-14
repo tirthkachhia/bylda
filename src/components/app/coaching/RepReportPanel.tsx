@@ -562,6 +562,7 @@ function SinceLastSection({ since }: { since: SinceLast }) {
         )}
       </h3>
       <ul className="mt-2 space-y-1">
+        {since.limitation && <li className="text-by-text-secondary">{since.limitation}</li>}
         {since.drill && <TrendLine t={since.drill} label="Last drill" />}
         {since.moved.map((t) => (
           <TrendLine key={t.guideline_id} t={t} />
@@ -612,8 +613,10 @@ function CallStrip({
                     {s.started_at ? formatDate(s.started_at) : "Open"}
                   </button>
                 </td>
-                <td className="py-1.5 pr-3 tabular-nums">{s.risk_count}</td>
-                <td className="py-1.5 pr-3 capitalize">{s.coaching_value_label}</td>
+                <td className="py-1.5 pr-3 tabular-nums">{s.risk_count ?? "Unavailable"}</td>
+                <td className="py-1.5 pr-3 capitalize">
+                  {s.coaching_value_label ?? "Behavior only"}
+                </td>
                 {hasDrill && (
                   <td className="py-1.5 font-semibold">
                     {s.drill_status ? DRILL_LABEL[s.drill_status] : ""}

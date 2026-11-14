@@ -30,6 +30,17 @@ export async function requireCoachingAdmin(req: Request, orgId: unknown) {
   } = await admin.auth.getUser(token);
   if (error || !user)
     return { ok: false as const, response: coachingJson({ error: "Unauthorized" }, 401) };
+  const sessionClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: verified, error: assuranceError } = await sessionClient.rpc(
+    "coaching_session_verified",
+  );
+  if (assuranceError || !verified)
+    return {
+      ok: false as const,
+      response: coachingJson({ error: "Complete account verification before continuing" }, 403),
+    };
   const { data: member, error: membershipError } = await admin
     .from("organization_members")
     .select("role")

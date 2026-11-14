@@ -60,7 +60,7 @@ describe("validateStructuredTranscript", () => {
     expect(result.transcript.audio_quality).toBe("good");
   });
 
-  it("drops turns with an unknown tone label or empty text, keeps the rest", () => {
+  it("preserves speech with unknown tone and drops only empty text", () => {
     const result = validateStructuredTranscript({
       ...good,
       turns: [
@@ -70,26 +70,31 @@ describe("validateStructuredTranscript", () => {
       ],
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.transcript.turns).toHaveLength(3);
+    if (result.ok) {
+      expect(result.transcript.turns).toHaveLength(4);
+      expect(result.transcript.turns[3].tone.label).toBe("unknown");
+    }
   });
 
-  it("sorts unsorted turns by start time", () => {
+  it("preserves source order even when estimated times disagree", () => {
     const result = validateStructuredTranscript({
       ...good,
       turns: [good.turns[2], good.turns[0], good.turns[1]],
     });
     expect(result.ok).toBe(true);
     if (result.ok)
-      expect(result.transcript.turns.map((t) => t.text)).toEqual(good.turns.map((t) => t.text));
+      expect(result.transcript.turns.map((t) => t.text)).toEqual(
+        [good.turns[2], good.turns[0], good.turns[1]].map((t) => t.text),
+      );
   });
 
-  it("fills a bad start timestamp from the previous turn's end", () => {
+  it("keeps an invalid timestamp unknown", () => {
     const result = validateStructuredTranscript({
       ...good,
       turns: [turn("rep", "00:00", "Hello", { end: "00:04" }), turn("customer", "garbage", "Hi")],
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.transcript.turns[1].start_s).toBe(4);
+    if (result.ok) expect(result.transcript.turns[1].start_s).toBeNull();
   });
 
   it("caps the tone note length", () => {

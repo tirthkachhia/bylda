@@ -5,6 +5,7 @@
 @import "./styles/revenue-workspace.css";
 @import "./styles/figma-mvp.css";
 @import "./styles/page-30.css";
+@import "./styles/screen-motion.css";
 
 @custom-variant dark (&:not(.light, .light *));
 @custom-variant light (&:is(.light, .light *));

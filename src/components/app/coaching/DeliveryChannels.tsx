@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdge } from "@/lib/invokeEdge";
-import { coachingManagerPermissionQuery } from "@/lib/queries";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 type Channel = { id: string; kind: string; label: string; enabled: boolean };
@@ -17,7 +16,20 @@ type Delivery = {
 export function DeliveryChannels() {
   const { currentOrgId, user } = useAuth(),
     org = currentOrgId ?? "";
-  const permission = useQuery(coachingManagerPermissionQuery(org, user?.id ?? ""));
+  const permission = useQuery({
+    queryKey: ["coaching-delivery-admin", org, user?.id],
+    enabled: !!org && !!user,
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", org)
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return ["owner", "admin"].includes(data?.role ?? "");
+    },
+  });
   const q = useQuery({
       queryKey: ["coaching-delivery-channels", org],
       enabled: !!org,
@@ -51,6 +63,7 @@ export function DeliveryChannels() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   async function action(fields: Record<string, unknown>) {
+    if (!permission.data) return;
     setBusy(true);
     setError("");
     try {

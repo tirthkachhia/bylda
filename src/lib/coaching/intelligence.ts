@@ -117,6 +117,7 @@ export function summarizeWorkspace(
         return {
           id: e.id,
           call_id: e.call_id,
+          cohort: e.rep_id,
           occurred_at: r?.call_occurred_at ?? "",
           scope:
             r &&

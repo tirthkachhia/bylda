@@ -1986,8 +1986,15 @@ export async function deleteCall(
 ): Promise<{ audioRemoved: boolean }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
-  const { error } = await db.from("calls").delete().eq("id", callId);
+  const { data: removed, error } = await db
+    .from("calls")
+    .delete()
+    .eq("id", callId)
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+  if (!removed)
+    throw new Error("This call could not be deleted. Check your workspace access and retry.");
   if (!audioPath) return { audioRemoved: true };
   const { data, error: storageError } = await supabase.storage
     .from("call-audio")

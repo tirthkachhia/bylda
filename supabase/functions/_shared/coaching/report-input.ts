@@ -14,11 +14,11 @@ export type ReportCall = {
   call_id: string;
   started_at: string | null;
   duration_seconds: number | null;
-  coaching_value_label: "low" | "medium" | "high";
-  quality_score: number;
-  risk_count: number;
-  peak_temperature: number;
-  final_temperature: number;
+  coaching_value_label: "low" | "medium" | "high" | null;
+  quality_score: number | null;
+  risk_count: number | null;
+  peak_temperature: number | null;
+  final_temperature: number | null;
   rep_move_average: number | null;
 };
 
@@ -28,6 +28,7 @@ export type ReportMoment = {
   type: "temperature_drop" | "risk_flag" | "weak_move" | "behavior_observation";
   behavior_family?: string;
   behavior_source?: CitedMoment["behavior_source"];
+  observation_context?: CitedMoment["observation_context"];
   valence?: "strength" | "concern" | "mixed" | "unobservable";
   score: number;
   low_confidence: boolean;
@@ -58,6 +59,13 @@ export type CitedMoment = {
   at: string;
   start_s?: number | null;
   behavior_source?: { run_id: string; turn_id: number; event_id: string };
+  observation_context?: {
+    context: string;
+    progression: string;
+    limitations: string[];
+    final_state: string;
+    verification: string;
+  };
   rep_text: string;
   customer_text: string | null;
   why_it_matters: string | null;
@@ -84,6 +92,7 @@ export type AdherenceTally = {
 export type ReportInput = {
   calls: {
     total: number;
+    scored?: number;
     high_value: number;
     avg_quality: number | null;
     avg_rep_move: number | null;
@@ -136,6 +145,7 @@ export function toCitedMoment(m: ReportMoment): CitedMoment {
     at: mmss(m.start_s),
     start_s: m.start_s,
     ...(m.behavior_source ? { behavior_source: m.behavior_source } : {}),
+    ...(m.observation_context ? { observation_context: m.observation_context } : {}),
     rep_text: m.rep_text ?? "",
     customer_text: m.customer_text,
     why_it_matters: m.why_it_matters,
@@ -241,14 +251,19 @@ export function tallyAdherence(
 export function summarizeCalls(calls: ReportCall[]): ReportInput["calls"] {
   return {
     total: calls.length,
+    scored: calls.filter((call) => call.quality_score !== null).length,
     high_value: calls.filter((c) => c.coaching_value_label === "high").length,
-    avg_quality: mean(calls.map((c) => c.quality_score)),
+    avg_quality: mean(calls.flatMap((c) => (c.quality_score === null ? [] : [c.quality_score]))),
     avg_rep_move: mean(
       calls.flatMap((c) => (c.rep_move_average === null ? [] : [c.rep_move_average])),
     ),
-    risk_flags: calls.reduce((n, c) => n + c.risk_count, 0),
+    risk_flags: calls.reduce((n, c) => n + (c.risk_count ?? 0), 0),
     lost_warm_customers: calls.filter(
-      (c) => c.peak_temperature >= 1.75 && c.peak_temperature - c.final_temperature >= 0.75,
+      (c) =>
+        c.peak_temperature !== null &&
+        c.final_temperature !== null &&
+        c.peak_temperature >= 1.75 &&
+        c.peak_temperature - c.final_temperature >= 0.75,
     ).length,
   };
 }

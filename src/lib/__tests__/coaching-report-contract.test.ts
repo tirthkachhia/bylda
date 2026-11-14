@@ -69,7 +69,7 @@ describe("prompt rendering", () => {
       { start: "2026-10-01", end: "2026-10-18" },
     );
     expect(text).toContain("REP: Ethan");
-    expect(text).toContain("Calls scored: 4 (2 worth reviewing)");
+    expect(text).toContain("Calls reviewed: 4");
     expect(text).toContain(
       "Theme 1: Spend a minute on their financial situation before numbers. [playbook] — 2 call(s), 3 moment(s)",
     );
@@ -127,11 +127,7 @@ describe("normalizeRepReport", () => {
       ["c2", 3, "10:05"],
     ]);
     expect(report!.patterns[0].cited[0].rep_text).toBe("So that's $82 a month.");
-    expect(report!.strength).toEqual({
-      title: "Warm open",
-      what_happened: "Opens by name.",
-      cited: [],
-    });
+    expect(report!.strength).toBeNull();
     expect(report!.drill.line_to_practice).toBe("What do you bring in monthly?");
   });
 

@@ -225,6 +225,9 @@ verify_jwt = false
 [functions.coaching-report]
 verify_jwt = true
 
+[functions.coaching-ask]
+verify_jwt = true
+
 [functions.coaching-scheduled-reports]
 verify_jwt = false
 

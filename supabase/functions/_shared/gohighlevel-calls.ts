@@ -71,7 +71,9 @@ export function textFrom(segments: TranscriptSegment[]) {
 }
 
 export function normalizedStatus(message: GhlCallMessage) {
-  const value = String(message.meta?.call?.status ?? message.meta?.callStatus ?? message.status ?? "").toLowerCase();
+  const value = String(
+    message.meta?.call?.status ?? message.meta?.callStatus ?? message.status ?? "",
+  ).toLowerCase();
   if (value.includes("voicemail")) return "voicemail";
   if (value.includes("miss") || value.includes("no-answer") || value.includes("no_answer")) {
     return "missed";
@@ -130,12 +132,8 @@ async function fetchCallMessagesV3(
           ...message,
           conversationId: message.conversationId ?? conversation.id,
           contactId: message.contactId ?? conversation.contactId,
-          from:
-            message.from ??
-            (message.direction === "inbound" ? conversation.phone : undefined),
-          to:
-            message.to ??
-            (message.direction === "outbound" ? conversation.phone : undefined),
+          from: message.from ?? (message.direction === "inbound" ? conversation.phone : undefined),
+          to: message.to ?? (message.direction === "outbound" ? conversation.phone : undefined),
         }));
       }),
     );
@@ -144,7 +142,11 @@ async function fetchCallMessagesV3(
 
   return {
     response: searchResponse,
-    messages: [...new Map(messages.filter((message) => message.id).map((message) => [message.id, message])).values()],
+    messages: [
+      ...new Map(
+        messages.filter((message) => message.id).map((message) => [message.id, message]),
+      ).values(),
+    ],
   };
 }
 
@@ -188,12 +190,8 @@ async function enrichCallMessagesWithConversationContacts(
     return {
       ...message,
       contactId: message.contactId ?? conversation.contactId,
-      from:
-        message.from ??
-        (message.direction === "inbound" ? conversation.phone : undefined),
-      to:
-        message.to ??
-        (message.direction === "outbound" ? conversation.phone : undefined),
+      from: message.from ?? (message.direction === "inbound" ? conversation.phone : undefined),
+      to: message.to ?? (message.direction === "outbound" ? conversation.phone : undefined),
     };
   });
 }
@@ -303,7 +301,8 @@ export async function syncGoHighLevelCalls(
           direction: message.direction === "inbound" ? "inbound" : "outbound",
           status: normalizedStatus(message),
           duration: callDuration(message),
-          disposition: message.meta?.call?.status ?? message.meta?.callStatus ?? message.status ?? null,
+          disposition:
+            message.meta?.call?.status ?? message.meta?.callStatus ?? message.status ?? null,
           from_number: message.from ?? null,
           to_number: message.to ?? null,
           provider: "gohighlevel",

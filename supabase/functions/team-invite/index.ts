@@ -52,6 +52,11 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userData?.user) return json({ error: "Invalid token" }, 401);
+  const { data: verified, error: assuranceError } = await userClient.rpc(
+    "coaching_session_verified",
+  );
+  if (assuranceError || !verified)
+    return json({ error: "Complete account verification before inviting teammates" }, 403);
   const callerId = userData.user.id;
 
   let body: InviteBody;

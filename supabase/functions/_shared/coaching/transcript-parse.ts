@@ -11,12 +11,17 @@ import {
 
 export const MAX_TONE_NOTE_CHARS = 160;
 
-export type ParsedTurn = StructuredTurn & { index: number; start_s: number; end_s: number };
+export type ParsedTurn = StructuredTurn & {
+  index: number;
+  start_s: number | null;
+  end_s: number | null;
+};
 
 export type ParsedTranscript = Omit<StructuredTranscript, "turns"> & { turns: ParsedTurn[] };
 
 export type ValidationResult =
-  { ok: true; transcript: ParsedTranscript } | { ok: false; reason: string };
+  | { ok: true; transcript: ParsedTranscript }
+  | { ok: false; reason: string };
 
 /** "MM:SS" or "H:MM:SS" to seconds; null for anything else. */
 export function parseTimestamp(value: string): number | null {
@@ -24,6 +29,7 @@ export function parseTimestamp(value: string): number | null {
   if (parts.length !== 2 && parts.length !== 3) return null;
   const numbers = parts.map((part) => (/^\d+(\.\d+)?$/.test(part) ? Number(part) : NaN));
   if (numbers.some((n) => !Number.isFinite(n))) return null;
+  if (numbers.slice(1).some((n) => n >= 60)) return null;
   return numbers.length === 2
     ? numbers[0] * 60 + numbers[1]
     : numbers[0] * 3600 + numbers[1] * 60 + numbers[2];
@@ -43,18 +49,17 @@ export function validateStructuredTranscript(input: unknown): ValidationResult {
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.turns))
     return { ok: false, reason: "Transcript JSON has no turns" };
 
-  let lastEnd = 0;
   const turns: ParsedTurn[] = [];
   for (const candidate of raw.turns as unknown[]) {
     const turn = (candidate ?? {}) as Partial<StructuredTurn>;
     const text = typeof turn.text === "string" ? turn.text.trim() : "";
-    const label = turn.tone?.label;
-    if (!text || !isOneOf(SPEAKERS, turn.speaker) || !isOneOf(TONE_LABELS, label)) continue;
-    const start_s = parseTimestamp(String(turn.start ?? "")) ?? lastEnd;
-    const end_s = Math.max(start_s, parseTimestamp(String(turn.end ?? "")) ?? start_s);
-    lastEnd = end_s;
+    const label = isOneOf(TONE_LABELS, turn.tone?.label) ? turn.tone.label : "unknown";
+    if (!text) continue;
+    const start_s = parseTimestamp(String(turn.start ?? ""));
+    const parsedEnd = parseTimestamp(String(turn.end ?? ""));
+    const end_s = start_s !== null && parsedEnd !== null && parsedEnd >= start_s ? parsedEnd : null;
     turns.push({
-      speaker: turn.speaker,
+      speaker: isOneOf(SPEAKERS, turn.speaker) ? turn.speaker : "unknown",
       start: String(turn.start ?? ""),
       end: String(turn.end ?? ""),
       text,
@@ -65,7 +70,7 @@ export function validateStructuredTranscript(input: unknown): ValidationResult {
       end_s,
     });
   }
-  turns.sort((a, b) => a.start_s - b.start_s);
+  // Transcript order is evidence; sorting estimates can change who answered whom.
   turns.forEach((turn, index) => {
     turn.index = index;
   });

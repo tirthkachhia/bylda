@@ -140,7 +140,10 @@ async function syncProvider(
     snapshot,
   });
   if (input.provider === "close_io") {
-    const calls = await syncCloseCalls(admin, { organizationId: input.organizationId, oauth: input.oauth });
+    const calls = await syncCloseCalls(admin, {
+      organizationId: input.organizationId,
+      oauth: input.oauth,
+    });
     return { ...ingested, ...calls, conversation_warning: calls.warning };
   }
   if (input.provider !== "gohighlevel") return ingested;

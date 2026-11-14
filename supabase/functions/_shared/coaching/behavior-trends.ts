@@ -3,6 +3,7 @@ export type BehaviorSample = {
   call_id: string;
   occurred_at: string;
   scope: string | null;
+  cohort?: string | null;
   eligible: boolean;
   reviewed: boolean;
   result: "strength" | "concern" | "mixed" | "unobservable";
@@ -35,6 +36,18 @@ export function behaviorTrend(samples: BehaviorSample[], now: number): BehaviorT
     (at >= cut ? g.current : g.previous).push(s);
     groups.set(s.scope, g);
   }
+  // A change in team membership cannot be reported as a change in behavior.
+  for (const [scope, group] of groups) {
+    if ([...group.current, ...group.previous].some((row) => row.cohort !== undefined)) {
+      const members = (rows: BehaviorSample[]) =>
+        [...new Set(rows.map((row) => row.cohort))].sort();
+      if (
+        [...group.current, ...group.previous].some((row) => !row.cohort) ||
+        JSON.stringify(members(group.current)) !== JSON.stringify(members(group.previous))
+      )
+        groups.delete(scope);
+    }
+  }
   const count = (rows: BehaviorSample[]) => ({
     successful: rows.filter((s) => s.result === "strength").length,
     judged: rows.length,
@@ -62,6 +75,6 @@ export function behaviorTrend(samples: BehaviorSample[], now: number): BehaviorT
       best.previous.successful / best.previous.judged;
   return {
     ...best,
-    state: Math.abs(delta) < 0.2 ? "unchanged" : delta > 0 ? "improving" : "degrading",
+    state: Math.abs(delta) < 0.2 - 1e-12 ? "unchanged" : delta > 0 ? "improving" : "degrading",
   };
 }

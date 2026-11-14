@@ -14,8 +14,9 @@ Deno.serve(async (req: Request) => {
     difference |= secret.charCodeAt(i) ^ (supplied.charCodeAt(i) || 0);
   if (difference) return json({ error: "Unauthorized" }, 401);
   const db = createClient(url, key);
+  let deliveryProcessed = false;
   try {
-    if (await sendQueuedReportDelivery(db)) return json({ delivery_processed: true });
+    deliveryProcessed = await sendQueuedReportDelivery(db);
   } catch {
     return json({ error: "Delivery queue could not be processed" }, 500);
   }
@@ -89,7 +90,7 @@ Deno.serve(async (req: Request) => {
     const { error: saveError } = await db
       .from("coaching_report_schedules")
       .update({
-        next_run_at: new Date(next).toISOString(),
+        next_run_at: lastError ? schedule.next_run_at : new Date(next).toISOString(),
         last_report_id: reportId ?? schedule.last_report_id,
         last_error: lastError,
         lease_token: null,
@@ -100,13 +101,11 @@ Deno.serve(async (req: Request) => {
     if (saveError)
       console.error("[coaching-scheduled-reports] schedule completion failed", schedule.id);
     if (reportId && schedule.created_by)
-      await db
-        .from("notifications")
-        .insert({
-          user_id: schedule.created_by,
-          type: "coaching_report",
-          message: `Scheduled coaching report ready. Open Reports to review it.`,
-        });
+      await db.from("notifications").insert({
+        user_id: schedule.created_by,
+        type: "coaching_report",
+        message: `Scheduled coaching report ready. Open Reports to review it.`,
+      });
   }
-  return json({ processed: due?.length ?? 0 });
+  return json({ processed: due?.length ?? 0, delivery_processed: deliveryProcessed });
 });

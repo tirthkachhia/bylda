@@ -121,8 +121,8 @@ describe("retained source navigation", () => {
       highlightedTurnId: 0,
       seekSeconds: null,
       turns: [
-        { speaker: "unknown", start_s: null },
-        { speaker: "unknown", start_s: null },
+        { speaker: "rep", start_s: null },
+        { speaker: "customer", start_s: null },
       ],
     });
   });

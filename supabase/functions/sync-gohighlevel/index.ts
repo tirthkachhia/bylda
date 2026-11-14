@@ -108,7 +108,11 @@ async function fetchCallMessagesV3(
 
   return {
     response: searchResponse,
-    messages: [...new Map(messages.filter((message) => message.id).map((message) => [message.id, message])).values()],
+    messages: [
+      ...new Map(
+        messages.filter((message) => message.id).map((message) => [message.id, message]),
+      ).values(),
+    ],
   };
 }
 

@@ -9,6 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { CLAUDE_MODEL } from "../_shared/config.ts";
 import { callPAL } from "../_shared/pal/index.ts";
 import { analyzeBehavior } from "../_shared/coaching/analyze-behavior.ts";
+import { turnsFromSegments } from "../_shared/coaching/segment-provenance.ts";
 import {
   attributePlaybook,
   sourceTurns,
@@ -171,7 +172,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: transcript } = await admin
     .from("call_transcripts")
-    .select("id, transcript_text, structured_turns, structured_meta")
+    .select("id, transcript_text, speaker_segments, structured_turns, structured_meta")
     .eq("call_id", callId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -187,7 +188,7 @@ Deno.serve(async (req: Request) => {
   // model. Whisper-era calls fall back to the plain text.
   const structuredTurns = Array.isArray(transcript.structured_turns)
     ? (transcript.structured_turns as ParsedTurn[])
-    : null;
+    : turnsFromSegments(transcript.speaker_segments);
   const rendered = renderTranscriptForAnalysis(structuredTurns, text);
   const behaviorStartedAt = new Date().toISOString();
   const { error: stageError } = await admin

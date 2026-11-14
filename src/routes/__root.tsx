@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
 import { Sentry } from "@/lib/observability";
+import { ScreenMotion } from "@/components/app/ScreenMotion";
 import appCss from "../styles.css?url";
 
 interface RouterContext {
@@ -98,7 +99,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Sentry.ErrorBoundary fallback={<RootErrorFallback />}>
-          <Outlet />
+          <ScreenMotion>
+            <Outlet />
+          </ScreenMotion>
         </Sentry.ErrorBoundary>
         <Toaster />
       </AuthProvider>

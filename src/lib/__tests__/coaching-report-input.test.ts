@@ -122,6 +122,25 @@ describe("tallyAdherence", () => {
 });
 
 describe("summarizeCalls and buildReportInput", () => {
+  it("includes behavior-only calls without inventing exchange scores or value labels", () => {
+    const input = summarizeCalls([
+      call({
+        quality_score: null,
+        coaching_value_label: null,
+        rep_move_average: null,
+        risk_count: null,
+        peak_temperature: null,
+        final_temperature: null,
+      }),
+    ]);
+    expect(input).toMatchObject({
+      total: 1,
+      scored: 0,
+      avg_quality: null,
+      avg_rep_move: null,
+      high_value: 0,
+    });
+  });
   it("aggregates the period and counts warm customers that were lost", () => {
     const calls = [
       call({ call_id: "c1", coaching_value_label: "high", quality_score: 40 }),
@@ -130,6 +149,7 @@ describe("summarizeCalls and buildReportInput", () => {
     ];
     expect(summarizeCalls(calls)).toEqual({
       total: 3,
+      scored: 3,
       high_value: 1,
       avg_quality: 60,
       avg_rep_move: 2,

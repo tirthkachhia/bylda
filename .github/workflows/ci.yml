@@ -1,0 +1,33 @@
+name: Validate application
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bunx vitest run --config supabase/tests/crm-profile.vitest.config.ts
+      - run: bun run build
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check edge functions
+        run: >-
+          deno check --node-modules-dir=none --no-config --no-lock
+          supabase/functions/analyze-call/index.ts
+          supabase/functions/coaching-ask/index.ts
+          supabase/functions/coaching-report/index.ts
+          supabase/functions/coaching-scheduled-reports/index.ts
+          supabase/functions/team-invite/index.ts
+          supabase/functions/_shared/coaching/admin-access.ts

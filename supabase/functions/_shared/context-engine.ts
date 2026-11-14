@@ -135,7 +135,7 @@ export async function buildContextPackage(
     );
   }
 
-  let callId = request.callId ?? null;
+  const callId = request.callId ?? null;
   let leadId = request.leadId ?? null;
   let contactId = request.contactId ?? null;
   let companyId = request.companyId ?? null;
@@ -356,7 +356,10 @@ export async function buildContextPackage(
     .order("occurred_at", { ascending: false })
     .limit(8);
 
-  const recentEvidence: EvidenceItem[] = [...(recentChunks ?? []), ...(integrationChunks ?? [])].map((row) => ({
+  const recentEvidence: EvidenceItem[] = [
+    ...(recentChunks ?? []),
+    ...(integrationChunks ?? []),
+  ].map((row) => ({
     id: String(row.id),
     source_type: String(row.source_type),
     source_id: row.source_id ? String(row.source_id) : null,

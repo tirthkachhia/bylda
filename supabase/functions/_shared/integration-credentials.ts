@@ -70,17 +70,23 @@ export function parseStoredOAuth(integrationKey: string, stored: string): Stored
       integrationKey,
       provider: String(raw.provider ?? INTEGRATION_TO_PROVIDER[integrationKey] ?? integrationKey),
       accessToken,
-      refreshToken: raw.refresh_token ? String(raw.refresh_token) : raw.refreshToken
-        ? String(raw.refreshToken)
-        : null,
+      refreshToken: raw.refresh_token
+        ? String(raw.refresh_token)
+        : raw.refreshToken
+          ? String(raw.refreshToken)
+          : null,
       expiresAt: raw.expires_at ? String(raw.expires_at) : null,
       instanceUrl: raw.instance_url ? String(raw.instance_url) : null,
-      apiDomain: raw.api_domain ? String(raw.api_domain) : raw.api_endpoint
-        ? String(raw.api_endpoint)
-        : null,
-      locationId: raw.location_id ? String(raw.location_id) : raw.locationId
-        ? String(raw.locationId)
-        : null,
+      apiDomain: raw.api_domain
+        ? String(raw.api_domain)
+        : raw.api_endpoint
+          ? String(raw.api_endpoint)
+          : null,
+      locationId: raw.location_id
+        ? String(raw.location_id)
+        : raw.locationId
+          ? String(raw.locationId)
+          : null,
       accountLabel: raw.account_label ? String(raw.account_label) : null,
       raw,
     };
@@ -169,9 +175,7 @@ async function refreshOAuth(oauth: StoredOAuth): Promise<StoredOAuth> {
     body: body.toString(),
   });
   const payload = asRecord(await response.json().catch(() => ({})));
-  const accessToken = String(
-    payload.access_token ?? payload.accessToken ?? "",
-  );
+  const accessToken = String(payload.access_token ?? payload.accessToken ?? "");
   if (!response.ok || !accessToken) {
     throw new Error(`${oauth.integrationKey} access expired. Reconnect the account.`);
   }
@@ -184,7 +188,8 @@ async function refreshOAuth(oauth: StoredOAuth): Promise<StoredOAuth> {
       : payload.refreshToken
         ? String(payload.refreshToken)
         : oauth.refreshToken,
-    expiresAt: expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : oauth.expiresAt,
+    expiresAt:
+      expiresIn > 0 ? new Date(Date.now() + expiresIn * 1000).toISOString() : oauth.expiresAt,
     instanceUrl: payload.instance_url ? String(payload.instance_url) : oauth.instanceUrl,
     apiDomain: payload.api_domain ? String(payload.api_domain) : oauth.apiDomain,
     locationId: payload.locationId ? String(payload.locationId) : oauth.locationId,
