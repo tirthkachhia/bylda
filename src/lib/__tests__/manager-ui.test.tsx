@@ -25,10 +25,10 @@ vi.mock("@/lib/auth", () => ({
   useAuth: () => ({ currentOrgId: "org", user: { id: "manager" } }),
 }));
 vi.mock("@/lib/queries", () => ({ coachingManagerPermissionQuery: vi.fn() }));
-vi.mock("@/components/app/TodayBrief", () => ({
-  TodayBrief: () => {
+vi.mock("@/components/app/ManagerIntelligenceFeed", () => ({
+  ManagerIntelligenceFeed: () => {
     state.brief();
-    return <div>Team intelligence</div>;
+    return <div>Intelligence</div>;
   },
 }));
 vi.mock("@/integrations/supabase/client", () => ({
@@ -124,9 +124,9 @@ it("does not render manager data while access is pending or denied", () => {
   expect(host.textContent).toContain("Manager access required");
   expect(state.brief).not.toHaveBeenCalled();
 });
-it("opens the existing team dashboard for verified managers", () => {
+it("opens the finalized intelligence feed for verified managers", () => {
   act(() => root.render(<ManagerHome />));
-  expect(host.textContent).toContain("Team intelligence");
+  expect(host.textContent).toContain("Intelligence");
 });
 it("requires manager sign-in even when an agent-login account holds a manager role", () => {
   state.view = "agent";

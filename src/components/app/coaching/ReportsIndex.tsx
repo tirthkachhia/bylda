@@ -1,65 +1,78 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { teamsQuery } from "@/lib/coaching/workspace";
 import { repsQuery } from "@/lib/queries";
-import type { RepReportRow } from "@/lib/coaching/types";
 import { FigmaViewLink, FigmaViewPicker } from "@/components/app/FigmaPageViews";
 import { useEffect, useRef, useState } from "react";
-import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
 import { canTransitionPage30 } from "@/lib/coaching/page30-motion";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ReportSchedules } from "./ReportSchedules";
-export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
+import { CoachingReportView } from "./CoachingReportView";
+import { useSavedReports } from "./use-saved-reports";
+import {
+  completedReport,
+  latestCompletedReport,
+  reportPeriod,
+  savedPeriod,
+  weeklyTeamReports,
+  type ReportPeriod,
+} from "@/lib/coaching/report-views";
+export function ReportsIndex({
+  focusId,
+  cadence,
+  reportId,
+}: {
+  focusId?: string;
+  cadence?: ReportPeriod;
+  reportId?: string;
+} = {}) {
   const { currentOrgId } = useAuth();
-  const access = useCoachingWorkspaceAccess();
+  const { access, query: q } = useSavedReports();
   const focusLink = useRef<HTMLAnchorElement>(null);
   const [scheduling, setScheduling] = useState(false),
     [share, setShare] = useState(""),
     [repFilter, setRepFilter] = useState<string | null>(null),
+    [teamFilter, setTeamFilter] = useState(""),
     [period, setPeriod] = useState("");
   const reps = useQuery({ ...repsQuery(currentOrgId ?? "", true), enabled: !!currentOrgId });
-  const q = useQuery({
-    queryKey: ["workspace-coaching-reports", currentOrgId, access.rep?.id],
-    enabled: !!currentOrgId && Boolean(access.manager || access.rep),
-    refetchInterval: (query) =>
-      query.state.data?.some((report) => report.status === "running") ? 10_000 : false,
-    queryFn: async () => {
-      const reports: RepReportRow[] = [];
-      for (let from = 0; ; from += 500) {
-        let query = supabase
-          .from("coaching_reports" as never)
-          .select("id,rep_id,period_start,period_end,call_count,status,report,created_at")
-          .eq("organization_id", currentOrgId!)
-          .order("created_at", { ascending: false })
-          .order("id")
-          .range(from, from + 499);
-        if (access.rep) query = query.eq("rep_id", access.rep.id);
-        const { data, error } = await query;
-        if (error) throw error;
-        const rows = data as unknown as RepReportRow[];
-        if (!Array.isArray(rows)) throw new Error("Report history unavailable");
-        reports.push(...rows);
-        if (rows.length < 500) return reports;
-      }
-    },
-  });
   const ownRep = access.rep;
   const selectedRep = access.manager ? (repFilter ?? "") : (ownRep?.id ?? "");
-  const scoped = (q.data ?? []).filter((report) => !selectedRep || report.rep_id === selectedRep);
-  const periods = [
-    ...new Set(scoped.map((report) => `${report.period_start} – ${report.period_end}`)),
-  ];
-  const selectedPeriod = periods.includes(period) ? period : "";
-  const rows = scoped.filter(
-    (report) =>
-      !selectedPeriod || `${report.period_start} – ${report.period_end}` === selectedPeriod,
+  const teamWeekly = access.manager && cadence === "weekly";
+  const teams = useQuery({
+    ...teamsQuery(currentOrgId ?? ""),
+    enabled: Boolean(currentOrgId && teamWeekly),
+  });
+  const selectedTeam = teams.data?.find((team) => team.id === teamFilter);
+  const scoped = (q.data ?? []).filter(
+    (row) =>
+      (!cadence || reportPeriod(row) === cadence) &&
+      (teamWeekly
+        ? !selectedTeam || selectedTeam.rep_ids.includes(row.rep_id)
+        : !selectedRep || row.rep_id === selectedRep),
   );
+  const periods = [...new Set(scoped.map(savedPeriod))].sort((a, b) => b.localeCompare(a));
+  const latestCompletedPeriod = periods.find((value) =>
+    scoped.some((row) => savedPeriod(row) === value && completedReport(row)),
+  );
+  const selectedPeriod = periods.includes(period)
+    ? period
+    : teamWeekly
+      ? (latestCompletedPeriod ?? periods[0] ?? "")
+      : "";
+  const rows = scoped.filter((row) => !selectedPeriod || savedPeriod(row) === selectedPeriod);
+  const team = teamWeekly ? weeklyTeamReports(rows, selectedPeriod) : [];
+  const selected =
+    cadence && reportId
+      ? rows.find((row) => row.id === reportId && completedReport(row))
+      : undefined;
+  const reportNames = new Map(reps.data?.map((rep) => [rep.id, rep.name]));
   useEffect(() => {
     if (focusId && focusLink.current) focusLink.current.focus();
   }, [focusId, q.isLoading]);
-  const latest = rows.find((report) => report.status === "completed" && report.report);
+  const latest = latestCompletedReport(rows);
+  const shown = reportId ? selected : latest;
   const running = rows.some((report) => report.status === "running");
   const citedCalls = latest?.report
     ? new Set(
@@ -70,7 +83,11 @@ export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
       ).size
     : 0;
   return (
-    <section className="page30-library space-y-4" data-design-screen="reports-index">
+    <section
+      className="page30-library page30-final"
+      data-report-period={cadence}
+      data-design-screen="reports-index"
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="page30-label">{access.manager ? "Manager workspace" : "Saved analysis"}</p>
@@ -128,8 +145,46 @@ export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
           </button>
         </DialogContent>
       </Dialog>
+      <nav className="page30-final-toggle" aria-label="Report history">
+        <Link to="/app/reports" aria-current={!cadence ? "page" : undefined}>
+          All reports
+        </Link>
+        <Link
+          to="/app/reports"
+          search={{ period: "daily" }}
+          aria-current={cadence === "daily" ? "page" : undefined}
+        >
+          Daily Reports
+        </Link>
+        <Link
+          to="/app/reports"
+          search={{ period: "weekly" }}
+          aria-current={cadence === "weekly" ? "page" : undefined}
+        >
+          Weekly Reports
+        </Link>
+      </nav>
       <div className="page30-library-filters page30-glass">
-        {access.manager && (
+        {teamWeekly && teams.data?.length ? (
+          <label>
+            <span>Team</span>
+            <select
+              value={selectedTeam?.id ?? ""}
+              onChange={(event) => {
+                setTeamFilter(event.target.value);
+                setPeriod("");
+              }}
+            >
+              <option value="">All accessible teams</option>
+              {teams.data.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {access.manager && !teamWeekly && (
           <label>
             <span>Representative</span>
             <select
@@ -151,7 +206,7 @@ export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
         <label>
           <span>Period</span>
           <select value={selectedPeriod} onChange={(event) => setPeriod(event.target.value)}>
-            <option value="">All periods</option>
+            {!teamWeekly && <option value="">All periods</option>}
             {periods.map((value) => (
               <option key={value}>{value}</option>
             ))}
@@ -163,7 +218,6 @@ export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
               Daily briefs
             </Link>
             {[
-              ["weekly-manager-report", "Weekly manager"],
               ["team-report", "Team"],
               ["behavior-report", "Behavior"],
             ].map(([key, title]) => (
@@ -197,6 +251,29 @@ export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
         </p>
       ) : (
         <>
+          {teamWeekly &&
+            (team.length ? (
+              <CoachingReportView
+                key={teamFilter + ":" + selectedPeriod}
+                rows={team}
+                period="weekly"
+                team
+                names={reportNames}
+                headingLevel={2}
+              />
+            ) : (
+              <p className="page30-final-card">
+                No completed team reports are available for this period.
+              </p>
+            ))}
+          {cadence && !teamWeekly && shown && (
+            <CoachingReportView key={shown.id} rows={[shown]} period={cadence} headingLevel={2} />
+          )}
+          {cadence && reportId && !teamWeekly && !selected && (
+            <p role="status" className="page30-final-card">
+              This report is unavailable in the selected view.
+            </p>
+          )}
           {running && (
             <section className="page30-glass page30-priority" role="status">
               <p className="page30-label">Report processing</p>
@@ -232,33 +309,45 @@ export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
                     style={r.id === focusId ? { viewTransitionName: "bylda-report" } : undefined}
                   >
                     <td>
-                      <Link
-                        ref={r.id === focusId ? focusLink : undefined}
-                        className="underline underline-offset-4"
-                        to="/app/crm/calls"
-                        viewTransition
-                        onClick={(event) => {
-                          if (
-                            !canTransitionPage30() ||
-                            event.metaKey ||
-                            event.ctrlKey ||
-                            event.shiftKey ||
-                            event.altKey
-                          )
-                            return;
-                          const row = event.currentTarget.closest("tr");
-                          const previous = row
-                            ?.closest("tbody")
-                            ?.querySelector<HTMLElement>('[style*="view-transition-name"]');
-                          if (previous && previous !== row)
-                            previous.style.removeProperty("view-transition-name");
-                          row?.style.setProperty("view-transition-name", "bylda-report");
-                        }}
-                        search={{ view: "report", repId: r.rep_id, reportId: r.id }}
-                      >
-                        {reps.data?.find((p) => p.id === r.rep_id)?.name ?? "Rep unavailable"} ·
-                        Coaching report
-                      </Link>
+                      {cadence && !teamWeekly && completedReport(r) ? (
+                        <Link
+                          ref={r.id === focusId ? focusLink : undefined}
+                          className="underline underline-offset-4"
+                          to="/app/reports"
+                          search={{ period: cadence, report: r.id }}
+                        >
+                          {reportNames.get(r.rep_id) ?? ownRep?.name ?? "Rep unavailable"} ·{" "}
+                          {cadence === "daily" ? "Daily report" : "Weekly report"}
+                        </Link>
+                      ) : (
+                        <Link
+                          ref={r.id === focusId ? focusLink : undefined}
+                          className="underline underline-offset-4"
+                          to="/app/crm/calls"
+                          viewTransition
+                          onClick={(event) => {
+                            if (
+                              !canTransitionPage30() ||
+                              event.metaKey ||
+                              event.ctrlKey ||
+                              event.shiftKey ||
+                              event.altKey
+                            )
+                              return;
+                            const row = event.currentTarget.closest("tr");
+                            const previous = row
+                              ?.closest("tbody")
+                              ?.querySelector<HTMLElement>('[style*="view-transition-name"]');
+                            if (previous && previous !== row)
+                              previous.style.removeProperty("view-transition-name");
+                            row?.style.setProperty("view-transition-name", "bylda-report");
+                          }}
+                          search={{ view: "report", repId: r.rep_id, reportId: r.id }}
+                        >
+                          {reps.data?.find((p) => p.id === r.rep_id)?.name ?? "Rep unavailable"} ·
+                          Coaching report
+                        </Link>
+                      )}
                     </td>
                     <td className="whitespace-nowrap">
                       {r.period_start} – {r.period_end}
@@ -300,7 +389,7 @@ export function ReportsIndex({ focusId }: { focusId?: string } = {}) {
                 : "No reports yet. Select a rep to generate a report from analyzed calls."}
             </p>
           )}
-          {latest?.report && (
+          {!cadence && latest?.report && (
             <section className="page30-glass page30-priority">
               <p className="page30-label">Latest report takeaway</p>
               <h2>{latest.report.headline}</h2>

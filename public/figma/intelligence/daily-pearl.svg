@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="1129.3" height="1142.8" viewBox="0 0 1129.3 1142.8" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Pearl reflection" filter="url(#filter0_f_0_103)">
+<ellipse cx="564.65" cy="571.4" rx="419.65" ry="426.4" fill="#FCF8F0" fill-opacity="0.7"/>
+</g>
+<defs>
+<filter id="filter0_f_0_103" x="0" y="0" width="1129.3" height="1142.8" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="72.5" result="effect1_foregroundBlur_0_103"/>
+</filter>
+</defs>
+</svg>
