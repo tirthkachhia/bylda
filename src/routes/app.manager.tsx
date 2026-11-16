@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { coachingManagerPermissionQuery } from "@/lib/queries";
-import { TodayBrief } from "@/components/app/TodayBrief";
+import { ManagerIntelligenceFeed } from "@/components/app/ManagerIntelligenceFeed";
 import { useWorkspaceView } from "@/lib/workspace-view";
 
 export const Route = createFileRoute("/app/manager")({ component: ManagerHome });
@@ -41,5 +41,5 @@ function ManagerHome() {
         </Link>
       </section>
     );
-  return <TodayBrief />;
+  return <ManagerIntelligenceFeed />;
 }

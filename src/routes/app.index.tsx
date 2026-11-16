@@ -1,12 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { TodayBrief } from "@/components/app/TodayBrief";
+import { ManagerIntelligenceFeed } from "@/components/app/ManagerIntelligenceFeed";
+import { DailyIntelligence } from "@/components/app/coaching/DailyIntelligence";
 import { useAuth } from "@/lib/auth";
 import { coachingManagerPermissionQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/app/")({
-  validateSearch: (search: Record<string, unknown>): { view?: "start" | "brief" } => ({
-    view: search.view === "start" || search.view === "brief" ? search.view : undefined,
+  validateSearch: (search: Record<string, unknown>): { view?: "start" | "brief" | "coaching" } => ({
+    view:
+      search.view === "start" || search.view === "brief" || search.view === "coaching"
+        ? search.view
+        : undefined,
   }),
   component: IntelligenceHome,
 });
@@ -66,5 +71,7 @@ function IntelligenceHome() {
         </div>
       </section>
     );
-  return <TodayBrief personal={personal} briefOnly={view === "brief" && !personal} />;
+  if (personal) return view === "coaching" ? <TodayBrief personal /> : <DailyIntelligence />;
+  if (view === "brief") return <TodayBrief briefOnly />;
+  return <ManagerIntelligenceFeed />;
 }
