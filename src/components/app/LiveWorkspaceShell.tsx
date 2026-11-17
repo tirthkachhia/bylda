@@ -8,17 +8,16 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { ChevronDown, LogOut, Menu, Search, X } from "lucide-react";
+import { ChevronDown, LogOut, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { FigmaPageBrowser, FigmaViewLink } from "@/components/app/FigmaPageViews";
+import { FigmaViewLink } from "@/components/app/FigmaPageViews";
 import { figmaPageByKey } from "@/lib/figma-page-catalog";
 import { guestStore } from "@/lib/guest";
 import { supabase } from "@/integrations/supabase/client";
-import { integrationsQuery } from "@/lib/queries";
 import { clearLastAppPath } from "@/lib/session-restore";
 import { initials } from "@/lib/coaching/calls";
-import { behavioralNavigation, workspaceNavigation } from "@/lib/workspace-navigation";
+import { workspaceNavigation } from "@/lib/workspace-navigation";
 import { WorkspacePicker } from "./WorkspacePicker";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { WorkspaceSearch } from "./coaching/WorkspaceSearch";
@@ -29,7 +28,6 @@ import {
   type AskSource,
 } from "@/lib/coaching/ask-workspace";
 import { animatePage30Panel } from "@/lib/coaching/page30-motion";
-import { useWorkspaceView } from "@/lib/workspace-view";
 import { useCoachingWorkspaceAccess } from "@/lib/coaching/workspace-access";
 
 const dock = [
@@ -59,8 +57,7 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
   const viewPage = path.startsWith("/app/views/")
     ? figmaPageByKey(path.split("/").at(-1) ?? "")
     : undefined;
-  const [open, setOpen] = useState(false),
-    [leaving, setLeaving] = useState(false),
+  const [leaving, setLeaving] = useState(false),
     [searchOpen, setSearchOpen] = useState(false),
     [historyOpen, setHistoryOpen] = useState(false),
     [draft, setDraft] = useState(""),
@@ -73,17 +70,13 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
       error?: string;
       streaming?: boolean;
     } | null>(null);
-  const sidebar = useRef<HTMLElement>(null),
-    menuButton = useRef<HTMLButtonElement>(null);
   const searchButton = useRef<HTMLButtonElement>(null);
   const main = useRef<HTMLElement>(null);
   const dockTabs = useRef<HTMLElement>(null);
   const askRequest = useRef<AbortController | null>(null);
   const composer = useRef<HTMLFormElement>(null);
   const answerPanel = useRef<HTMLElement>(null);
-  const connections = useQuery({ ...integrationsQuery(user?.id ?? ""), enabled: !!user });
   const access = useCoachingWorkspaceAccess();
-  const managerView = useWorkspaceView() === "manager";
   const unread = useQuery({
     queryKey: ["figma-notifications", user?.id, "unread-count"],
     enabled: !!user,
@@ -155,7 +148,6 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
   const chatKey = `${currentOrgId}:${path}:${location.searchStr}`;
   const currentChat = chat?.key === chatKey ? chat : null;
   useEffect(() => {
-    setOpen(false);
     setSearchOpen(false);
   }, [path, view, reportId, callId, currentOrgId]);
   useEffect(() => () => askRequest.current?.abort(), [chatKey]);
@@ -232,34 +224,6 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
         });
     }
   }
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-        menuButton.current?.focus();
-      }
-      if (event.key === "Tab" && window.matchMedia("(max-width: 780px)").matches) {
-        const items = [
-          ...(sidebar.current?.querySelectorAll<HTMLElement>(
-            "a[href],button:not([disabled]),summary",
-          ) ?? []),
-        ];
-        const first = items[0],
-          last = items.at(-1);
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last?.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-    sidebar.current?.querySelector<HTMLElement>("a,button")?.focus();
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [open]);
   async function logout() {
     setLeaving(true);
     try {
@@ -274,11 +238,6 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
       setLeaving(false);
     }
   }
-  const sourceLabel = connections.isError
-    ? "Connection check failed"
-    : connections.isPending
-      ? "Checking sources…"
-      : `${connections.data?.filter((i) => i.is_connected && ["readymode", "close_io", "hubspot", "salesforce", "gohighlevel", "google_calendar", "zoom", "gong", "aircall", "googlemeet"].includes(i.integration_key)).length ?? 0} sources connected`;
   return (
     <div className="bylda light revenue-workspace v1-workspace page30-workspace figma-surface flex h-dvh overflow-hidden bg-by-surface-canvas text-by-text-primary">
       <a
@@ -351,143 +310,8 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           {initials(profile?.full_name ?? user?.email ?? "B")}
         </Link>
       </nav>
-      {open && (
-        <button
-          type="button"
-          aria-label="Dismiss navigation"
-          className="page30-sidebar-scrim fixed inset-0 z-30 bg-by-surface-scrim"
-          onClick={() => {
-            setOpen(false);
-            menuButton.current?.focus();
-          }}
-        />
-      )}
-      <aside
-        ref={sidebar}
-        id="workspace-navigation"
-        inert={!open}
-        aria-hidden={!open}
-        aria-label="Workspace navigation"
-        role={undefined}
-        className="page30-drawer min-h-0 shrink-0"
-        data-expanded={open}
-      >
-        <div className="page30-drawer-body">
-          <div className="mb-3 flex items-center justify-between px-2">
-            <Link to="/app" className="text-[15px] tracking-[-.15px]">
-              BYLDA
-            </Link>
-            <button
-              type="button"
-              aria-label="Close navigation"
-              onClick={() => {
-                setOpen(false);
-                menuButton.current?.focus();
-              }}
-              className="p-1"
-            >
-              <X size={17} />
-            </button>
-          </div>
-          <WorkspacePicker />
-          {managerView && access.manager && (
-            <div className="my-3 grid gap-2 text-xs">
-              <Link to="/app/manager" onClick={() => setOpen(false)}>
-                Manager home
-              </Link>
-              <Link to="/app/settings" search={{ tab: "teams" }} onClick={() => setOpen(false)}>
-                My team · Add agents
-              </Link>
-            </div>
-          )}
-          <p className="mb-3 text-[10px] text-by-text-secondary">{sourceLabel}</p>
-          <FigmaPageBrowser />
-          <nav aria-label="Workspace" className="space-y-1">
-            {behavioralNavigation
-              .filter((item) => access.manager || !["people", "insights"].includes(item.key))
-              .map((item) => (
-                <Link
-                  key={item.key}
-                  to={item.to}
-                  search={"view" in item ? ({ view: item.view } as never) : undefined}
-                  aria-current={active === item.key ? "page" : undefined}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-[13px] ${active === item.key ? "bg-by-surface-sidebar-active font-medium" : "hover:bg-by-surface-sidebar-hover"}`}
-                >
-                  <img src={`/figma/${item.asset}.svg`} alt="" />
-                  {item.label}
-                </Link>
-              ))}
-          </nav>
-          <section className="mt-6 space-y-1 text-xs" aria-label="Pinned views">
-            <h2 className="px-3 py-2 text-[11px] uppercase text-by-text-secondary">Pinned views</h2>
-            {["Needs review", "High coaching value", "Price objections"].map((label) => (
-              <FigmaViewLink
-                key={label}
-                screen="calls-saved-views"
-                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-by-text-secondary"
-              >
-                {label}
-                <span>—</span>
-              </FigmaViewLink>
-            ))}
-          </section>
-          <section className="mt-5 text-xs" aria-label="Conversations">
-            <h2 className="px-3 py-2 text-[11px] uppercase text-by-text-secondary">
-              Conversations
-            </h2>
-            <FigmaViewLink screen="rooms" className="flex w-full px-3 py-2">
-              Rooms and messages
-            </FigmaViewLink>
-          </section>
-          <nav aria-label="Workspace configuration" className="mt-auto space-y-1 pt-8">
-            <Link
-              to="/app/crm/calls"
-              search={{ view: "playbooks" }}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-[13px] ${view === "playbooks" && path === "/app/crm/calls" ? "bg-by-surface-sidebar-active" : ""}`}
-            >
-              <img src="/figma/nav-insights.svg" alt="" />
-              Methodology
-            </Link>
-            <Link
-              to="/app/integrations"
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-[13px]"
-            >
-              <img src="/figma/nav-integrations.svg" alt="" />
-              Integrations
-            </Link>
-            <Link
-              to="/app/settings"
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-[13px]"
-            >
-              <img src="/figma/nav-settings.svg" alt="" />
-              Settings
-            </Link>
-            <button
-              type="button"
-              disabled={leaving}
-              onClick={() => void logout()}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-xs text-by-text-secondary disabled:opacity-40"
-            >
-              <LogOut size={14} />
-              {leaving ? "Signing out…" : "Sign out"}
-            </button>
-          </nav>
-        </div>
-      </aside>
       <div className="page30-content flex min-w-0 flex-1 flex-col">
         <header className="page30-toolbar">
-          <button
-            ref={menuButton}
-            type="button"
-            aria-label="Open navigation"
-            aria-expanded={open}
-            aria-controls="workspace-navigation"
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-lg p-2"
-          >
-            <Menu size={19} />
-          </button>
           <Link to="/app" className="page30-toolbar-brand">
             BYLDA
           </Link>
@@ -525,6 +349,16 @@ export function LiveWorkspaceShell({ children }: { children: ReactNode }) {
           >
             + Upload
           </Link>
+          <button
+            type="button"
+            disabled={leaving}
+            onClick={() => void logout()}
+            aria-label={leaving ? "Signing out…" : "Sign out"}
+            title="Sign out"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-by-text-secondary disabled:opacity-40"
+          >
+            <LogOut size={17} aria-hidden="true" />
+          </button>
         </header>
         <main ref={main} id="workspace-content" className="min-h-0 flex-1 overflow-y-auto">
           <div className="page30-view" hidden={!!currentChat}>

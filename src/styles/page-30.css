@@ -67,7 +67,6 @@
   backdrop-filter: blur(9px);
 }
 
-.page30-drawer,
 .page30-dialog {
   background-color: var(--by-page30-opaque);
   color: var(--by-page30-ink);
@@ -1035,25 +1034,10 @@
   animation: page30-arrive var(--page30-motion) var(--page30-spring);
 }
 
-.page30-drawer:not([hidden]) {
-  animation: page30-slide-in var(--page30-motion) var(--page30-spring);
-}
-
 @keyframes page30-arrive {
   from {
     opacity: 0;
     translate: 0 7px;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
-}
-
-@keyframes page30-slide-in {
-  from {
-    opacity: 0.4;
-    translate: -18px 0;
   }
   to {
     opacity: 1;
@@ -1091,8 +1075,7 @@
   .page30-workspace .page30-view,
   .page30-setup-body > *,
   .page30-evidence-details[open] .page30-inline-call,
-  .page30-disclosure[open] > :not(summary),
-  .page30-drawer:not([hidden]) {
+  .page30-disclosure[open] > :not(summary) {
     animation-name: page30-fade;
   }
   .page30-workspace :is(button, a):active,
@@ -1241,29 +1224,6 @@
   }
 }
 
-.page30-workspace .page30-drawer {
-  overflow: hidden;
-  width: 0;
-  transition: width var(--page30-motion) var(--page30-spring);
-  animation: none;
-}
-
-.page30-workspace .page30-drawer[data-expanded="true"] {
-  width: 248px;
-}
-
-.page30-drawer-body {
-  display: flex;
-  flex-direction: column;
-  width: 248px;
-  height: 100%;
-  overflow: auto;
-  padding: 14px 12px;
-}
-
-.page30-sidebar-scrim {
-  display: none;
-}
 .page30-context-answer:focus {
   outline: none;
 }
@@ -1283,29 +1243,6 @@
     transition:
       transform var(--page30-press),
       box-shadow var(--page30-press);
-  }
-}
-
-@media (max-width: 780px) {
-  .page30-sidebar-scrim {
-    display: block;
-  }
-  .page30-workspace .page30-drawer {
-    position: fixed;
-    z-index: 40;
-    inset: 0 auto 0 0;
-    width: min(248px, 90vw);
-    translate: -100% 0;
-    transition: translate var(--page30-motion) var(--page30-spring);
-  }
-  .page30-workspace .page30-drawer[data-expanded="true"] {
-    translate: 0 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page30-workspace .page30-drawer {
-    transition: none;
   }
 }
 
