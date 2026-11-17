@@ -157,6 +157,10 @@ verify_jwt = false
 [functions.get-call-ingest-url]
 verify_jwt = true
 
+# User JWTs manage connections; hashed import-only tokens upload ReadyMode calls.
+[functions.readymode-extension]
+verify_jwt = false
+
 # Unified inbox AI reply generation.
 [functions.conversation-ai]
 verify_jwt = true

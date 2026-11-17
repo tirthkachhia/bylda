@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Inactive, FigmaRow } from "@/components/app/FigmaPrimitives";
+import { ReadyModeExtensionSetup } from "@/components/app/coaching/ReadyModeExtensionSetup";
 import { RecorderSetup } from "@/components/app/coaching/RecorderSetup";
 import { OutcomeImport } from "@/components/app/coaching/OutcomeImport";
 import { WorkspaceToolsNav } from "@/components/app/WorkspaceToolsNav";
@@ -53,6 +54,7 @@ import {
   type IntegrationCategory,
   type IntegrationDef,
 } from "@/lib/integrations-catalog";
+import { readyModeExtensionQuery } from "@/lib/readymode-extension";
 import { buildReadyModeConnectionRequest, readyModeProgress } from "@/lib/readymode";
 
 export const Route = createFileRoute("/app/integrations")({
@@ -91,6 +93,7 @@ function ConnectModal({
   const providerName = oauthProviderName(item.key);
   const managedCredential = credentialProvider(item.key);
   const isReadyMode = item.key === "readymode";
+  const [readyModeMethod, setReadyModeMethod] = useState<"extension" | "webhook">("extension");
   const primaryConnection = connected.find(
     (entry) => entry.integration_key === item.key && entry.is_connected,
   );
@@ -122,7 +125,7 @@ function ConnectModal({
   const ingestUrl = useQuery({
     queryKey: ["call-ingest-url", currentOrgId],
     queryFn: () => getCallIngestUrl(currentOrgId ?? undefined),
-    enabled: isReadyMode && !!user && !!currentOrgId,
+    enabled: isReadyMode && readyModeMethod === "webhook" && !!user && !!currentOrgId,
     staleTime: 5 * 60_000,
   });
   const readyModeStatus = useQuery({
@@ -271,184 +274,215 @@ function ConnectModal({
 
         {isReadyMode ? (
           <div className="space-y-4 pt-1">
-            <div
-              className="rounded-by-card p-4"
-              style={{
-                background: "color-mix(in oklab, var(--primary) 7%, var(--surface-2))",
-                border: "1px solid color-mix(in oklab, var(--primary) 22%, transparent)",
-              }}
-            >
-              <div className="flex items-start gap-3">
-                <ShieldCheck
-                  className="mt-0.5 h-5 w-5 shrink-0"
-                  style={{ color: "var(--primary)" }}
-                />
-                <div>
-                  <div className="text-[13px] font-semibold" style={{ color: "var(--foreground)" }}>
-                    {readyModeStep === 3
-                      ? "ReadyMode is connected"
-                      : "Connect ReadyMode in 3 steps"}
+            <div role="tablist" aria-label="ReadyMode connection method" className="flex gap-2">
+              {(
+                [
+                  ["extension", "Chrome extension"],
+                  ["webhook", "Admin webhook"],
+                ] as const
+              ).map(([method, label]) => (
+                <Button
+                  key={method}
+                  role="tab"
+                  aria-selected={readyModeMethod === method}
+                  variant={readyModeMethod === method ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setReadyModeMethod(method)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {readyModeMethod === "extension" ? (
+              <ReadyModeExtensionSetup />
+            ) : (
+              <>
+                <div
+                  className="rounded-by-card p-4"
+                  style={{
+                    background: "color-mix(in oklab, var(--primary) 7%, var(--surface-2))",
+                    border: "1px solid color-mix(in oklab, var(--primary) 22%, transparent)",
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck
+                      className="mt-0.5 h-5 w-5 shrink-0"
+                      style={{ color: "var(--primary)" }}
+                    />
+                    <div>
+                      <div
+                        className="text-[13px] font-semibold"
+                        style={{ color: "var(--foreground)" }}
+                      >
+                        {readyModeStep === 3
+                          ? "ReadyMode is connected"
+                          : "Connect ReadyMode in 3 steps"}
+                      </div>
+                      <p
+                        className="mt-1 text-[11.5px] leading-relaxed"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        {readyModeStep === 3
+                          ? "Bylda received a call, stored its transcript, and finished the AI analysis."
+                          : "You do not need to share your ReadyMode password. Copy one secure URL, send it to your admin, then make a test call."}
+                      </p>
+                    </div>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label
+                    htmlFor="readymode-webhook-url"
+                    className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Step 1 — Copy your Bylda call URL
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      id="readymode-webhook-url"
+                      readOnly
+                      value={
+                        ingestUrl.isPending
+                          ? "Generating secure URL…"
+                          : (ingestUrl.data?.url ?? "Webhook URL is not configured")
+                      }
+                      className="min-w-0 flex-1 rounded-lg px-3 py-2 text-[11px] outline-none"
+                      style={{
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border)",
+                        color: "var(--foreground)",
+                      }}
+                      onFocus={(event) => event.currentTarget.select()}
+                    />
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={copyWebhookUrl}
+                      disabled={!ingestUrl.data?.url}
+                      aria-label="Copy ReadyMode webhook URL"
+                    >
+                      <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy
+                    </Button>
+                  </div>
+                  <p
+                    className="text-[10.5px] leading-relaxed"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    This URL is unique to this workspace. Keep it private.
+                  </p>
+                </div>
+
+                {ingestUrl.isError && (
+                  <p className="text-[11.5px]" style={{ color: "var(--destructive)" }}>
+                    Could not load the webhook URL. Try refreshing or ask a workspace administrator.
+                  </p>
+                )}
+
+                <div
+                  className="rounded-by-card p-4"
+                  style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+                >
+                  <div className="text-[12.5px] font-semibold">Step 2 — Send it to your admin</div>
                   <p
                     className="mt-1 text-[11.5px] leading-relaxed"
                     style={{ color: "var(--muted-foreground)" }}
                   >
-                    {readyModeStep === 3
-                      ? "Bylda received a call, stored its transcript, and finished the AI analysis."
-                      : "You do not need to share your ReadyMode password. Copy one secure URL, send it to your admin, then make a test call."}
+                    Ask your ReadyMode administrator or support team to send completed calls to this
+                    URL. We prepared the exact request for you.
                   </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label
-                htmlFor="readymode-webhook-url"
-                className="text-[11px] font-semibold uppercase tracking-[0.08em]"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                Step 1 — Copy your Bylda call URL
-              </label>
-              <div className="flex gap-2">
-                <input
-                  id="readymode-webhook-url"
-                  readOnly
-                  value={
-                    ingestUrl.isPending
-                      ? "Generating secure URL…"
-                      : (ingestUrl.data?.url ?? "Webhook URL is not configured")
-                  }
-                  className="min-w-0 flex-1 rounded-lg px-3 py-2 text-[11px] outline-none"
-                  style={{
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                  onFocus={(event) => event.currentTarget.select()}
-                />
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={copyWebhookUrl}
-                  disabled={!ingestUrl.data?.url}
-                  aria-label="Copy ReadyMode webhook URL"
-                >
-                  <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy
-                </Button>
-              </div>
-              <p
-                className="text-[10.5px] leading-relaxed"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                This URL is unique to this workspace. Keep it private.
-              </p>
-            </div>
-
-            {ingestUrl.isError && (
-              <p className="text-[11.5px]" style={{ color: "var(--destructive)" }}>
-                Could not load the webhook URL. Try refreshing or ask a workspace administrator.
-              </p>
-            )}
-
-            <div
-              className="rounded-by-card p-4"
-              style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-            >
-              <div className="text-[12.5px] font-semibold">Step 2 — Send it to your admin</div>
-              <p
-                className="mt-1 text-[11.5px] leading-relaxed"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                Ask your ReadyMode administrator or support team to send completed calls to this
-                URL. We prepared the exact request for you.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 w-full"
-                onClick={copyReadyModeRequest}
-                disabled={!ingestUrl.data?.url}
-              >
-                <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy message for my admin
-              </Button>
-            </div>
-
-            <div
-              className="rounded-by-card p-4"
-              style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[12.5px] font-semibold">Step 3 — Make one test call</div>
-                  <p className="mt-1 text-[11.5px]" style={{ color: "var(--muted-foreground)" }}>
-                    Complete a connected call lasting at least 45 seconds, then check the
-                    connection.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void readyModeStatus.refetch()}
-                  disabled={readyModeStatus.isFetching}
-                >
-                  <RefreshCw
-                    className={`mr-1.5 h-3.5 w-3.5 ${readyModeStatus.isFetching ? "animate-spin" : ""}`}
-                  />
-                  Check
-                </Button>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {[
-                  ["Call received", readyModeStep >= 1],
-                  ["Transcript", readyModeStep >= 2],
-                  ["AI analyzed", readyModeStep >= 3],
-                ].map(([label, complete]) => (
-                  <div
-                    key={String(label)}
-                    className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-[10.5px]"
-                    style={{
-                      background: "var(--surface)",
-                      color: complete ? "var(--success)" : "var(--muted-foreground)",
-                    }}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full"
+                    onClick={copyReadyModeRequest}
+                    disabled={!ingestUrl.data?.url}
                   >
-                    {complete ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                    ) : (
-                      <Circle className="h-3.5 w-3.5 shrink-0" />
-                    )}
-                    <span>{String(label)}</span>
-                  </div>
-                ))}
-              </div>
-              {readyModeStatus.data?.lastCallAt && (
-                <p className="mt-2 text-[10.5px]" style={{ color: "var(--muted-foreground)" }}>
-                  Last ReadyMode call received{" "}
-                  {new Date(readyModeStatus.data.lastCallAt).toLocaleString()}.
-                </p>
-              )}
-              {readyModeStep === 1 && (
-                <p className="mt-2 text-[10.5px]" style={{ color: "var(--destructive)" }}>
-                  The call arrived, but no transcript was stored (
-                  {readyModeStatus.data?.transcriptionStatus ?? "no transcript supplied"}). Ask
-                  ReadyMode to include a recording URL or transcript.
-                </p>
-              )}
-            </div>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy message for my admin
+                  </Button>
+                </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" asChild>
-                <a
-                  href="https://help.readymode.com/support/solutions/articles/11000083503-readymode-integrations"
-                  target="_blank"
-                  rel="noreferrer"
+                <div
+                  className="rounded-by-card p-4"
+                  style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
                 >
-                  Need admin help? <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-                </a>
-              </Button>
-              <Button variant="outline" onClick={onClose}>
-                Done
-              </Button>
-            </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[12.5px] font-semibold">Step 3 — Make one test call</div>
+                      <p
+                        className="mt-1 text-[11.5px]"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        Complete a connected call lasting at least 45 seconds, then check the
+                        connection.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void readyModeStatus.refetch()}
+                      disabled={readyModeStatus.isFetching}
+                    >
+                      <RefreshCw
+                        className={`mr-1.5 h-3.5 w-3.5 ${readyModeStatus.isFetching ? "animate-spin" : ""}`}
+                      />
+                      Check
+                    </Button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {[
+                      ["Call received", readyModeStep >= 1],
+                      ["Transcript", readyModeStep >= 2],
+                      ["AI analyzed", readyModeStep >= 3],
+                    ].map(([label, complete]) => (
+                      <div
+                        key={String(label)}
+                        className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-[10.5px]"
+                        style={{
+                          background: "var(--surface)",
+                          color: complete ? "var(--success)" : "var(--muted-foreground)",
+                        }}
+                      >
+                        {complete ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <Circle className="h-3.5 w-3.5 shrink-0" />
+                        )}
+                        <span>{String(label)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {readyModeStatus.data?.lastCallAt && (
+                    <p className="mt-2 text-[10.5px]" style={{ color: "var(--muted-foreground)" }}>
+                      Last ReadyMode call received{" "}
+                      {new Date(readyModeStatus.data.lastCallAt).toLocaleString()}.
+                    </p>
+                  )}
+                  {readyModeStep === 1 && (
+                    <p className="mt-2 text-[10.5px]" style={{ color: "var(--destructive)" }}>
+                      The call arrived, but no transcript was stored (
+                      {readyModeStatus.data?.transcriptionStatus ?? "no transcript supplied"}). Ask
+                      ReadyMode to include a recording URL or transcript.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" asChild>
+                    <a
+                      href="https://help.readymode.com/support/solutions/articles/11000083503-readymode-integrations"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Need admin help? <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                  <Button variant="outline" onClick={onClose}>
+                    Done
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         ) : providerName && !usingCredentialFallback ? (
           <div className="space-y-4 pt-1">
@@ -721,6 +755,7 @@ function IntegrationsPage() {
   const queryClient = useQueryClient();
   const q = useQuery({ ...integrationsQuery(user?.id ?? ""), enabled: !!user });
   const home = useQuery(managerHomeQuery(currentOrgId ?? ""));
+  const extensionConnection = useQuery(readyModeExtensionQuery(currentOrgId ?? "", user?.id ?? ""));
   const [tab, setTab] = useState<"sources" | "delivery">(Route.useSearch().tab);
   const [connecting, setConnecting] = useState<IntegrationDef | null>(null);
   const [recorder, setRecorder] = useState<string | null>(null),
@@ -759,7 +794,7 @@ function IntegrationsPage() {
               ["gong", "Gong", "Recorder + transcripts", false],
               ["aircall", "Aircall", "Dialer", false],
               ["googlemeet", "Google Meet", "Meeting recorder", false],
-              ["readymode", "ReadyMode", "Call ingestion", true],
+              ["readymode", "ReadyMode", "Chrome extension or completed-call webhook", true],
               ["close_io", "Close", "Calls and CRM", true],
             ],
           ],
@@ -835,6 +870,8 @@ function IntegrationsPage() {
                 {rows.map(([key, name, detail, supported]) => {
                   const item = CATALOG.find((i) => i.key === key);
                   const entry = connected.find((i) => i.integration_key === key && i.is_connected);
+                  const isConnected =
+                    !!entry || (key === "readymode" && !!extensionConnection.data?.connected);
                   const active = supported && !!item;
                   return (
                     <div
@@ -848,7 +885,7 @@ function IntegrationsPage() {
                       </div>
                       <span className="text-[11px] text-by-text-secondary">
                         {active
-                          ? entry
+                          ? isConnected
                             ? "Connected"
                             : "Not connected"
                           : tab === "sources"
@@ -861,7 +898,7 @@ function IntegrationsPage() {
                           className="figma-button"
                           onClick={() => setConnecting(item)}
                         >
-                          {entry ? "Manage" : "Connect"}
+                          {isConnected ? "Manage" : "Connect"}
                         </button>
                       ) : tab === "sources" ? (
                         <button className="figma-button" onClick={() => setRecorder(name)}>

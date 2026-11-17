@@ -108,9 +108,10 @@ export const CATALOG: IntegrationDef[] = [
     key: "readymode",
     name: "ReadyMode",
     category: "CRM & Sales",
-    description: "Send completed calls and recordings to Bylda for transcription and CRM insights.",
+    description:
+      "Import calls and transcripts with the Chrome extension or a completed-call webhook.",
     inputType: "oauth",
-    hint: "Secure call webhook",
+    hint: "Chrome extension or secure call webhook",
   },
   {
     key: "pipedrive",

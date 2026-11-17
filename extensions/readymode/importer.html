@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>BYLDA · ReadyMode Importer</title>
+    <link rel="stylesheet" href="importer.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="brand">BYLDA</span><span class="tag">READYMODE</span>
+        <h1>Your calls. Ready for coaching.</h1>
+        <p>Review calls from your ReadyMode page, then bring them into your workspace.</p>
+      </header>
+      <section aria-labelledby="connection-heading">
+        <h2 id="connection-heading">1. Connect your workspace</h2>
+        <p>
+          In
+          <a href="https://app.usebylda.com/app/integrations" target="_blank" rel="noreferrer"
+            >BYLDA → Integrations → ReadyMode → Chrome extension</a
+          >, create and copy a connection code.
+        </p>
+        <label for="connection">Private connection code</label
+        ><textarea
+          id="connection"
+          rows="3"
+          placeholder="Paste your BYLDA connection code"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+        <div class="actions">
+          <button id="connect">Save connection</button
+          ><button id="forget" class="secondary">Forget on this browser</button>
+        </div>
+        <p id="connection-status" role="status"></p>
+      </section>
+      <section aria-labelledby="calls-heading">
+        <div class="section-title">
+          <h2 id="calls-heading">2. Review your calls</h2>
+          <button id="rescan" class="secondary">Scan page again</button>
+        </div>
+        <p id="scan-status" role="status"></p>
+        <div id="calls"></div>
+        <details>
+          <summary>Add a call manually</summary>
+          <p>If ReadyMode hides the download link, attach the recording or transcript yourself.</p>
+          <label for="manual-id">ReadyMode call ID</label
+          ><input id="manual-id" placeholder="Stable call ID from ReadyMode" /><label
+            for="manual-url"
+            >ReadyMode page URL</label
+          ><input
+            id="manual-url"
+            type="url"
+            placeholder="https://your-team.readymode.com/…"
+          /><button id="add" class="secondary">Add call</button>
+        </details>
+      </section>
+      <section>
+        <h2>3. Import selected calls</h2>
+        <label class="check"
+          ><input id="consent" type="checkbox" />I have permission to import and process these
+          recordings and transcripts in this BYLDA workspace.</label
+        ><button id="import">Import selected calls</button>
+        <p id="import-status" role="status" aria-live="polite"></p>
+        <p class="small">
+          Keep this tab open during import. Recordings are stored privately in BYLDA. Available
+          transcripts are imported directly; audio is transcribed by BYLDA. Calls already imported
+          are reused when retried.
+        </p>
+      </section>
+      <footer>
+        Only calls you select are sent to BYLDA. No ReadyMode password is collected.
+        <a href="https://app.usebylda.com/app/crm/calls" target="_blank" rel="noreferrer"
+          >Open BYLDA calls ↗</a
+        >
+      </footer>
+    </main>
+    <script type="module" src="importer.js"></script>
+  </body>
+</html>

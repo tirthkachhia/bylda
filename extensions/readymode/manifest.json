@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "BYLDA · ReadyMode Call Importer",
+  "version": "1.0.0",
+  "description": "Review and import ReadyMode recordings and available transcripts into your BYLDA workspace.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://ipidfqwlszuhjgjygbvx.supabase.co/*"],
+  "optional_host_permissions": [
+    "https://*.readymode.com/*",
+    "https://*.xencall.com/*",
+    "https://*.amazonaws.com/*",
+    "https://*.cloudfront.net/*"
+  ],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Import ReadyMode calls into BYLDA" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'" }
+}

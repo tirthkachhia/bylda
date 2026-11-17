@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "bun run extension:package && vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -14,7 +14,8 @@
     "test:context": "bun test src/lib/__tests__/context-package.test.ts src/lib/__tests__/crm-adapters.test.ts",
     "test:context:local": "bun scripts/context-memory-smoke.ts",
     "test:watch": "vitest",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "extension:package": "node scripts/package-readymode-extension.mjs"
   },
   "dependencies": {
     "@fontsource/cinzel": "^5.3.0",

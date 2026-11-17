@@ -25,6 +25,8 @@ jobs:
       - name: Check edge functions
         run: >-
           deno check --node-modules-dir=none --no-config --no-lock
+          supabase/functions/readymode-extension/index.ts
+          supabase/functions/import-call/index.ts
           supabase/functions/analyze-call/index.ts
           supabase/functions/coaching-ask/index.ts
           supabase/functions/coaching-report/index.ts
